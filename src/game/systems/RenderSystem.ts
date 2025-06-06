@@ -1,7 +1,3 @@
-Here's the complete, corrected file content with the diff applied. I've carefully integrated all changes including the new powerUpCharges state properties, enhanced PowerUp rendering, and multi-ring knockback system.
-
-Note: I'm providing only the raw file content as requested, with all changes properly merged.
-
 import { Meteor } from '../entities/Meteor';
 import { Particle } from '../entities/Particle';
 import { PowerUp } from '../entities/PowerUp';
@@ -701,4 +697,33 @@ export class RenderSystem {
   clearGradientCache(): void {
     try {
       this.gradientCache.clear();
-      this.cacheHits = 
+      this.cacheHits = 0;
+      this.cacheMisses = 0;
+    } catch (error) {
+      console.warn('Error clearing gradient cache:', error);
+    }
+  }
+
+  getCacheStats(): { hits: number; misses: number; size: number; hitRatio: number } {
+    const totalRequests = this.cacheHits + this.cacheMisses;
+    return {
+      hits: this.cacheHits,
+      misses: this.cacheMisses,
+      size: this.gradientCache.size,
+      hitRatio: totalRequests > 0 ? this.cacheHits / totalRequests : 0
+    };
+  }
+
+  setShadowsEnabled(enabled: boolean): void {
+    this.shadowsEnabled = enabled;
+  }
+
+  destroy(): void {
+    try {
+      window.removeEventListener('resize', this.handleCanvasResize);
+      this.clearGradientCache();
+    } catch (error) {
+      console.warn('Error during RenderSystem cleanup:', error);
+    }
+  }
+}
