@@ -6,6 +6,7 @@ import { RenderSystem } from './systems/RenderSystem';
 import { ParticleSystem } from './systems/ParticleSystem';
 import { CollisionSystem } from './systems/CollisionSystem';
 import { ScoreSystem, ScoreBreakdown, ComboInfo } from './systems/ScoreSystem';
+import { GameEngine } from './GameEngine';
 
 interface GameSettings {
   volume: number;
@@ -21,14 +22,11 @@ interface GameSettings {
 
 export default class Engine {
   private canvas: HTMLCanvasElement;
-  private animationFrame: number | null = null;
-  private lastTime: number = 0;
-  private gameTime: number = 0;
+  private gameEngine: GameEngine;
   private started: boolean = false;
   private gracePeriodActive: boolean = false;
   private gracePeriodDuration: number = 3000; // 3 seconds
   private gracePeriodStartTime: number = 0;
-  private isPaused: boolean = false;
   private pausedTime: number = 0;
   private lastPauseTime: number = 0;
   
@@ -120,10 +118,20 @@ export default class Engine {
     autoScaling: { enabled: boolean; shadowsEnabled: boolean; maxParticles: number; adaptiveTrailsActive: boolean };
     performance: { averageFrameTime: number; memoryUsage: number; lastScalingEvent: string };
     settings: GameSettings;
+    powerUpCharges?: number;
+    maxPowerUpCharges?: number;
   }) => void = () => {};
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
+    
+    // Initialize GameEngine with configuration
+    this.gameEngine = new GameEngine({
+      canvas: canvas,
+      maxMeteors: this.MAX_METEORS,
+      targetFPS: 60,
+      enablePerformanceMode: true
+    });
     
     // Initialize systems
     this.renderSystem = new RenderSystem(canvas);
@@ -195,7 +203,7 @@ export default class Engine {
   };
 
   private handleWindowFocus = () => {
-    if (this.isPaused && !this.isGameOver && this.started) {
+    if (this.isPausedState() && !this.isGameOver && this.started) {
       this.resumeGame();
       console.log('🎮 Game resumed - window gained focus');
     }
@@ -208,7 +216,7 @@ export default class Engine {
         console.log('🎮 Game paused - tab hidden');
       }
     } else {
-      if (this.isPaused && !this.isGameOver && this.started) {
+      if (this.isPausedState() && !this.isGameOver && this.started) {
         this.resumeGame();
         console.log('🎮 Game resumed - tab visible');
       }
@@ -216,22 +224,14 @@ export default class Engine {
   };
 
   private pauseGame(): void {
-    if (this.isPaused) return;
+    if (this.isPausedState()) return;
     
-    this.isPaused = true;
     this.lastPauseTime = performance.now();
-    
-    // Stop the animation frame loop
-    if (this.animationFrame !== null) {
-      cancelAnimationFrame(this.animationFrame);
-      this.animationFrame = null;
-    }
+    this.gameEngine.pause();
   }
 
   private resumeGame(): void {
-    if (!this.isPaused) return;
-    
-    this.isPaused = false;
+    if (!this.isPausedState()) return;
     
     // Calculate how long we were paused and adjust timers
     const pauseDuration = performance.now() - this.lastPauseTime;
@@ -245,11 +245,7 @@ export default class Engine {
     // Adjust FPS tracking
     this.fpsLastTime += pauseDuration;
     
-    // Reset last time to prevent large delta
-    this.lastTime = performance.now();
-    
-    // Resume the game loop
-    this.animationFrame = requestAnimationFrame(this.gameLoop);
+    this.gameEngine.resume();
   }
 
   private applyPerformanceMode(enabled: boolean): void {
@@ -475,7 +471,7 @@ export default class Engine {
     const isSuper = Math.random() < 0.15;
     
     const baseSpeed = 0.8;
-    const speedIncrease = Math.min(this.gameTime / 90, 2.0);
+    const speedIncrease = Math.min(this.getGameTime() / 90, 2.0);
     let speed = baseSpeed + speedIncrease;
     speed *= 0.8 + Math.random() * 0.4;
     if (isSuper) speed *= 2;
@@ -511,7 +507,7 @@ export default class Engine {
     this.frameCount++;
     
     // Track frame times for average calculation
-    const frameTime = timestamp - this.lastTime;
+    const frameTime = timestamp - this.fpsLastTime;
     this.frameTimes.push(frameTime);
     if (this.frameTimes.length > 60) { // Keep last 60 frames
       this.frameTimes.shift();
@@ -608,7 +604,7 @@ export default class Engine {
 
   private update(deltaTime: number) {
     if (this.isGameOver) return;
-    if (this.isPaused) return;
+    if (this.isPausedState()) return;
     
     // Handle grace period
     if (this.gracePeriodActive) {
@@ -622,18 +618,18 @@ export default class Engine {
     // Apply adaptive particle limits based on current FPS
     // Note: Particle limits now handled by auto-scaling in updateFPS()
     
-    this.gameTime += deltaTime / 1000;
+    const gameTime = this.getGameTime();
     
     // Clear spatial grid
     this.spatialGrid.clear();
     
     // Update systems
-    this.powerUpManager.update(this.gameTime, deltaTime);
+    this.powerUpManager.update(gameTime, deltaTime);
     this.particleSystem.update(deltaTime);
     this.scoreSystem.update(deltaTime, performance.now());
     
     // Update survival score
-    this.scoreSystem.updateSurvivalScore(this.gameTime);
+    this.scoreSystem.updateSurvivalScore(gameTime);
     
     const collectedPowerUp = this.powerUpManager.checkCollision(this.mouseX, this.mouseY);
     if (collectedPowerUp && collectedPowerUp.type === 'knockback') {
@@ -679,14 +675,14 @@ export default class Engine {
     this.gameStats.lastPlayerY = this.mouseY;
     
     // Update survival time
-    this.gameStats.survivalTime = this.gameTime;
+    this.gameStats.survivalTime = gameTime;
 
     // Spawn meteors with performance consideration
     // Only spawn meteors after grace period
     if (!this.gracePeriodActive) {
       const baseSpawnChance = 0.003;
       const maxSpawnChance = 0.02;
-      const spawnIncrease = Math.min(this.gameTime / 150, maxSpawnChance - baseSpawnChance);
+      const spawnIncrease = Math.min(gameTime / 150, maxSpawnChance - baseSpawnChance);
       if (Math.random() < baseSpawnChance + spawnIncrease) {
         this.spawnMeteor();
       }
@@ -747,7 +743,7 @@ export default class Engine {
           score: this.scoreSystem.getTotalScore(),
           scoreBreakdown: this.scoreSystem.getScoreBreakdown(),
           comboInfo: this.scoreSystem.getComboInfo(),
-          time: this.gameTime, 
+          time: gameTime, 
           isGameOver: true, 
           fps: this.currentFPS,
           meteors: this.meteorCount,
@@ -767,7 +763,9 @@ export default class Engine {
             memoryUsage: this.memoryUsageEstimate,
             lastScalingEvent: this.lastScalingEvent
           },
-          settings: this.gameSettings
+          settings: this.gameSettings,
+          powerUpCharges: this.powerUpManager.getCharges(),
+          maxPowerUpCharges: this.powerUpManager.getMaxCharges()
         });
         
         return;
@@ -787,7 +785,7 @@ export default class Engine {
       score: this.scoreSystem.getTotalScore(),
       scoreBreakdown: this.scoreSystem.getScoreBreakdown(),
       comboInfo: this.scoreSystem.getComboInfo(),
-      time: this.gameTime, 
+      time: gameTime, 
       isGameOver: this.isGameOver, 
       fps: this.currentFPS,
       meteors: this.meteorCount,
@@ -807,12 +805,14 @@ export default class Engine {
         memoryUsage: this.memoryUsageEstimate,
         lastScalingEvent: this.lastScalingEvent
       },
-      settings: this.gameSettings
+      settings: this.gameSettings,
+      powerUpCharges: this.powerUpManager.getCharges(),
+      maxPowerUpCharges: this.powerUpManager.getMaxCharges()
     });
   }
 
   private render() {
-    if (this.isPaused) {
+    if (this.isPausedState()) {
       // Render pause overlay
       this.renderPauseOverlay();
       return;
@@ -871,30 +871,29 @@ export default class Engine {
     
     ctx.shadowBlur = 0;
   }
+
+  // Game loop now delegated to GameEngine
   private gameLoop = (timestamp: number) => {
-    if (this.isPaused) return;
-    
-    const deltaTime = timestamp - this.lastTime;
-    this.lastTime = timestamp;
+    const deltaTime = timestamp - this.fpsLastTime;
+    this.fpsLastTime = timestamp;
 
     this.updateFPS(timestamp);
     this.update(deltaTime);
     this.render();
-
-    this.animationFrame = requestAnimationFrame(this.gameLoop);
   };
 
   start() {
-    if (this.animationFrame === null) {
-      this.lastTime = performance.now();
-      this.fpsLastTime = this.lastTime;
-      this.started = true;
-      this.gracePeriodActive = true;
-      this.gracePeriodStartTime = this.lastTime;
-      this.animationFrame = requestAnimationFrame(this.gameLoop);
-      
-      console.log('🎮 Game started with 3-second grace period');
-    }
+    if (this.started) return;
+    
+    this.started = true;
+    this.gracePeriodActive = true;
+    this.gracePeriodStartTime = performance.now();
+    this.fpsLastTime = performance.now();
+    
+    // Start the GameEngine
+    this.gameEngine.start();
+    
+    console.log('🎮 Game started with 3-second grace period');
   }
 
   preWarm() {
@@ -903,8 +902,7 @@ export default class Engine {
     console.log('🔥 Pre-warming game engine systems');
     
     // Initialize timing
-    this.lastTime = performance.now();
-    this.fpsLastTime = this.lastTime;
+    this.fpsLastTime = performance.now();
     
     // Pre-allocate some objects in pools
     for (let i = 0; i < 10; i++) {
@@ -916,16 +914,14 @@ export default class Engine {
     this.particleSystem.reset();
     
     // Pre-warm render system
-    this.renderSystem.preWarm();
+    this.renderSystem.clearGradientCache();
     
     console.log('🔥 Engine pre-warming complete');
   }
+
   stop() {
-    if (this.animationFrame !== null) {
-      cancelAnimationFrame(this.animationFrame);
-      this.animationFrame = null;
-      this.started = false;
-    }
+    this.gameEngine.stop();
+    this.started = false;
     
     // Clean up pools and systems
     this.meteorPool.clear();
@@ -954,11 +950,13 @@ export default class Engine {
   }
 
   resetGame() {
+    // Use GameEngine's comprehensive reset functionality
+    this.gameEngine.reset();
+    
+    // Reset Engine-specific state
     this.isGameOver = false;
-    this.isPaused = false;
     this.pausedTime = 0;
     this.lastPauseTime = 0;
-    this.gameTime = 0;
     this.gracePeriodActive = true;
     this.gracePeriodStartTime = performance.now();
     this.knockbackCooldown = 0;
@@ -1024,11 +1022,16 @@ export default class Engine {
   }
 
   isPausedState(): boolean {
-    return this.isPaused;
+    return this.gameEngine.getGameState().isPaused;
   }
 
   getSettings(): GameSettings {
     return { ...this.gameSettings };
+  }
+  
+  // Get game time from GameEngine
+  getGameTime(): number {
+    return this.gameEngine.getGameState().gameTime;
   }
   
   // Performance mode control methods
