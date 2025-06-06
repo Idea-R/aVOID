@@ -541,8 +541,8 @@ export default class Engine {
       if (this.autoPerformanceModeEnabled && !this.performanceModeActive) {
         if (this.currentFPS < this.lowFPSThreshold) {
           if (this.lowFPSStartTime === 0) {
-            this.lowFPSStartTime = now;
-          } else if (now - this.lowFPSStartTime >= this.lowFPSDuration) {
+            this.lowFPSStartTime = timestamp;
+          } else if (timestamp - this.lowFPSStartTime >= this.lowFPSDuration) {
             // Enable performance mode automatically
             this.gameSettings.performanceMode = true;
             this.applyPerformanceMode(true);
@@ -771,6 +771,7 @@ export default class Engine {
 
   private renderPauseOverlay(): void {
     const ctx = this.canvas.getContext('2d');
+    
     if (!ctx) return;
     
     // Semi-transparent overlay
