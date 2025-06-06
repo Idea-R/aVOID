@@ -1,6 +1,7 @@
 import { Meteor } from '../entities/Meteor';
 import { Particle } from '../entities/Particle';
 import { PowerUp } from '../entities/PowerUp';
+import { ScoreText } from '../entities/ScoreText';
 
 interface GameSettings {
   volume: number;
@@ -18,6 +19,7 @@ interface RenderState {
   activeMeteors: Meteor[];
   activeParticles: Particle[];
   powerUps: PowerUp[];
+  scoreTexts: ScoreText[];
   playerTrail: Array<{ x: number; y: number; alpha: number }>;
   isGameOver: boolean;
   hasKnockbackPower: boolean;
@@ -31,7 +33,7 @@ interface ShadowGroup {
   blur: number;
   color: string;
   objects: Array<{
-    type: 'meteor' | 'meteorTrail' | 'particle' | 'powerUp' | 'player' | 'playerTrail' | 'knockbackRing';
+    type: 'meteor' | 'meteorTrail' | 'particle' | 'powerUp' | 'player' | 'playerTrail' | 'knockbackRing' | 'scoreText';
     data: any;
   }>;
 }
@@ -186,6 +188,13 @@ export class RenderSystem {
         state.activeParticles.filter(p => p.active).map(particle => ({ type: 'particle' as const, data: particle }))
       );
     }
+
+    // Group score texts (no shadow for performance)
+    if (state.scoreTexts.length > 0) {
+      this.addToShadowGroup('0:scoreText', 0, '', 
+        state.scoreTexts.filter(st => st.active).map(scoreText => ({ type: 'scoreText' as const, data: scoreText }))
+      );
+    }
   }
 
   private addToShadowGroup(key: string, blur: number, color: string, objects: Array<{ type: any; data: any }>): void {
@@ -243,7 +252,8 @@ export class RenderSystem {
       `15:${cursorColor}`,    // Player trail
       `10:${cursorColor}`,    // Knockback ring
       `20:${cursorColor}`,    // Player
-      '8:particle'     // Particles (foreground)
+     '8:particle',    // Particles
+     '0:scoreText'    // Score texts (foreground, no shadow)
     ];
   }
 
@@ -269,6 +279,9 @@ export class RenderSystem {
         break;
       case 'particle':
         this.drawParticle(obj.data);
+        break;
+      case 'scoreText':
+        this.drawScoreText(obj.data);
         break;
     }
   }
@@ -389,6 +402,37 @@ export class RenderSystem {
       this.ctx.shadowColor = particle.color;
     }
     this.ctx.fill();
+  }
+
+  private drawScoreText(scoreText: ScoreText): void {
+    this.ctx.save();
+    
+    // Set font properties
+    const weight = scoreText.type === 'combo' ? 'bold' : 'normal';
+    this.ctx.font = `${weight} ${scoreText.fontSize}px Arial`;
+    this.ctx.textAlign = 'center';
+    this.ctx.textBaseline = 'middle';
+    
+    // Apply alpha
+    this.ctx.globalAlpha = scoreText.alpha;
+    
+    // Add glow effect for combo and perfect scores
+    if (scoreText.type === 'combo' || scoreText.type === 'perfect') {
+      this.ctx.shadowColor = scoreText.color;
+      this.ctx.shadowBlur = 10;
+      this.ctx.strokeStyle = 'rgba(0, 0, 0, 0.8)';
+      this.ctx.lineWidth = 3;
+      this.ctx.strokeText(scoreText.text, scoreText.x, scoreText.y);
+    }
+    
+    // Draw main text
+    this.ctx.fillStyle = scoreText.color;
+    this.ctx.fillText(scoreText.text, scoreText.x, scoreText.y);
+    
+    // Reset shadow
+    this.ctx.shadowBlur = 0;
+    
+    this.ctx.restore();
   }
 
   // Helper function to convert hex color to rgba

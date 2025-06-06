@@ -5,6 +5,7 @@ import { Meteor, createMeteor, resetMeteor, initializeMeteor } from './entities/
 import { RenderSystem } from './systems/RenderSystem';
 import { ParticleSystem } from './systems/ParticleSystem';
 import { CollisionSystem } from './systems/CollisionSystem';
+import { ScoreSystem, ScoreBreakdown, ComboInfo } from './systems/ScoreSystem';
 
 interface GameSettings {
   volume: number;
@@ -23,7 +24,6 @@ export default class Engine {
   private animationFrame: number | null = null;
   private lastTime: number = 0;
   private gameTime: number = 0;
-  private score: number = 0;
   private started: boolean = false;
   private gracePeriodActive: boolean = false;
   private gracePeriodDuration: number = 3000; // 3 seconds
@@ -36,6 +36,7 @@ export default class Engine {
   private renderSystem: RenderSystem;
   private particleSystem: ParticleSystem;
   private collisionSystem: CollisionSystem;
+  private scoreSystem: ScoreSystem;
   
   // Object pools
   private meteorPool: ObjectPool<Meteor>;
@@ -99,7 +100,9 @@ export default class Engine {
   };
   
   onStateUpdate: (state: { 
-    score: number; 
+    score: number;
+    scoreBreakdown: ScoreBreakdown;
+    comboInfo: ComboInfo;
     time: number; 
     isGameOver: boolean; 
     fps: number;
@@ -118,6 +121,7 @@ export default class Engine {
     this.renderSystem = new RenderSystem(canvas);
     this.particleSystem = new ParticleSystem();
     this.collisionSystem = new CollisionSystem(this.spatialGrid);
+    this.scoreSystem = new ScoreSystem();
     
     // Initialize object pools
     this.meteorPool = new ObjectPool(createMeteor, resetMeteor, 20, this.MAX_METEORS);
@@ -403,7 +407,14 @@ export default class Engine {
       meteor.vy += Math.sin(angle) * pushForce;
     }
 
-    this.score += knockbackResult.destroyedMeteors.length * 50;
+    // Process scoring with enhanced system
+    const destroyedMeteorData = knockbackResult.destroyedMeteors.map(meteor => ({
+      x: meteor.x,
+      y: meteor.y,
+      isSuper: meteor.isSuper
+    }));
+    
+    this.scoreSystem.processKnockbackScore(destroyedMeteorData, performance.now());
   }
 
   private resizeCanvas = () => {
@@ -590,6 +601,10 @@ export default class Engine {
     // Update systems
     this.powerUpManager.update(this.gameTime, deltaTime);
     this.particleSystem.update(deltaTime);
+    this.scoreSystem.update(deltaTime, performance.now());
+    
+    // Update survival score
+    this.scoreSystem.updateSurvivalScore(this.gameTime);
     
     const collectedPowerUp = this.powerUpManager.checkCollision(this.mouseX, this.mouseY);
     if (collectedPowerUp && collectedPowerUp.type === 'knockback') {
@@ -679,8 +694,10 @@ export default class Engine {
         this.isGameOver = true;
         
         // Force immediate state update
-        this.onStateUpdate({ 
-          score: this.score, 
+        this.onStateUpdate({
+          score: this.scoreSystem.getTotalScore(),
+          scoreBreakdown: this.scoreSystem.getScoreBreakdown(),
+          comboInfo: this.scoreSystem.getComboInfo(),
           time: this.gameTime, 
           isGameOver: true, 
           fps: this.currentFPS,
@@ -714,12 +731,13 @@ export default class Engine {
       }
     }
 
-    this.score = Math.floor(this.gameTime);
     this.meteorCount = this.activeMeteors.length;
     
     // Always update state, even during normal gameplay
-    this.onStateUpdate({ 
-      score: this.score, 
+    this.onStateUpdate({
+      score: this.scoreSystem.getTotalScore(),
+      scoreBreakdown: this.scoreSystem.getScoreBreakdown(),
+      comboInfo: this.scoreSystem.getComboInfo(),
       time: this.gameTime, 
       isGameOver: this.isGameOver, 
       fps: this.currentFPS,
@@ -757,6 +775,7 @@ export default class Engine {
       activeMeteors: this.activeMeteors,
       activeParticles: this.particleSystem.getActiveParticles(),
       powerUps: this.powerUpManager.getPowerUps(),
+      scoreTexts: this.scoreSystem.getActiveScoreTexts(),
       playerTrail: this.playerTrail,
       isGameOver: this.isGameOver,
       hasKnockbackPower: this.hasKnockbackPower,
@@ -861,6 +880,7 @@ export default class Engine {
     // Clean up pools and systems
     this.meteorPool.clear();
     this.particleSystem.clear();
+    this.scoreSystem.clear();
     this.activeMeteors.length = 0;
     
     window.removeEventListener('resize', this.resizeCanvas);
@@ -889,7 +909,6 @@ export default class Engine {
     this.pausedTime = 0;
     this.lastPauseTime = 0;
     this.gameTime = 0;
-    this.score = 0;
     this.gracePeriodActive = true;
     this.gracePeriodStartTime = performance.now();
     this.hasKnockbackPower = false;
@@ -932,6 +951,7 @@ export default class Engine {
     this.particleSystem.setMaxParticles(this.dynamicMaxParticles);
     this.renderSystem.setShadowsEnabled(this.shadowsEnabled);
     this.powerUpManager.reset();
+    this.scoreSystem.reset();
     
     console.log('Game reset completed');
   }

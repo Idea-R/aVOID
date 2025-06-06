@@ -3,6 +3,7 @@ import Engine from '../game/Engine';
 import HUD from './HUD';
 import GameOverScreen from './GameOverScreen';
 import GameIntro from './GameIntro';
+import { ScoreBreakdown, ComboInfo } from '../game/systems/ScoreSystem';
 
 interface GameSettings {
   volume: number;
@@ -26,6 +27,8 @@ export default function Game({ autoStart = false }: GameProps) {
   const [engineInitialized, setEngineInitialized] = useState(false);
   const [gameState, setGameState] = useState({ 
     score: 0, 
+    scoreBreakdown: { survival: 0, meteors: 0, combos: 0, total: 0 } as ScoreBreakdown,
+    comboInfo: { count: 0, isActive: false, lastKnockbackTime: 0, highestCombo: 0 } as ComboInfo,
     time: 0, 
     isGameOver: false, 
     fps: 0,
@@ -166,6 +169,8 @@ export default function Game({ autoStart = false }: GameProps) {
       {gameState.isGameOver && (
         <GameOverScreen 
           score={gameState.score} 
+          scoreBreakdown={gameState.scoreBreakdown}
+          comboInfo={gameState.comboInfo}
           onPlayAgain={handlePlayAgain}
         />
       )}
