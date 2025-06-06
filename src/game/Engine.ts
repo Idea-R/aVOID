@@ -45,11 +45,6 @@ export default class Engine {
   private meteorCount: number = 0;
   private particleCount: number = 0;
   
-  // Mouse position initialization
-  private mouseX: number = 0;
-  private mouseY: number = 0;
-  private isInitialized: boolean = false;
-  
   onStateUpdate: (state: { 
     score: number; 
     time: number; 
@@ -61,7 +56,6 @@ export default class Engine {
   }) => void = () => {};
 
   constructor(canvas: HTMLCanvasElement) {
-    console.log('Engine constructor called');
     this.canvas = canvas;
     const context = canvas.getContext('2d', { alpha: false });
     if (!context) throw new Error('Could not get canvas context');
@@ -74,43 +68,21 @@ export default class Engine {
     // Initialize spatial grid
     this.spatialGrid = new SpatialGrid(window.innerWidth, window.innerHeight, 150);
     
-    // Set initial mouse position to center of screen
-    this.mouseX = window.innerWidth / 2;
-    this.mouseY = window.innerHeight / 2;
-    
     this.resizeCanvas();
-    this.setupEventListeners();
-    
-    console.log('Engine initialized with canvas size:', this.canvas.width, 'x', this.canvas.height);
-    console.log('Initial mouse position:', this.mouseX, this.mouseY);
-  }
-
-  private setupEventListeners() {
     window.addEventListener('resize', this.resizeCanvas);
     window.addEventListener('mousemove', this.handleMouseMove);
     window.addEventListener('dblclick', this.handleDoubleClick);
     window.addEventListener('touchend', this.handleTouchEnd);
-    window.addEventListener('touchmove', this.handleTouchMove);
   }
+
+  private mouseX: number = 0;
+  private mouseY: number = 0;
 
   private handleMouseMove = (e: MouseEvent) => {
     if (this.isGameOver) return;
     const rect = this.canvas.getBoundingClientRect();
     this.mouseX = e.clientX - rect.left;
     this.mouseY = e.clientY - rect.top;
-    this.isInitialized = true;
-  };
-
-  private handleTouchMove = (e: TouchEvent) => {
-    if (this.isGameOver) return;
-    e.preventDefault();
-    const rect = this.canvas.getBoundingClientRect();
-    const touch = e.touches[0];
-    if (touch) {
-      this.mouseX = touch.clientX - rect.left;
-      this.mouseY = touch.clientY - rect.top;
-      this.isInitialized = true;
-    }
   };
 
   private handleDoubleClick = (e: MouseEvent) => {
@@ -213,26 +185,9 @@ export default class Engine {
   }
 
   private resizeCanvas = () => {
-    const dpr = window.devicePixelRatio || 1;
-    const rect = this.canvas.getBoundingClientRect();
-    
-    this.canvas.width = rect.width * dpr;
-    this.canvas.height = rect.height * dpr;
-    
-    this.ctx.scale(dpr, dpr);
-    
-    this.canvas.style.width = rect.width + 'px';
-    this.canvas.style.height = rect.height + 'px';
-    
-    this.spatialGrid.resize(rect.width, rect.height);
-    
-    // Update mouse position if not initialized
-    if (!this.isInitialized) {
-      this.mouseX = rect.width / 2;
-      this.mouseY = rect.height / 2;
-    }
-    
-    console.log('Canvas resized to:', rect.width, 'x', rect.height, 'DPR:', dpr);
+    this.canvas.width = window.innerWidth;
+    this.canvas.height = window.innerHeight;
+    this.spatialGrid.resize(window.innerWidth, window.innerHeight);
   };
 
   private createMeteorGradient(x: number, y: number, radius: number, color: string, isSuper: boolean = false): CanvasGradient {
@@ -293,13 +248,11 @@ export default class Engine {
     const side = Math.floor(Math.random() * 4);
     let x, y;
     
-    const canvasRect = this.canvas.getBoundingClientRect();
-    
     switch(side) {
-      case 0: x = Math.random() * canvasRect.width; y = -20; break;
-      case 1: x = canvasRect.width + 20; y = Math.random() * canvasRect.height; break;
-      case 2: x = Math.random() * canvasRect.width; y = canvasRect.height + 20; break;
-      default: x = -20; y = Math.random() * canvasRect.height; break;
+      case 0: x = Math.random() * this.canvas.width; y = -20; break;
+      case 1: x = this.canvas.width + 20; y = Math.random() * this.canvas.height; break;
+      case 2: x = Math.random() * this.canvas.width; y = this.canvas.height + 20; break;
+      default: x = -20; y = Math.random() * this.canvas.height; break;
     }
 
     const angle = Math.atan2(this.mouseY - y, this.mouseX - x);
@@ -458,9 +411,8 @@ export default class Engine {
       }
 
       // Remove meteors that are off-screen
-      const canvasRect = this.canvas.getBoundingClientRect();
-      if (meteor.x < -50 || meteor.x > canvasRect.width + 50 ||
-          meteor.y < -50 || meteor.y > canvasRect.height + 50) {
+      if (meteor.x < -50 || meteor.x > this.canvas.width + 50 ||
+          meteor.y < -50 || meteor.y > this.canvas.height + 50) {
         this.releaseMeteor(meteor);
       }
     }
@@ -502,15 +454,9 @@ export default class Engine {
   }
 
   private render() {
-    // Clear the entire canvas with black background
-    this.ctx.fillStyle = '#000000';
-    this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
-    
-    // Apply screen shake
     this.ctx.save();
     this.ctx.translate(this.screenShake.x, this.screenShake.y);
     
-    // Add subtle background fade effect
     this.ctx.fillStyle = 'rgba(0, 0, 0, 0.15)';
     this.ctx.fillRect(-this.screenShake.x, -this.screenShake.y, this.canvas.width, this.canvas.height);
     
@@ -651,20 +597,14 @@ export default class Engine {
   };
 
   start() {
-    console.log('Engine.start() called');
     if (this.animationFrame === null) {
       this.lastTime = performance.now();
       this.fpsLastTime = this.lastTime;
       this.animationFrame = requestAnimationFrame(this.gameLoop);
-      console.log('Game loop started with animation frame:', this.animationFrame);
-      
-      // Force initial render
-      this.render();
     }
   }
 
   stop() {
-    console.log('Engine.stop() called');
     if (this.animationFrame !== null) {
       cancelAnimationFrame(this.animationFrame);
       this.animationFrame = null;
@@ -680,7 +620,6 @@ export default class Engine {
     window.removeEventListener('mousemove', this.handleMouseMove);
     window.removeEventListener('dblclick', this.handleDoubleClick);
     window.removeEventListener('touchend', this.handleTouchEnd);
-    window.removeEventListener('touchmove', this.handleTouchMove);
   }
 
   // Public method to get current game over state
@@ -690,7 +629,6 @@ export default class Engine {
 
   // Public method to reset game state
   resetGame() {
-    console.log('Engine.resetGame() called');
     this.isGameOver = false;
     this.gameTime = 0;
     this.score = 0;
