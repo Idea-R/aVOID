@@ -26,14 +26,6 @@ export default class Engine {
   private particlePool: ObjectPool<Particle>;
   private activeMeteors: Meteor[] = [];
   private activeParticles: Particle[] = [];
-  private scorePopups: Array<{
-    x: number;
-    y: number;
-    points: number;
-    life: number;
-    maxLife: number;
-    isCombo: boolean;
-  }> = [];
   
   // Spatial partitioning
   private spatialGrid: SpatialGrid;
@@ -175,7 +167,6 @@ export default class Engine {
     this.createShockwave(this.mouseX, this.mouseY);
 
     let destroyedCount = 0;
-    let totalPoints = 0;
 
     // Use spatial grid for efficient collision detection
     const nearbyMeteors = this.spatialGrid.query(this.mouseX, this.mouseY, 300);
@@ -189,17 +180,7 @@ export default class Engine {
       const distance = Math.sqrt(dx * dx + dy * dy);
 
       if (distance <= 150) {
-        // Calculate points based on meteor type and distance
-        let points = meteor.isSuper ? 100 : 50; // Base points
-        
-        // Distance bonus: closer meteors give more points
-        const distanceBonus = Math.floor((150 - distance) / 150 * 25);
-        points += distanceBonus;
-        
-        totalPoints += points;
-        
         this.createExplosion(meteor.x, meteor.y, meteor.color, meteor.isSuper);
-        this.createScorePopup(meteor.x, meteor.y, points);
         this.releaseMeteor(meteor);
         destroyedCount++;
       } else if (distance <= 300) {
@@ -210,15 +191,7 @@ export default class Engine {
       }
     }
 
-    // Add points to score
-    this.score += totalPoints;
-    
-    // Show combo bonus if multiple meteors destroyed
-    if (destroyedCount > 1) {
-      const comboBonus = destroyedCount * 25;
-      this.score += comboBonus;
-      this.createScorePopup(this.mouseX, this.mouseY, comboBonus, true);
-    }
+    this.score += destroyedCount * 50;
   }
 
   private createShockwave(x: number, y: number) {
@@ -318,17 +291,6 @@ export default class Engine {
       );
       this.activeParticles.push(particle);
     }
-  }
-
-  private createScorePopup(x: number, y: number, points: number, isCombo: boolean = false) {
-    this.scorePopups.push({
-      x: x + (Math.random() - 0.5) * 40, // Add some randomness to position
-      y: y + (Math.random() - 0.5) * 40,
-      points,
-      life: 120, // 2 seconds at 60fps
-      maxLife: 120,
-      isCombo
-    });
   }
 
   private spawnMeteor() {
@@ -531,17 +493,6 @@ export default class Engine {
       }
     }
 
-    // Update score popups
-    for (let i = this.scorePopups.length - 1; i >= 0; i--) {
-      const popup = this.scorePopups[i];
-      popup.life--;
-      popup.y -= 1; // Float upward
-      
-      if (popup.life <= 0) {
-        this.scorePopups.splice(i, 1);
-      }
-    }
-
     this.score = Math.floor(this.gameTime);
     this.meteorCount = this.activeMeteors.length;
     this.particleCount = this.activeParticles.length;
@@ -694,34 +645,6 @@ export default class Engine {
     
     this.ctx.globalCompositeOperation = 'source-over';
     this.ctx.restore();
-    
-    // Draw score popups
-    this.scorePopups.forEach(popup => {
-      const alpha = popup.life / popup.maxLife;
-      const scale = popup.isCombo ? 1.5 : 1;
-      
-      this.ctx.save();
-      this.ctx.globalAlpha = alpha;
-      this.ctx.font = `bold ${16 * scale}px Arial`;
-      this.ctx.textAlign = 'center';
-      this.ctx.textBaseline = 'middle';
-      
-      // Add text shadow for better visibility
-      this.ctx.shadowColor = 'rgba(0, 0, 0, 0.8)';
-      this.ctx.shadowBlur = 4;
-      this.ctx.shadowOffsetX = 2;
-      this.ctx.shadowOffsetY = 2;
-      
-      if (popup.isCombo) {
-        this.ctx.fillStyle = '#ffd700'; // Gold for combo
-        this.ctx.fillText(`COMBO +${popup.points}!`, popup.x, popup.y);
-      } else {
-        this.ctx.fillStyle = '#00ff00'; // Green for regular points
-        this.ctx.fillText(`+${popup.points}`, popup.x, popup.y);
-      }
-      
-      this.ctx.restore();
-    });
   }
 
   private gameLoop = (timestamp: number) => {
@@ -786,7 +709,6 @@ export default class Engine {
     this.activeMeteors.length = 0;
     this.activeParticles.length = 0;
     this.playerTrail.length = 0;
-    this.scorePopups.length = 0;
     
     // Reset power-up manager
     this.powerUpManager.reset();
