@@ -79,6 +79,28 @@ export class PowerUpManager {
     });
   }
 
+  updatePhysics(timestep: number): void {
+    // Physics update for power-ups with fixed timestep
+    const timeMultiplier = timestep / 16.67; // Normalize to 60fps
+    
+    this.powerUps.forEach(powerUp => {
+      if (powerUp.collected) return;
+      
+      // Update magnetic movement with timestep
+      if (powerUp.magneticEffect.isActive) {
+        const dx = powerUp.magneticEffect.targetX - powerUp.x;
+        const dy = powerUp.magneticEffect.targetY - powerUp.y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        
+        if (distance > 5) {
+          const moveSpeed = 0.15 * timeMultiplier; // Gentle magnetic pull
+          powerUp.x += dx * moveSpeed;
+          powerUp.y += dy * moveSpeed;
+        }
+      }
+    });
+  }
+  
   private getProgressiveSpawnRate(gameTime: number): number {
     // After 60 seconds, reduce spawn interval from 5-20s to 3-12s
     if (gameTime >= 60) {
