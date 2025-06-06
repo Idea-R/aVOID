@@ -233,15 +233,16 @@ export class RenderSystem {
   }
 
   private getRenderOrder(): string[] {
+    const cursorColor = this.currentGameSettings?.cursorColor || '#06b6d4';
     return [
       '30:#ffd700',    // Power-ups (background glow)
       '12:meteor',     // Regular meteor trails
       '20:meteor',     // Super meteor trails
       '15:meteor',     // Regular meteors
       '25:meteor',     // Super meteors
-      '15:#06b6d4',    // Player trail
-      '10:#ffd700',    // Knockback ring
-      '20:#06b6d4',    // Player
+      `15:${cursorColor}`,    // Player trail
+      `10:${cursorColor}`,    // Knockback ring
+      `20:${cursorColor}`,    // Player
       '8:particle'     // Particles (foreground)
     ];
   }
