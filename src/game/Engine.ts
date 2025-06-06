@@ -107,6 +107,15 @@ export default class Engine {
     cursorColor: '#06b6d4'
   };
   
+  // Deflection area for bottom-right corner (Bolt.new badge area)
+  private deflectionArea = {
+    x: 0, // Will be calculated based on canvas width
+    y: 0, // Will be calculated based on canvas height
+    width: 120, // Width of deflection zone
+    height: 80,  // Height of deflection zone
+    force: 3.5   // Deflection force strength
+  };
+  
   onStateUpdate: (state: { 
     score: number;
     scoreBreakdown: ScoreBreakdown;
