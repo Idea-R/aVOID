@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
-import { Trophy, User, UserPlus, Settings, UserCircle } from 'lucide-react';
+import { Trophy, User, UserPlus, Settings, UserCircle, HelpCircle } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import AccountModal from './AccountModal';
 import SignupModal from './SignupModal';
 import LeaderboardModal from './LeaderboardModal';
 import SettingsModal from './SettingsModal';
 import ProfileModal from './ProfileModal';
+import HelpModal from './HelpModal';
 
 interface HUDProps {
   score: number;
@@ -28,6 +29,7 @@ export default function HUD({ score, time, fps, meteors = 0, particles = 0, pool
   const [showLeaderboard, setShowLeaderboard] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
+  const [showHelp, setShowHelp] = useState(false);
   
   // Mobile detection - screen width < 768px (md breakpoint)
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
@@ -111,6 +113,15 @@ export default function HUD({ score, time, fps, meteors = 0, particles = 0, pool
       {(!isMobile || isGameOver) && !showIntro && (
         <div className="absolute top-4 right-4 flex gap-2">
           <button
+            onClick={() => setShowHelp(true)}
+            className="bg-blue-600 hover:bg-blue-700 text-white p-2 rounded-lg transition-colors duration-200 flex items-center gap-2 text-sm font-semibold"
+            title="Help & Instructions"
+          >
+            <HelpCircle className="w-4 h-4" />
+            <span className="hidden sm:inline">Help</span>
+          </button>
+
+          <button
             onClick={() => setShowSettings(true)}
             className="bg-gray-600 hover:bg-gray-700 text-white p-2 rounded-lg transition-colors duration-200 flex items-center gap-2 text-sm font-semibold"
           >
@@ -180,6 +191,11 @@ export default function HUD({ score, time, fps, meteors = 0, particles = 0, pool
       <ProfileModal
         isOpen={showProfile}
         onClose={() => setShowProfile(false)}
+      />
+
+      <HelpModal
+        isOpen={showHelp}
+        onClose={() => setShowHelp(false)}
       />
     </>
   );

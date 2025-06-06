@@ -109,14 +109,8 @@ export default function GameIntro({ onComplete }: GameIntroProps) {
 
         {phase === 'instructions' && (
           <div className="animate-fade-in">
-            <div className="text-2xl md:text-3xl font-bold text-yellow-400 mb-4">
-              {isMobile ? '📱 Tap and move finger to survive' : '🖱️ Move your cursor to survive'}
-            </div>
-            <div className="text-lg md:text-xl text-yellow-300 font-semibold">
-              {isMobile ? 'Double-tap for knockback power!' : 'Double-click for knockback power!'}
-            </div>
-            <div className="mt-6 text-sm md:text-base text-cyan-300 opacity-80">
-              Avoid the meteors • Survive as long as possible • Beat your high score
+            <div className="text-lg md:text-xl text-cyan-300 opacity-80">
+              Game starting...
             </div>
           </div>
         )}
