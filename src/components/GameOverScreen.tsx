@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Trophy, Star, UserPlus, Eye, RotateCcw } from 'lucide-react';
+import { Trophy, Star, UserPlus, Eye, RotateCcw, Settings, User } from 'lucide-react';
 import { LeaderboardAPI } from '../api/leaderboard';
 import { useAuthStore } from '../store/authStore';
 import SignupModal from './SignupModal';
 import LeaderboardModal from './LeaderboardModal';
+import AccountModal from './AccountModal';
+import SettingsModal from './SettingsModal';
 
 interface GameOverScreenProps {
   score: number;
@@ -15,6 +17,8 @@ export default function GameOverScreen({ score, onPlayAgain }: GameOverScreenPro
   const [isSaving, setIsSaving] = useState(false);
   const [showSignup, setShowSignup] = useState(false);
   const [showLeaderboard, setShowLeaderboard] = useState(false);
+  const [showAccount, setShowAccount] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   const [playerRank, setPlayerRank] = useState<number | null>(null);
   const [verifiedRank, setVerifiedRank] = useState<number | null>(null);
   const [scoreSaved, setScoreSaved] = useState(false);
@@ -77,11 +81,42 @@ export default function GameOverScreen({ score, onPlayAgain }: GameOverScreenPro
     <>
       <div className="absolute inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50">
         <div className="bg-gray-900 p-8 rounded-lg shadow-xl border border-cyan-500 max-w-md w-full mx-4">
-          <div className="flex items-center justify-center mb-6">
-            <Trophy className="w-12 h-12 text-yellow-500" />
+          {/* Header with Action Buttons */}
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-3">
+              <Trophy className="w-12 h-12 text-yellow-500" />
+              <h2 className="text-2xl font-bold text-cyan-500">Game Over!</h2>
+            </div>
+            
+            {/* Quick Action Buttons */}
+            <div className="flex gap-2">
+              <button
+                onClick={() => setShowSettings(true)}
+                className="bg-gray-600 hover:bg-gray-700 text-white p-2 rounded-lg transition-colors duration-200"
+                title="Settings"
+              >
+                <Settings className="w-4 h-4" />
+              </button>
+
+              {user ? (
+                <button
+                  onClick={() => setShowAccount(true)}
+                  className="bg-cyan-600 hover:bg-cyan-700 text-white p-2 rounded-lg transition-colors duration-200"
+                  title="Account"
+                >
+                  <User className="w-4 h-4" />
+                </button>
+              ) : (
+                <button
+                  onClick={() => setShowSignup(true)}
+                  className="bg-green-600 hover:bg-green-700 text-white p-2 rounded-lg transition-colors duration-200"
+                  title="Sign Up"
+                >
+                  <UserPlus className="w-4 h-4" />
+                </button>
+              )}
+            </div>
           </div>
-          
-          <h2 className="text-2xl font-bold text-center mb-4 text-cyan-500">Game Over!</h2>
           
           <div className="text-center mb-6">
             <p className="text-xl mb-2 text-cyan-300">Final Score: {score.toLocaleString()}</p>
@@ -214,6 +249,16 @@ export default function GameOverScreen({ score, onPlayAgain }: GameOverScreenPro
         isOpen={showLeaderboard}
         onClose={() => setShowLeaderboard(false)}
         playerScore={score}
+      />
+
+      <AccountModal
+        isOpen={showAccount}
+        onClose={() => setShowAccount(false)}
+      />
+
+      <SettingsModal
+        isOpen={showSettings}
+        onClose={() => setShowSettings(false)}
       />
     </>
   );
