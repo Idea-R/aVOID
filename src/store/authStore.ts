@@ -5,8 +5,8 @@ import { User } from '@supabase/supabase-js';
 interface AuthState {
   user: User | null;
   loading: boolean;
-  signUp: (email: string, password: string, displayName: string) => Promise<{ success: boolean; error?: string }>;
-  signIn: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
+  signUp: (email: string, password: string, displayName: string) => Promise<{ success: boolean; error?: string; user?: User }>;
+  signIn: (email: string, password: string) => Promise<{ success: boolean; error?: string; user?: User }>;
   signOut: () => Promise<void>;
   initialize: () => Promise<void>;
 }
@@ -33,6 +33,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
       if (data.user) {
         set({ user: data.user });
+        return { success: true, user: data.user };
       }
 
       return { success: true };
@@ -53,7 +54,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       }
 
       set({ user: data.user });
-      return { success: true };
+      return { success: true, user: data.user };
     } catch (error) {
       return { success: false, error: 'An unexpected error occurred' };
     }

@@ -32,14 +32,23 @@ export default function SignupModal({ isOpen, onClose, playerScore, playerName }
       let result;
       if (isLogin) {
         result = await signIn(formData.email, formData.password);
+        
+        // If login successful and we have a score to save
+        if (result.success && result.user && playerScore > 0) {
+          const displayName = result.user.user_metadata?.display_name || formData.email.split('@')[0];
+          await LeaderboardAPI.submitVerifiedScore(displayName, playerScore, result.user.id);
+        }
       } else {
         result = await signUp(formData.email, formData.password, formData.displayName);
+        
+        // If signup successful and we have a score to save
+        if (result.success && result.user && playerScore > 0) {
+          const displayName = formData.displayName || formData.email.split('@')[0];
+          await LeaderboardAPI.submitVerifiedScore(displayName, playerScore, result.user.id);
+        }
       }
 
       if (result.success) {
-        // Save the score as verified
-        const displayName = formData.displayName || formData.email.split('@')[0];
-        await LeaderboardAPI.submitVerifiedScore(displayName, playerScore, 'temp'); // Will be updated with actual user ID
         setSuccess(true);
         setTimeout(() => {
           onClose();
@@ -67,7 +76,14 @@ export default function SignupModal({ isOpen, onClose, playerScore, playerName }
         <div className="bg-gray-900 rounded-lg shadow-2xl border border-green-500 max-w-md w-full p-8 text-center">
           <div className="text-6xl mb-4">🎉</div>
           <h2 className="text-2xl font-bold text-green-400 mb-4">Welcome to aVOID!</h2>
-          <p className="text-green-300 mb-4">Your account has been created and your score has been saved!</p>
+          <p className="text-green-300 mb-4">
+            Your account has been created{playerScore > 0 ? ' and your score has been saved!' : '!'}
+          </p>
+          {playerScore > 0 && (
+            <p className="text-green-200 text-sm mb-4">
+              Score: {playerScore.toLocaleString()} points saved as verified!
+            </p>
+          )}
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-500 mx-auto"></div>
         </div>
       </div>
@@ -92,6 +108,15 @@ export default function SignupModal({ isOpen, onClose, playerScore, playerName }
           <p className="text-cyan-100">
             {isLogin ? 'Sign in to save your scores' : 'Create an account to track your progress'}
           </p>
+          
+          {/* Score preservation notice */}
+          {playerScore > 0 && (
+            <div className="mt-4 bg-yellow-900/30 border border-yellow-500/50 rounded-lg p-3">
+              <p className="text-yellow-200 text-sm">
+                🎯 Your current score of <span className="font-bold">{playerScore.toLocaleString()}</span> will be saved as verified when you {isLogin ? 'sign in' : 'create your account'}!
+              </p>
+            </div>
+          )}
         </div>
 
         <div className="p-6">
@@ -204,7 +229,11 @@ export default function SignupModal({ isOpen, onClose, playerScore, playerName }
               disabled={loading}
               className="w-full bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 text-white font-bold py-3 px-4 rounded disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
             >
-              {loading ? 'Processing...' : (isLogin ? 'Sign In' : 'Create Account & Save Score')}
+              {loading ? 'Processing...' : (
+                isLogin 
+                  ? (playerScore > 0 ? 'Sign In & Save Score' : 'Sign In')
+                  : (playerScore > 0 ? 'Create Account & Save Score' : 'Create Account')
+              )}
             </button>
           </form>
 
