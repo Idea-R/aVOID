@@ -833,5 +833,3 @@ export class GameEngine {
     this.systemPerformanceHistory.clear();
   }
 }
-
-export { GameEngine }
