@@ -6,6 +6,7 @@ import SignupModal from './SignupModal';
 import LeaderboardModal from './LeaderboardModal';
 import AccountModal from './AccountModal';
 import SettingsModal from './SettingsModal';
+import logoImage from '../assets/Futuristic aVOID with Fiery Meteors.png';
 
 interface GameOverScreenProps {
   score: number;
@@ -22,11 +23,18 @@ export default function GameOverScreen({ score, onPlayAgain }: GameOverScreenPro
   const [playerRank, setPlayerRank] = useState<number | null>(null);
   const [verifiedRank, setVerifiedRank] = useState<number | null>(null);
   const [scoreSaved, setScoreSaved] = useState(false);
+  const [logoVisible, setLogoVisible] = useState(false);
   
   const { user } = useAuthStore();
 
   useEffect(() => {
     console.log('GameOverScreen mounted with score:', score);
+    
+    // Trigger logo animation after a short delay
+    const logoTimer = setTimeout(() => {
+      setLogoVisible(true);
+    }, 300);
+    
     const getPlayerRanks = async () => {
       // Get overall rank (including guests)
       const overallRank = await LeaderboardAPI.getPlayerRank(score);
@@ -39,6 +47,10 @@ export default function GameOverScreen({ score, onPlayAgain }: GameOverScreenPro
       console.log('Player ranks calculated - Overall:', overallRank, 'Verified:', verifiedOnlyRank);
     };
     getPlayerRanks();
+    
+    return () => {
+      clearTimeout(logoTimer);
+    };
   }, [score]);
 
   const handleSaveGuestScore = async () => {
@@ -80,6 +92,27 @@ export default function GameOverScreen({ score, onPlayAgain }: GameOverScreenPro
   return (
     <>
       <div className="absolute inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50">
+        {/* Animated Logo */}
+        <div 
+          className={`absolute top-8 left-1/2 transform -translate-x-1/2 transition-all duration-1000 ease-out ${
+            logoVisible 
+              ? 'opacity-100 translate-y-0 scale-100' 
+              : 'opacity-0 -translate-y-8 scale-95'
+          }`}
+          style={{
+            filter: 'drop-shadow(0 0 20px rgba(6, 182, 212, 0.5)) drop-shadow(0 0 40px rgba(255, 215, 0, 0.3))',
+          }}
+        >
+          <img 
+            src={logoImage} 
+            alt="aVOID Logo" 
+            className="h-24 w-auto object-contain"
+            style={{
+              animation: logoVisible ? 'logoGlow 3s ease-in-out infinite alternate' : 'none'
+            }}
+          />
+        </div>
+        
         <div className="bg-gray-900 p-8 rounded-lg shadow-xl border border-cyan-500 max-w-md w-full mx-4">
           {/* Header with Action Buttons */}
           <div className="flex items-center justify-between mb-6">
