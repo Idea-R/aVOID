@@ -103,54 +103,6 @@ export class ParticleSystem {
     }
   }
 
-  createDeflectionEffect(x: number, y: number, color: string, isSuper: boolean = false): void {
-    // Create sparks and energy particles for deflection effect
-    const sparkCount = this.isMobile ? (isSuper ? 15 : 10) : (isSuper ? 25 : 15);
-    const particleCount = Math.min(
-      sparkCount, 
-      this.maxParticles - this.activeParticles.length
-    );
-    
-    for (let i = 0; i < particleCount; i++) {
-      const angle = (Math.PI * 2 * i) / particleCount + Math.random() * 0.5;
-      const velocity = (isSuper ? 4 : 3) + Math.random() * 3;
-      const life = (isSuper ? 60 : 45) + Math.random() * 30;
-      
-      const particle = this.particlePool.get();
-      initializeParticle(
-        particle,
-        x + (Math.random() - 0.5) * 20, // Spread particles around deflection point
-        y + (Math.random() - 0.5) * 20,
-        Math.cos(angle) * velocity,
-        Math.sin(angle) * velocity,
-        (isSuper ? 2 : 1.5) + Math.random() * 2,
-        isSuper ? '#00ffff' : '#06b6d4', // Cyan deflection effect
-        life
-      );
-      this.activeParticles.push(particle);
-    }
-    
-    // Add some golden sparks for the Bolt badge effect
-    const goldSparkCount = Math.min(8, this.maxParticles - this.activeParticles.length);
-    for (let i = 0; i < goldSparkCount; i++) {
-      const angle = Math.random() * Math.PI * 2;
-      const velocity = 2 + Math.random() * 4;
-      
-      const particle = this.particlePool.get();
-      initializeParticle(
-        particle,
-        x,
-        y,
-        Math.cos(angle) * velocity,
-        Math.sin(angle) * velocity,
-        2 + Math.random() * 2,
-        '#ffd700', // Gold color for Bolt badge
-        40 + Math.random() * 20
-      );
-      this.activeParticles.push(particle);
-    }
-  }
-
   update(deltaTime: number): void {
     // Update particles
     for (let i = this.activeParticles.length - 1; i >= 0; i--) {

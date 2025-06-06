@@ -107,20 +107,6 @@ export default class Engine {
     cursorColor: '#06b6d4'
   };
   
-  // Bolt badge deflection system
-  private boltBadge = {
-    x: 0,
-    y: 0,
-    width: 0,
-    height: 0,
-    radius: 50, // Deflection radius around badge
-    deflectionForce: 8,
-    isActive: true,
-    lastDeflectionTime: 0,
-    deflectionCooldown: 100, // ms between deflections
-    deflectionCount: 0
-  };
-  
   onStateUpdate: (state: { 
     score: number;
     scoreBreakdown: ScoreBreakdown;
@@ -153,9 +139,6 @@ export default class Engine {
     
     // Load settings from localStorage
     this.loadSettings();
-    
-    // Initialize Bolt badge position
-    this.updateBoltBadgePosition();
     
     this.resizeCanvas();
     window.addEventListener('resize', this.resizeCanvas);
@@ -1027,11 +1010,6 @@ export default class Engine {
       lastPlayerX: 0,
       lastPlayerY: 0
     };
-    
-    // Reset Bolt badge state
-    this.boltBadge.deflectionCount = 0;
-    this.boltBadge.lastDeflectionTime = 0;
-    this.updateBoltBadgePosition();
     
     console.log('Game reset completed');
   }

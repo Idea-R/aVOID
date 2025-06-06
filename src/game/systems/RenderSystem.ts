@@ -267,7 +267,6 @@ export class RenderSystem {
       `15:${cursorColor}`,    // Player trail
       `10:${cursorColor}`,    // Knockback ring
       `20:${cursorColor}`,    // Player
-      '15:#ffd700',    // Bolt badge field
      '8:particle',    // Particles
      '0:scoreText'    // Score texts (foreground, no shadow)
     ];
