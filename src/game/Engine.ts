@@ -95,7 +95,12 @@ export default class Engine {
     window.addEventListener('resize', this.resizeCanvas);
     window.addEventListener('mousemove', this.handleMouseMove);
     window.addEventListener('dblclick', this.handleDoubleClick);
+    
+    // Mobile touch event listeners
+    window.addEventListener('touchstart', this.handleTouchStart);
+    window.addEventListener('touchmove', this.handleTouchMove);
     window.addEventListener('touchend', this.handleTouchEnd);
+    
     window.addEventListener('gameSettingsChanged', this.handleSettingsChange);
   }
 
@@ -117,22 +122,94 @@ export default class Engine {
 
   private mouseX: number = 0;
   private mouseY: number = 0;
+  
+  // Touch tracking
+  private activeTouchId: number | null = null;
+  private isTouchDevice: boolean = false;
 
   private handleMouseMove = (e: MouseEvent) => {
-    if (this.isGameOver) return;
+    if (this.isGameOver || this.isTouchDevice) return;
     const rect = this.canvas.getBoundingClientRect();
     this.mouseX = e.clientX - rect.left;
     this.mouseY = e.clientY - rect.top;
   };
 
+  private handleTouchStart = (e: TouchEvent) => {
+    if (this.isGameOver) return;
+    
+    e.preventDefault(); // Prevent scrolling and other default behaviors
+    this.isTouchDevice = true;
+    
+    // Use the first touch if no active touch
+    if (this.activeTouchId === null && e.touches.length > 0) {
+      const touch = e.touches[0];
+      this.activeTouchId = touch.identifier;
+      
+      const rect = this.canvas.getBoundingClientRect();
+      this.mouseX = touch.clientX - rect.left;
+      this.mouseY = touch.clientY - rect.top;
+    }
+  };
+
+  private handleTouchMove = (e: TouchEvent) => {
+    if (this.isGameOver) return;
+    
+    e.preventDefault(); // Prevent scrolling
+    this.isTouchDevice = true;
+    
+    // Find the active touch among current touches
+    if (this.activeTouchId !== null) {
+      for (let i = 0; i < e.touches.length; i++) {
+        const touch = e.touches[i];
+        if (touch.identifier === this.activeTouchId) {
+          const rect = this.canvas.getBoundingClientRect();
+          this.mouseX = touch.clientX - rect.left;
+          this.mouseY = touch.clientY - rect.top;
+          break;
+        }
+      }
+    }
+  };
   private handleDoubleClick = (e: MouseEvent) => {
-    if (this.isGameOver || !this.hasKnockbackPower) return;
+    if (this.isGameOver || !this.hasKnockbackPower || this.isTouchDevice) return;
     this.activateKnockback();
   };
 
   private handleTouchEnd = (e: TouchEvent) => {
     if (this.isGameOver) return;
     
+    e.preventDefault();
+    this.isTouchDevice = true;
+    
+    // Check if our active touch ended
+    let activeTouchEnded = false;
+    if (this.activeTouchId !== null) {
+      activeTouchEnded = true;
+      // Check if the active touch is still in the remaining touches
+      for (let i = 0; i < e.touches.length; i++) {
+        if (e.touches[i].identifier === this.activeTouchId) {
+          activeTouchEnded = false;
+          break;
+        }
+      }
+    }
+    
+    // If active touch ended, clear it and potentially switch to another touch
+    if (activeTouchEnded) {
+      this.activeTouchId = null;
+      
+      // If there are still touches, use the first one as the new active touch
+      if (e.touches.length > 0) {
+        const touch = e.touches[0];
+        this.activeTouchId = touch.identifier;
+        
+        const rect = this.canvas.getBoundingClientRect();
+        this.mouseX = touch.clientX - rect.left;
+        this.mouseY = touch.clientY - rect.top;
+      }
+    }
+    
+    // Handle double-tap for knockback power (mobile equivalent of double-click)
     const now = Date.now();
     if (now - this.lastClickTime < 300) {
       this.clickCount++;
@@ -438,6 +515,8 @@ export default class Engine {
     window.removeEventListener('resize', this.resizeCanvas);
     window.removeEventListener('mousemove', this.handleMouseMove);
     window.removeEventListener('dblclick', this.handleDoubleClick);
+    window.removeEventListener('touchstart', this.handleTouchStart);
+    window.removeEventListener('touchmove', this.handleTouchMove);
     window.removeEventListener('touchend', this.handleTouchEnd);
     window.removeEventListener('gameSettingsChanged', this.handleSettingsChange);
   }
@@ -454,6 +533,10 @@ export default class Engine {
     this.knockbackCooldown = 0;
     this.playerRingPhase = 0;
     this.screenShake = { x: 0, y: 0, intensity: 0, duration: 0 };
+    
+    // Reset touch tracking
+    this.activeTouchId = null;
+    this.isTouchDevice = false;
     
     // Clear all active objects
     this.activeMeteors.forEach(meteor => this.meteorPool.release(meteor));
