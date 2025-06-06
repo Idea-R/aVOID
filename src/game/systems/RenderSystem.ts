@@ -332,34 +332,8 @@ export class RenderSystem {
 
   // GRADIENT CACHING SYSTEM - STABILITY-FIRST IMPLEMENTATION
   createMeteorGradient(x: number, y: number, radius: number, color: string, isSuper: boolean = false): CanvasGradient {
-    // Always attempt to create gradient - cache is purely an optimization
-    let gradient: CanvasGradient;
-    
-    try {
-      if (this.cacheEnabled) {
-        // Generate cache key based on gradient parameters
-        const cacheKey = this.generateGradientCacheKey(radius, color, isSuper);
-        
-        // Try to get from cache first
-        const cached = this.getFromGradientCache(cacheKey);
-        if (cached) {
-          this.cacheHits++;
-          return cached;
-        }
-        
-        // Create new gradient and cache it
-        gradient = this.createGradientInternal(x, y, radius, color, isSuper);
-        this.addToGradientCache(cacheKey, gradient);
-        this.cacheMisses++;
-        
-        return gradient;
-      }
-    } catch (error) {
-      // Never throw errors - always fallback to direct creation
-      console.warn('Gradient cache error, falling back to direct creation:', error);
-    }
-    
-    // Fallback: always create gradient directly if cache fails
+    // Always create gradient directly with current position
+    // Note: Gradient caching disabled due to position-dependent nature of radial gradients
     return this.createGradientInternal(x, y, radius, color, isSuper);
   }
 
