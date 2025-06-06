@@ -2,8 +2,8 @@ import { PowerUpManager, PowerUp } from './entities/PowerUp';
 import { ObjectPool } from './utils/ObjectPool';
 import { SpatialGrid, GridObject } from './utils/SpatialGrid';
 import { Meteor, createMeteor, resetMeteor, initializeMeteor } from './entities/Meteor';
-import { Particle, createParticle, resetParticle, initializeParticle } from './entities/Particle';
 import { RenderSystem } from './systems/RenderSystem';
+import { ParticleSystem } from './systems/ParticleSystem';
 
 interface GameSettings {
   volume: number;
@@ -21,21 +21,19 @@ export default class Engine {
   private gameTime: number = 0;
   private score: number = 0;
   
-  // Rendering system
+  // Systems
   private renderSystem: RenderSystem;
+  private particleSystem: ParticleSystem;
   
   // Object pools
   private meteorPool: ObjectPool<Meteor>;
-  private particlePool: ObjectPool<Particle>;
   private activeMeteors: Meteor[] = [];
-  private activeParticles: Particle[] = [];
   
   // Spatial partitioning
   private spatialGrid: SpatialGrid;
   
   // Performance limits
   private readonly MAX_METEORS = 50;
-  private MAX_PARTICLES = 300; // Changed from readonly to allow dynamic adjustment
   
   private playerTrail: Array<{ x: number; y: number; alpha: number }> = [];
   private isGameOver: boolean = false;
@@ -55,7 +53,6 @@ export default class Engine {
   
   // Performance tracking
   private meteorCount: number = 0;
-  private particleCount: number = 0;
   
   // Game settings
   private gameSettings: GameSettings = {
@@ -81,12 +78,12 @@ export default class Engine {
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
     
-    // Initialize rendering system
+    // Initialize systems
     this.renderSystem = new RenderSystem(canvas);
+    this.particleSystem = new ParticleSystem();
     
     // Initialize object pools
     this.meteorPool = new ObjectPool(createMeteor, resetMeteor, 20, this.MAX_METEORS);
-    this.particlePool = new ObjectPool(createParticle, resetParticle, 50, this.MAX_PARTICLES);
     
     // Initialize spatial grid
     this.spatialGrid = new SpatialGrid(window.innerWidth, window.innerHeight, 150);
@@ -149,17 +146,6 @@ export default class Engine {
     this.lastClickTime = now;
   };
 
-  // Adaptive particle limits based on FPS performance
-  private adaptiveParticleLimits() {
-    if (this.currentFPS < 30) {
-      this.MAX_PARTICLES = 150; // Reduce by 50%
-    } else if (this.currentFPS < 45) {
-      this.MAX_PARTICLES = 225; // Reduce by 25%
-    } else {
-      this.MAX_PARTICLES = 300; // Full quality
-    }
-  }
-
   private activateKnockback() {
     if (!this.hasKnockbackPower) return;
 
@@ -167,7 +153,7 @@ export default class Engine {
     this.knockbackCooldown = 30;
 
     this.screenShake = { x: 0, y: 0, intensity: 15, duration: 500 };
-    this.createShockwave(this.mouseX, this.mouseY);
+    this.particleSystem.createShockwave(this.mouseX, this.mouseY);
 
     let destroyedCount = 0;
 
@@ -183,7 +169,7 @@ export default class Engine {
       const distance = Math.sqrt(dx * dx + dy * dy);
 
       if (distance <= 150) {
-        this.createExplosion(meteor.x, meteor.y, meteor.color, meteor.isSuper);
+        this.particleSystem.createExplosion(meteor.x, meteor.y, meteor.color, meteor.isSuper);
         this.releaseMeteor(meteor);
         destroyedCount++;
       } else if (distance <= 300) {
@@ -197,47 +183,6 @@ export default class Engine {
     this.score += destroyedCount * 50;
   }
 
-  private createShockwave(x: number, y: number) {
-    // Limit shockwave particles to prevent lag
-    const ringParticles = Math.min(40, this.MAX_PARTICLES - this.activeParticles.length);
-    for (let i = 0; i < ringParticles; i++) {
-      const angle = (Math.PI * 2 * i) / ringParticles;
-      const distance = 50 + Math.random() * 100;
-      
-      const particle = this.particlePool.get();
-      initializeParticle(
-        particle,
-        x + Math.cos(angle) * distance,
-        y + Math.sin(angle) * distance,
-        Math.cos(angle) * 4,
-        Math.sin(angle) * 4,
-        3 + Math.random() * 2,
-        '#ffd700',
-        60 + Math.random() * 30
-      );
-      this.activeParticles.push(particle);
-    }
-
-    const centralParticles = Math.min(25, this.MAX_PARTICLES - this.activeParticles.length);
-    for (let i = 0; i < centralParticles; i++) {
-      const angle = Math.random() * Math.PI * 2;
-      const velocity = 2 + Math.random() * 6;
-      
-      const particle = this.particlePool.get();
-      initializeParticle(
-        particle,
-        x,
-        y,
-        Math.cos(angle) * velocity,
-        Math.sin(angle) * velocity,
-        4 + Math.random() * 3,
-        '#ffff00',
-        80 + Math.random() * 40
-      );
-      this.activeParticles.push(particle);
-    }
-  }
-
   private resizeCanvas = () => {
     this.canvas.width = window.innerWidth;
     this.canvas.height = window.innerHeight;
@@ -247,32 +192,6 @@ export default class Engine {
   private getRandomColor(): string {
     const hue = Math.random() * 360;
     return `hsla(${hue}, 100%, 60%, 1)`;
-  }
-
-  private createExplosion(x: number, y: number, color: string, isSuper: boolean = false) {
-    const particleCount = Math.min(
-      isSuper ? 50 : 30, 
-      this.MAX_PARTICLES - this.activeParticles.length
-    );
-    
-    for (let i = 0; i < particleCount; i++) {
-      const angle = (Math.PI * 2 * i) / particleCount;
-      const velocity = (isSuper ? 3 : 2) + Math.random() * 4;
-      const life = (isSuper ? 80 : 60) + Math.random() * 40;
-      
-      const particle = this.particlePool.get();
-      initializeParticle(
-        particle,
-        x,
-        y,
-        Math.cos(angle) * velocity,
-        Math.sin(angle) * velocity,
-        (isSuper ? 3 : 2) + Math.random() * 3,
-        color,
-        life
-      );
-      this.activeParticles.push(particle);
-    }
   }
 
   private spawnMeteor() {
@@ -324,14 +243,6 @@ export default class Engine {
     }
   }
 
-  private releaseParticle(particle: Particle) {
-    const index = this.activeParticles.indexOf(particle);
-    if (index > -1) {
-      this.activeParticles.splice(index, 1);
-      this.particlePool.release(particle);
-    }
-  }
-
   private updateFPS(timestamp: number) {
     this.frameCount++;
     
@@ -346,15 +257,16 @@ export default class Engine {
     if (this.isGameOver) return;
     
     // Apply adaptive particle limits based on current FPS
-    this.adaptiveParticleLimits();
+    this.particleSystem.adaptiveParticleLimits(this.currentFPS);
     
     this.gameTime += deltaTime / 1000;
     
     // Clear spatial grid
     this.spatialGrid.clear();
     
-    // Update power-up system
+    // Update systems
     this.powerUpManager.update(this.gameTime, deltaTime);
+    this.particleSystem.update(deltaTime);
     
     const collectedPowerUp = this.powerUpManager.checkCollision(this.mouseX, this.mouseY);
     if (collectedPowerUp && collectedPowerUp.type === 'knockback') {
@@ -387,7 +299,7 @@ export default class Engine {
 
     // Spawn meteors with performance consideration
     const baseSpawnChance = 0.003;
-    const maxSpawnChance = 0.02; // Reduced from 0.03
+    const maxSpawnChance = 0.02;
     const spawnIncrease = Math.min(this.gameTime / 150, maxSpawnChance - baseSpawnChance);
     if (Math.random() < baseSpawnChance + spawnIncrease) {
       this.spawnMeteor();
@@ -406,11 +318,11 @@ export default class Engine {
       // Update trail with length limit (only if trails are enabled)
       if (this.gameSettings.showTrails) {
         meteor.trail.unshift({ x: meteor.x, y: meteor.y, alpha: 1 });
-        const maxTrailLength = meteor.isSuper ? 15 : 12; // Reduced trail length
+        const maxTrailLength = meteor.isSuper ? 15 : 12;
         if (meteor.trail.length > maxTrailLength) meteor.trail.pop();
         meteor.trail.forEach(point => point.alpha *= meteor.isSuper ? 0.9 : 0.88);
       } else {
-        meteor.trail.length = 0; // Clear trails if disabled
+        meteor.trail.length = 0;
       }
 
       // Add to spatial grid
@@ -421,15 +333,14 @@ export default class Engine {
         id: meteor.id
       });
 
-      // Check collision with player - CRITICAL COLLISION DETECTION
+      // Check collision with player
       const dx = meteor.x - this.mouseX;
       const dy = meteor.y - this.mouseY;
       const distance = Math.sqrt(dx * dx + dy * dy);
       
       if (distance < meteor.radius + 6) {
-        console.log('COLLISION DETECTED! Setting game over state...'); // Debug log
-        this.createExplosion(this.mouseX, this.mouseY, '#06b6d4');
-        this.createExplosion(meteor.x, meteor.y, meteor.color, meteor.isSuper);
+        this.particleSystem.createExplosion(this.mouseX, this.mouseY, '#06b6d4');
+        this.particleSystem.createExplosion(meteor.x, meteor.y, meteor.color, meteor.isSuper);
         this.isGameOver = true;
         
         // Force immediate state update
@@ -439,15 +350,14 @@ export default class Engine {
           isGameOver: true, 
           fps: this.currentFPS,
           meteors: this.meteorCount,
-          particles: this.particleCount,
+          particles: this.particleSystem.getParticleCount(),
           poolSizes: {
             meteors: this.meteorPool.getPoolSize(),
-            particles: this.particlePool.getPoolSize()
+            particles: this.particleSystem.getPoolSize()
           },
           settings: this.gameSettings
         });
         
-        console.log('Game over state updated!'); // Debug log
         return;
       }
 
@@ -458,26 +368,8 @@ export default class Engine {
       }
     }
 
-    // Update particles
-    for (let i = this.activeParticles.length - 1; i >= 0; i--) {
-      const particle = this.activeParticles[i];
-      if (!particle.active) continue;
-
-      particle.x += particle.vx;
-      particle.y += particle.vy;
-      particle.vy += 0.05;
-      particle.vx *= 0.99;
-      particle.alpha = particle.life / particle.maxLife;
-      particle.life--;
-
-      if (particle.life <= 0 || particle.alpha <= 0.01) {
-        this.releaseParticle(particle);
-      }
-    }
-
     this.score = Math.floor(this.gameTime);
     this.meteorCount = this.activeMeteors.length;
-    this.particleCount = this.activeParticles.length;
     
     // Always update state, even during normal gameplay
     this.onStateUpdate({ 
@@ -486,10 +378,10 @@ export default class Engine {
       isGameOver: this.isGameOver, 
       fps: this.currentFPS,
       meteors: this.meteorCount,
-      particles: this.particleCount,
+      particles: this.particleSystem.getParticleCount(),
       poolSizes: {
         meteors: this.meteorPool.getPoolSize(),
-        particles: this.particlePool.getPoolSize()
+        particles: this.particleSystem.getPoolSize()
       },
       settings: this.gameSettings
     });
@@ -500,7 +392,7 @@ export default class Engine {
       mouseX: this.mouseX,
       mouseY: this.mouseY,
       activeMeteors: this.activeMeteors,
-      activeParticles: this.activeParticles,
+      activeParticles: this.particleSystem.getActiveParticles(),
       powerUps: this.powerUpManager.getPowerUps(),
       playerTrail: this.playerTrail,
       isGameOver: this.isGameOver,
@@ -538,11 +430,10 @@ export default class Engine {
       this.animationFrame = null;
     }
     
-    // Clean up pools
+    // Clean up pools and systems
     this.meteorPool.clear();
-    this.particlePool.clear();
+    this.particleSystem.clear();
     this.activeMeteors.length = 0;
-    this.activeParticles.length = 0;
     
     window.removeEventListener('resize', this.resizeCanvas);
     window.removeEventListener('mousemove', this.handleMouseMove);
@@ -551,12 +442,10 @@ export default class Engine {
     window.removeEventListener('gameSettingsChanged', this.handleSettingsChange);
   }
 
-  // Public method to get current game over state
   getGameOverState(): boolean {
     return this.isGameOver;
   }
 
-  // Public method to reset game state
   resetGame() {
     this.isGameOver = false;
     this.gameTime = 0;
@@ -566,23 +455,18 @@ export default class Engine {
     this.playerRingPhase = 0;
     this.screenShake = { x: 0, y: 0, intensity: 0, duration: 0 };
     
-    // Reset particle limit to default
-    this.MAX_PARTICLES = 300;
-    
     // Clear all active objects
     this.activeMeteors.forEach(meteor => this.meteorPool.release(meteor));
-    this.activeParticles.forEach(particle => this.particlePool.release(particle));
     this.activeMeteors.length = 0;
-    this.activeParticles.length = 0;
     this.playerTrail.length = 0;
     
-    // Reset power-up manager
+    // Reset systems
+    this.particleSystem.reset();
     this.powerUpManager.reset();
     
     console.log('Game reset completed');
   }
 
-  // Public method to get current settings
   getSettings(): GameSettings {
     return { ...this.gameSettings };
   }
