@@ -760,4 +760,10 @@ export default class Engine {
       }
     }
   }
+}Meteor.color, 
+          )
+        }
+      }
+    }
+  }
 }
