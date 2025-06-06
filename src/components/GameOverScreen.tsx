@@ -99,14 +99,11 @@ export default function GameOverScreen({ score, onPlayAgain }: GameOverScreenPro
               ? 'opacity-100 translate-y-0 scale-100' 
               : 'opacity-0 -translate-y-8 scale-95'
           }`}
-          style={{
-            filter: 'drop-shadow(0 0 30px rgba(6, 182, 212, 0.4)) drop-shadow(0 0 50px rgba(255, 215, 0, 0.2))',
-          }}
         >
           <img 
             src={logoImage} 
             alt="aVOID Logo" 
-            className="h-32 w-auto object-contain"
+            className="h-48 w-auto object-contain"
           />
         </div>
         
