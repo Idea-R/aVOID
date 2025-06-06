@@ -23,7 +23,7 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
     showUI: true,
     showFPS: true,
     showPerformanceStats: true,
-    showTrails: true,
+    showTrails: false,
     performanceMode: false
   });
 
@@ -68,7 +68,7 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
       showUI: true,
       showFPS: true,
       showPerformanceStats: true,
-      showTrails: true,
+      showTrails: false,
       performanceMode: false
     };
     setSettings(defaultSettings);

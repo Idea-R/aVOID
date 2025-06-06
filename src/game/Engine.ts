@@ -86,7 +86,7 @@ export default class Engine {
     showUI: true,
     showFPS: true,
     showPerformanceStats: true,
-    showTrails: true,
+    showTrails: false,
     performanceMode: false,
     cursorColor: '#06b6d4'
   };
