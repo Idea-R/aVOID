@@ -1028,6 +1028,11 @@ export default class Engine {
       lastPlayerY: 0
     };
     
+    // Reset Bolt badge state
+    this.boltBadge.deflectionCount = 0;
+    this.boltBadge.lastDeflectionTime = 0;
+    this.updateBoltBadgePosition();
+    
     console.log('Game reset completed');
   }
 

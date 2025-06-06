@@ -84,6 +84,19 @@ export class ScoreSystem {
     return points;
   }
 
+  // Deflection scoring for Bolt badge interactions
+  addDeflectionScore(x: number, y: number, points: number, isSuper: boolean): number {
+    this.meteorScore += points;
+    
+    // Create floating score text with special deflection styling
+    const color = isSuper ? '#00ffff' : '#06b6d4'; // Cyan for deflections
+    const fontSize = isSuper ? 22 : 18;
+    const text = `DEFLECT +${points}`;
+    this.createScoreText(x, y, text, color, fontSize, isSuper ? 'super' : 'regular');
+    
+    return points;
+  }
+
   // Knockback scoring with combo system
   processKnockbackScore(destroyedMeteors: Array<{ x: number; y: number; isSuper: boolean }>, currentTime: number): number {
     if (destroyedMeteors.length === 0) return 0;
