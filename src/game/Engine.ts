@@ -768,5 +768,3 @@ export default class Engine {
     }
   }
 }
-
-export default Engine
