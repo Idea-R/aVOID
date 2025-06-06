@@ -38,12 +38,42 @@ export class RenderSystem {
   private ctx: CanvasRenderingContext2D;
   private canvas: HTMLCanvasElement;
   private shadowGroups: Map<string, ShadowGroup> = new Map();
+  private gradientCache: Map<string, CanvasGradient> = new Map();
+  private maxCacheSize: number = 100; // Limit cache size to prevent memory leaks
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
     const context = canvas.getContext('2d', { alpha: false });
     if (!context) throw new Error('Could not get canvas context');
     this.ctx = context;
+  }
+
+  private getCachedGradient(meteor: Meteor): CanvasGradient {
+    // Check if meteor already has a cached gradient
+    if (meteor.gradient) {
+      return meteor.gradient;
+    }
+
+    // Check global cache
+    if (this.gradientCache.has(meteor.gradientCacheKey)) {
+      meteor.gradient = this.gradientCache.get(meteor.gradientCacheKey)!;
+      return meteor.gradient;
+    }
+
+    // Create new gradient and cache it
+    const gradient = this.createMeteorGradient(0, 0, meteor.radius, meteor.color, meteor.isSuper);
+    
+    // Manage cache size
+    if (this.gradientCache.size >= this.maxCacheSize) {
+      // Remove oldest entry (first in Map)
+      const firstKey = this.gradientCache.keys().next().value;
+      this.gradientCache.delete(firstKey);
+    }
+    
+    this.gradientCache.set(meteor.gradientCacheKey, gradient);
+    meteor.gradient = gradient;
+    
+    return gradient;
   }
 
   render(state: RenderState): void {
@@ -240,14 +270,17 @@ export class RenderSystem {
   }
 
   private drawMeteorTrail(meteor: Meteor, trail: Array<{ x: number; y: number; alpha: number }>): void {
+    const cachedGradient = this.getCachedGradient(meteor);
+    
     trail.forEach((point, index) => {
       const progress = 1 - index / trail.length;
       const trailRadius = meteor.radius * progress * (meteor.isSuper ? 1.8 : 1.3);
       
       this.ctx.beginPath();
       this.ctx.arc(point.x, point.y, trailRadius, 0, Math.PI * 2);
-      const gradient = this.createMeteorGradient(point.x, point.y, trailRadius, meteor.color, meteor.isSuper);
-      this.ctx.fillStyle = gradient;
+      
+      // Use cached gradient but adjust for position and size
+      this.ctx.fillStyle = cachedGradient;
       
       // Shadow color is set per meteor color
       this.ctx.shadowColor = meteor.color;
@@ -256,9 +289,11 @@ export class RenderSystem {
   }
 
   private drawMeteor(meteor: Meteor): void {
+    const cachedGradient = this.getCachedGradient(meteor);
+    
     this.ctx.beginPath();
     this.ctx.arc(meteor.x, meteor.y, meteor.radius * (meteor.isSuper ? 1.8 : 1.3), 0, Math.PI * 2);
-    this.ctx.fillStyle = meteor.gradient || meteor.color;
+    this.ctx.fillStyle = cachedGradient;
     
     // Shadow color is set per meteor color
     this.ctx.shadowColor = meteor.color;
