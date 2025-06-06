@@ -1,6 +1,3 @@
-Here's the complete file content after applying the diff correctly:
-
-```typescript
 import { PowerUpManager, PowerUp } from './entities/PowerUp';
 import { ObjectPool } from './utils/ObjectPool';
 import { SpatialGrid, GridObject } from './utils/SpatialGrid';
@@ -590,4 +587,3 @@ export default class Engine {
     return { ...this.gameSettings };
   }
 }
-```
