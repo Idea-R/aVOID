@@ -116,14 +116,14 @@ export default function GameOverScreen({ score, onPlayAgain }: GameOverScreenPro
               alt="aVOID Logo" 
               className={`object-contain border border-cyan-500 rounded-lg p-2 bg-black/20 transition-all duration-700 ${
                 logoEnlarged 
-                  ? 'h-[80vh] w-auto max-w-[90vw] shadow-2xl shadow-cyan-500/50' 
-                  : 'h-48 w-auto'
+                  ? 'h-[60vh] sm:h-[70vh] md:h-[80vh] w-auto max-w-[90vw] shadow-2xl shadow-cyan-500/50' 
+                  : 'h-16 sm:h-24 md:h-32 lg:h-48 w-auto'
               }`}
             />
             {logoEnlarged && (
               <div className="text-center mt-6">
-                <p className="text-cyan-300 text-lg font-semibold mb-2">Click to close</p>
-                <p className="text-cyan-500 text-sm opacity-80">aVOID - Browser Dodge Game</p>
+                <p className="text-cyan-300 text-sm sm:text-base md:text-lg font-semibold mb-2">Click to close</p>
+                <p className="text-cyan-500 text-xs sm:text-sm opacity-80">aVOID - Browser Dodge Game</p>
               </div>
             )}
           </div>
