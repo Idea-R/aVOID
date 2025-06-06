@@ -13,6 +13,8 @@ interface GameSettings {
   showFPS: boolean;
   showPerformanceStats: boolean;
   showTrails: boolean;
+  performanceMode: boolean;
+  autoPerformanceModeEnabled?: boolean;
 }
 
 export default class Engine {
@@ -59,6 +61,13 @@ export default class Engine {
   private dynamicMaxParticles: number = 300;
   private adaptiveTrailsActive: boolean = true;
   
+  // Performance mode tracking
+  private performanceModeActive: boolean = false;
+  private autoPerformanceModeEnabled: boolean = false;
+  private lowFPSStartTime: number = 0;
+  private lowFPSThreshold: number = 45;
+  private lowFPSDuration: number = 3000; // 3 seconds
+  
   // Performance tracking
   private frameTimes: number[] = [];
   private averageFrameTime: number = 0;
@@ -76,7 +85,8 @@ export default class Engine {
     showUI: true,
     showFPS: true,
     showPerformanceStats: true,
-    showTrails: true
+    showTrails: true,
+    performanceMode: false
   };
   
   onStateUpdate: (state: { 
@@ -135,8 +145,49 @@ export default class Engine {
   }
 
   private handleSettingsChange = (event: CustomEvent) => {
-    this.gameSettings = { ...this.gameSettings, ...event.detail };
+    const newSettings = event.detail;
+    const previousPerformanceMode = this.gameSettings.performanceMode;
+    
+    this.gameSettings = { ...this.gameSettings, ...newSettings };
+    this.autoPerformanceModeEnabled = newSettings.autoPerformanceModeEnabled || false;
+    
+    // Handle performance mode changes
+    if (newSettings.performanceMode !== previousPerformanceMode) {
+      this.applyPerformanceMode(newSettings.performanceMode);
+    }
   };
+  
+  private applyPerformanceMode(enabled: boolean): void {
+    this.performanceModeActive = enabled;
+    
+    if (enabled) {
+      // Enable performance optimizations
+      this.shadowsEnabled = false;
+      this.dynamicMaxParticles = 150;
+      this.adaptiveTrailsActive = false;
+      
+      // Update systems
+      this.particleSystem.setMaxParticles(this.dynamicMaxParticles);
+      this.renderSystem.setShadowsEnabled(this.shadowsEnabled);
+      
+      this.lastScalingEvent = 'performance-mode-enabled';
+      this.scalingEventTime = Date.now();
+      console.log('🔧 Performance Mode activated - Shadows disabled, particles reduced to 150, trails disabled');
+    } else {
+      // Restore full quality
+      this.shadowsEnabled = true;
+      this.dynamicMaxParticles = 300;
+      this.adaptiveTrailsActive = true;
+      
+      // Update systems
+      this.particleSystem.setMaxParticles(this.dynamicMaxParticles);
+      this.renderSystem.setShadowsEnabled(this.shadowsEnabled);
+      
+      this.lastScalingEvent = 'performance-mode-disabled';
+      this.scalingEventTime = Date.now();
+      console.log('🔧 Performance Mode deactivated - Full visual quality restored');
+    }
+  }
 
   private mouseX: number = 0;
   private mouseY: number = 0;
@@ -354,7 +405,7 @@ export default class Engine {
       }
       
       // Auto-scaling logic based on FPS performance
-      if (this.autoScaleEnabled) {
+      if (this.autoScaleEnabled && !this.performanceModeActive) {
         const previousShadows = this.shadowsEnabled;
         const previousMaxParticles = this.dynamicMaxParticles;
         
@@ -401,6 +452,30 @@ export default class Engine {
         
         // Update render system shadow settings
         this.renderSystem.setShadowsEnabled(this.shadowsEnabled);
+      }
+      
+      // Auto-performance mode detection
+      if (this.autoPerformanceModeEnabled && !this.performanceModeActive) {
+        if (this.currentFPS < this.lowFPSThreshold) {
+          if (this.lowFPSStartTime === 0) {
+            this.lowFPSStartTime = now;
+          } else if (now - this.lowFPSStartTime >= this.lowFPSDuration) {
+            // Enable performance mode automatically
+            this.gameSettings.performanceMode = true;
+            this.applyPerformanceMode(true);
+            
+            // Dispatch event to update UI
+            window.dispatchEvent(new CustomEvent('autoPerformanceModeActivated', {
+              detail: { reason: 'low-fps', fps: this.currentFPS, duration: this.lowFPSDuration }
+            }));
+            
+            console.log(`🔧 Auto Performance Mode activated - FPS below ${this.lowFPSThreshold} for ${this.lowFPSDuration/1000}s`);
+            this.lowFPSStartTime = 0;
+          }
+        } else {
+          // Reset low FPS timer if FPS improves
+          this.lowFPSStartTime = 0;
+        }
       }
       
       // Calculate memory usage estimate
@@ -471,9 +546,9 @@ export default class Engine {
       meteor.gradient = this.renderSystem.createMeteorGradient(meteor.x, meteor.y, meteor.radius, meteor.color, meteor.isSuper);
 
       // Update trail with length limit (only if trails are enabled)
-      if (this.gameSettings.showTrails && this.adaptiveTrailsActive) {
+      if (this.gameSettings.showTrails && this.adaptiveTrailsActive && !this.performanceModeActive) {
         meteor.trail.unshift({ x: meteor.x, y: meteor.y, alpha: 1 });
-        const maxTrailLength = 6; // Reduced from 15/12 to 6 for all meteors
+        const maxTrailLength = this.performanceModeActive ? 3 : 6; // Further reduced in performance mode
         if (meteor.trail.length > maxTrailLength) meteor.trail.pop();
         meteor.trail.forEach(point => point.alpha *= 0.85); // Unified alpha decay
       } else {
@@ -585,6 +660,7 @@ export default class Engine {
       hasKnockbackPower: this.hasKnockbackPower,
       playerRingPhase: this.playerRingPhase,
       screenShake: this.screenShake,
+      adaptiveTrailsActive: this.adaptiveTrailsActive && !this.performanceModeActive,
       gameSettings: this.gameSettings
     };
     
@@ -655,6 +731,15 @@ export default class Engine {
     this.dynamicMaxParticles = 300;
     this.adaptiveTrailsActive = true;
     
+    // Reset performance mode tracking
+    this.performanceModeActive = this.gameSettings.performanceMode;
+    this.lowFPSStartTime = 0;
+    
+    // Apply current performance mode settings
+    if (this.performanceModeActive) {
+      this.applyPerformanceMode(true);
+    }
+    
     // Reset touch tracking
     this.activeTouchId = null;
     this.isTouchDevice = false;
@@ -675,6 +760,25 @@ export default class Engine {
 
   getSettings(): GameSettings {
     return { ...this.gameSettings };
+  }
+  
+  // Performance mode control methods
+  setPerformanceMode(enabled: boolean): void {
+    this.gameSettings.performanceMode = enabled;
+    this.applyPerformanceMode(enabled);
+  }
+  
+  getPerformanceMode(): boolean {
+    return this.performanceModeActive;
+  }
+  
+  setAutoPerformanceModeEnabled(enabled: boolean): void {
+    this.autoPerformanceModeEnabled = enabled;
+    this.lowFPSStartTime = 0; // Reset timer
+  }
+  
+  getAutoPerformanceModeEnabled(): boolean {
+    return this.autoPerformanceModeEnabled;
   }
   
   // Auto-scaling control methods

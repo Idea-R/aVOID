@@ -10,6 +10,7 @@ interface GameSettings {
   showFPS: boolean;
   showPerformanceStats: boolean;
   showTrails: boolean;
+  performanceMode: boolean;
 }
 
 export default function Game() {
@@ -32,7 +33,8 @@ export default function Game() {
       showUI: true,
       showFPS: true,
       showPerformanceStats: true,
-      showTrails: true
+      showTrails: true,
+      performanceMode: false
     } as GameSettings
   });
 
@@ -51,8 +53,24 @@ export default function Game() {
     engine.start();
     console.log('Game engine started');
 
+    // Listen for auto-performance mode activation
+    const handleAutoPerformanceMode = (event: CustomEvent) => {
+      console.log('Auto Performance Mode activated:', event.detail);
+      // Update local state to reflect the change
+      setGameState(prev => ({
+        ...prev,
+        settings: {
+          ...prev.settings,
+          performanceMode: true
+        }
+      }));
+    };
+
+    window.addEventListener('autoPerformanceModeActivated', handleAutoPerformanceMode as EventListener);
+
     return () => {
       console.log('Cleaning up game engine...');
+      window.removeEventListener('autoPerformanceModeActivated', handleAutoPerformanceMode as EventListener);
       engine.stop();
     };
   }, []);
@@ -84,6 +102,7 @@ export default function Game() {
           poolSizes={gameState.settings.showPerformanceStats ? gameState.poolSizes : undefined}
           autoScaling={gameState.autoScaling}
           performance={gameState.performance}
+         settings={gameState.settings}
           isGameOver={gameState.isGameOver}
         />
       )}

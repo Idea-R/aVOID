@@ -13,6 +13,7 @@ interface GameSettings {
   showFPS: boolean;
   showPerformanceStats: boolean;
   showTrails: boolean;
+  performanceMode: boolean;
 }
 
 export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
@@ -22,10 +23,12 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
     showUI: true,
     showFPS: true,
     showPerformanceStats: true,
-    showTrails: true
+    showTrails: true,
+    performanceMode: false
   });
 
   const [activeTab, setActiveTab] = useState<'settings' | 'social'>('settings');
+  const [autoPerformanceModeEnabled, setAutoPerformanceModeEnabled] = useState(false);
 
   // Load settings from localStorage on mount
   useEffect(() => {
@@ -34,24 +37,69 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
       try {
         const parsed = JSON.parse(savedSettings);
         setSettings(prev => ({ ...prev, ...parsed }));
+        
+        // Check if auto-performance mode was previously enabled
+        const autoMode = localStorage.getItem('avoidGameAutoPerformanceMode');
+        if (autoMode === 'true') {
+          setAutoPerformanceModeEnabled(true);
+        }
       } catch (error) {
         console.error('Error loading settings:', error);
       }
+    }
+    
+    // Auto-detect mobile devices and enable performance mode
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
+                     window.innerWidth <= 768;
+    
+    if (isMobile && !localStorage.getItem('avoidGameSettings')) {
+      // First time on mobile - enable performance mode by default
+      setSettings(prev => ({ ...prev, performanceMode: true }));
+      setAutoPerformanceModeEnabled(true);
+      localStorage.setItem('avoidGameAutoPerformanceMode', 'true');
+      console.log('🔧 Auto-enabled Performance Mode for mobile device');
     }
   }, []);
 
   // Save settings to localStorage whenever they change
   useEffect(() => {
     localStorage.setItem('avoidGameSettings', JSON.stringify(settings));
+    localStorage.setItem('avoidGameAutoPerformanceMode', autoPerformanceModeEnabled.toString());
     
     // Dispatch custom event for game engine to listen to
     window.dispatchEvent(new CustomEvent('gameSettingsChanged', { 
-      detail: settings 
+      detail: { ...settings, autoPerformanceModeEnabled }
     }));
-  }, [settings]);
+  }, [settings, autoPerformanceModeEnabled]);
 
   const updateSetting = <K extends keyof GameSettings>(key: K, value: GameSettings[K]) => {
     setSettings(prev => ({ ...prev, [key]: value }));
+  };
+
+  const togglePerformanceMode = () => {
+    const newValue = !settings.performanceMode;
+    updateSetting('performanceMode', newValue);
+    
+    if (newValue) {
+      // When enabling performance mode, apply optimizations
+      updateSetting('showTrails', false);
+      console.log('🔧 Performance Mode enabled - Visual quality optimized for better FPS');
+    } else {
+      // When disabling performance mode, restore full quality
+      updateSetting('showTrails', true);
+      console.log('🔧 Performance Mode disabled - Full visual quality restored');
+    }
+  };
+
+  const toggleAutoPerformanceMode = () => {
+    const newValue = !autoPerformanceModeEnabled;
+    setAutoPerformanceModeEnabled(newValue);
+    
+    if (newValue) {
+      console.log('🔧 Auto Performance Mode enabled - Will activate when FPS drops below 45');
+    } else {
+      console.log('🔧 Auto Performance Mode disabled');
+    }
   };
 
   const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -77,9 +125,11 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
       showUI: true,
       showFPS: true,
       showPerformanceStats: true,
-      showTrails: true
+      showTrails: true,
+      performanceMode: false
     };
     setSettings(defaultSettings);
+    setAutoPerformanceModeEnabled(false);
   };
 
   const handlePayPalTip = () => {
@@ -189,6 +239,48 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                 </h3>
                 
                 <div className="space-y-4">
+                  {/* Performance Mode Toggle */}
+                  <div className="bg-gradient-to-r from-orange-900/30 to-red-900/30 border border-orange-500/50 rounded-lg p-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <div>
+                        <label className="text-orange-300 font-semibold">Performance Mode</label>
+                        <p className="text-orange-200 text-xs mt-1">
+                          Optimizes for better FPS: disables trails, reduces particles, removes shadows
+                        </p>
+                      </div>
+                      <button
+                        onClick={togglePerformanceMode}
+                        className={`w-12 h-6 rounded-full transition-colors duration-200 relative ${
+                          settings.performanceMode ? 'bg-orange-500' : 'bg-gray-600'
+                        }`}
+                      >
+                        <div className={`w-5 h-5 bg-white rounded-full absolute top-0.5 transition-transform duration-200 ${
+                          settings.performanceMode ? 'translate-x-6' : 'translate-x-0.5'
+                        }`} />
+                      </button>
+                    </div>
+                    
+                    {/* Auto Performance Mode */}
+                    <div className="flex items-center justify-between pt-3 border-t border-orange-500/30">
+                      <div>
+                        <label className="text-orange-200 text-sm">Auto-Enable on Low FPS</label>
+                        <p className="text-orange-300 text-xs mt-1">
+                          Automatically enable when FPS drops below 45 for 3+ seconds
+                        </p>
+                      </div>
+                      <button
+                        onClick={toggleAutoPerformanceMode}
+                        className={`w-10 h-5 rounded-full transition-colors duration-200 relative ${
+                          autoPerformanceModeEnabled ? 'bg-orange-400' : 'bg-gray-600'
+                        }`}
+                      >
+                        <div className={`w-4 h-4 bg-white rounded-full absolute top-0.5 transition-transform duration-200 ${
+                          autoPerformanceModeEnabled ? 'translate-x-5' : 'translate-x-0.5'
+                        }`} />
+                      </button>
+                    </div>
+                  </div>
+
                   <div className="flex items-center justify-between">
                     <label className="text-gray-300">Show UI Elements</label>
                     <button
@@ -232,15 +324,21 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                   </div>
 
                   <div className="flex items-center justify-between">
-                    <label className="text-gray-300">Show Particle Trails</label>
+                    <div>
+                      <label className="text-gray-300">Show Particle Trails</label>
+                      {settings.performanceMode && (
+                        <p className="text-orange-400 text-xs">Disabled in Performance Mode</p>
+                      )}
+                    </div>
                     <button
                       onClick={() => updateSetting('showTrails', !settings.showTrails)}
+                      disabled={settings.performanceMode}
                       className={`w-12 h-6 rounded-full transition-colors duration-200 relative ${
-                        settings.showTrails ? 'bg-cyan-500' : 'bg-gray-600'
-                      }`}
+                        settings.showTrails && !settings.performanceMode ? 'bg-cyan-500' : 'bg-gray-600'
+                      } ${settings.performanceMode ? 'opacity-50 cursor-not-allowed' : ''}`}
                     >
                       <div className={`w-5 h-5 bg-white rounded-full absolute top-0.5 transition-transform duration-200 ${
-                        settings.showTrails ? 'translate-x-6' : 'translate-x-0.5'
+                        settings.showTrails && !settings.performanceMode ? 'translate-x-6' : 'translate-x-0.5'
                       }`} />
                     </button>
                   </div>
@@ -339,12 +437,16 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                   <p><strong>Built with:</strong> React, TypeScript, Canvas API</p>
                   <p><strong>Database:</strong> Supabase</p>
                   <p><strong>License:</strong> Open Source</p>
+                  <p><strong>Performance:</strong> Adaptive quality scaling</p>
                 </div>
                 
                 <div className="mt-4 p-3 bg-cyan-900/30 border border-cyan-500/50 rounded-lg">
                   <p className="text-cyan-200 text-sm">
                     🎮 <strong>How to play:</strong> Move your mouse to avoid meteors. 
                     Double-click to use knockback power when available. Survive as long as possible!
+                  </p>
+                  <p className="text-cyan-200 text-sm mt-2">
+                    ⚡ <strong>Performance tip:</strong> Enable Performance Mode for smoother gameplay on slower devices.
                   </p>
                 </div>
               </div>
