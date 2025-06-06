@@ -23,6 +23,8 @@ export default function Game() {
     meteors: 0,
     particles: 0,
     poolSizes: { meteors: 0, particles: 0 },
+    autoScaling: { enabled: true, shadowsEnabled: true, maxParticles: 300 },
+    performance: { averageFrameTime: 0, memoryUsage: 0, lastScalingEvent: 'none' },
     settings: {
       volume: 0.7,
       soundEnabled: true,

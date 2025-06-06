@@ -496,4 +496,13 @@ export class RenderSystem {
       console.warn('Error disposing RenderSystem:', error);
     }
   }
+  
+  // Shadow control methods
+  setShadowsEnabled(enabled: boolean): void {
+    this.shadowsEnabled = enabled;
+  }
+  
+  getShadowsEnabled(): boolean {
+    return this.shadowsEnabled;
+  }
 }

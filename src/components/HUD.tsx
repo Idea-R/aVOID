@@ -68,13 +68,23 @@ export default function HUD({ score, time, fps, meteors = 0, particles = 0, pool
                 </div>
               )}
               {particles > 0 && (
-                <div className={getPerformanceColor(particles, 300)}>
-                  Particles: {particles}/300
+                <div className={getPerformanceColor(particles, autoScaling?.maxParticles || 300)}>
+                  Particles: {particles}/{autoScaling?.maxParticles || 300}
                 </div>
               )}
               {poolSizes && (
                 <div className="text-blue-400">
                   Pool: M{poolSizes.meteors} P{poolSizes.particles}
+                </div>
+              )}
+              {autoScaling && (
+                <div className="text-purple-400">
+                  Quality: {autoScaling.shadowsEnabled ? 'High' : 'Low'}
+                </div>
+              )}
+              {performance && performance.averageFrameTime > 0 && (
+                <div className="text-orange-400">
+                  Frame: {performance.averageFrameTime.toFixed(1)}ms
                 </div>
               )}
             </div>

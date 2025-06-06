@@ -20,15 +20,15 @@ export class ParticleSystem {
   }
 
   // Adaptive particle limits based on FPS performance
-  adaptiveParticleLimits(currentFPS: number): void {
-    const baseLimit = this.isMobile ? 150 : 300;
+  setMaxParticles(maxParticles: number): void {
+    this.maxParticles = maxParticles;
     
-    if (currentFPS < 30) {
-      this.maxParticles = Math.floor(baseLimit * 0.5); // Reduce by 50%
-    } else if (currentFPS < 45) {
-      this.maxParticles = Math.floor(baseLimit * 0.75); // Reduce by 25%
-    } else {
-      this.maxParticles = baseLimit; // Full quality
+    // If we're over the new limit, release excess particles
+    while (this.activeParticles.length > this.maxParticles) {
+      const particle = this.activeParticles.pop();
+      if (particle) {
+        this.particlePool.release(particle);
+      }
     }
   }
 

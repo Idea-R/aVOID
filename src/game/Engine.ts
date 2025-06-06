@@ -53,6 +53,18 @@ export default class Engine {
   private currentFPS: number = 0;
   private fpsUpdateInterval: number = 500;
   
+  // Auto-scaling performance properties
+  private autoScaleEnabled: boolean = true;
+  private shadowsEnabled: boolean = true;
+  private dynamicMaxParticles: number = 300;
+  
+  // Performance tracking
+  private frameTimes: number[] = [];
+  private averageFrameTime: number = 0;
+  private memoryUsageEstimate: number = 0;
+  private lastScalingEvent: string = 'none';
+  private scalingEventTime: number = 0;
+  
   // Performance tracking
   private meteorCount: number = 0;
   
@@ -74,6 +86,8 @@ export default class Engine {
     meteors: number;
     particles: number;
     poolSizes: { meteors: number; particles: number };
+    autoScaling: { enabled: boolean; shadowsEnabled: boolean; maxParticles: number };
+    performance: { averageFrameTime: number; memoryUsage: number; lastScalingEvent: string };
     settings: GameSettings;
   }) => void = () => {};
 
@@ -321,10 +335,63 @@ export default class Engine {
   private updateFPS(timestamp: number) {
     this.frameCount++;
     
+    // Track frame times for average calculation
+    const frameTime = timestamp - this.lastTime;
+    this.frameTimes.push(frameTime);
+    if (this.frameTimes.length > 60) { // Keep last 60 frames
+      this.frameTimes.shift();
+    }
+    
     if (timestamp - this.fpsLastTime >= this.fpsUpdateInterval) {
       this.currentFPS = Math.round((this.frameCount * 1000) / (timestamp - this.fpsLastTime));
       this.frameCount = 0;
       this.fpsLastTime = timestamp;
+      
+      // Calculate average frame time
+      if (this.frameTimes.length > 0) {
+        this.averageFrameTime = this.frameTimes.reduce((sum, time) => sum + time, 0) / this.frameTimes.length;
+      }
+      
+      // Auto-scaling logic based on FPS performance
+      if (this.autoScaleEnabled) {
+        const previousShadows = this.shadowsEnabled;
+        const previousMaxParticles = this.dynamicMaxParticles;
+        
+        if (this.currentFPS < 30) {
+          this.shadowsEnabled = false;
+          this.dynamicMaxParticles = 150;
+          if (previousShadows || previousMaxParticles !== 150) {
+            this.lastScalingEvent = 'low-performance';
+            this.scalingEventTime = Date.now();
+            console.log('🔧 Auto-scaling: Low performance mode activated (FPS < 30)');
+          }
+        } else if (this.currentFPS < 45) {
+          this.shadowsEnabled = true;
+          this.dynamicMaxParticles = 225;
+          if (!previousShadows || previousMaxParticles !== 225) {
+            this.lastScalingEvent = 'medium-performance';
+            this.scalingEventTime = Date.now();
+            console.log('🔧 Auto-scaling: Medium performance mode activated (FPS < 45)');
+          }
+        } else {
+          this.shadowsEnabled = true;
+          this.dynamicMaxParticles = 300;
+          if (!previousShadows || previousMaxParticles !== 300) {
+            this.lastScalingEvent = 'high-performance';
+            this.scalingEventTime = Date.now();
+            console.log('🔧 Auto-scaling: High performance mode activated (FPS >= 45)');
+          }
+        }
+        
+        // Update particle system with new limits
+        this.particleSystem.setMaxParticles(this.dynamicMaxParticles);
+        
+        // Update render system shadow settings
+        this.renderSystem.setShadowsEnabled(this.shadowsEnabled);
+      }
+      
+      // Calculate memory usage estimate
+      this.memoryUsageEstimate = this.activeMeteors.length + this.particleSystem.getParticleCount();
     }
   }
 
@@ -332,7 +399,7 @@ export default class Engine {
     if (this.isGameOver) return;
     
     // Apply adaptive particle limits based on current FPS
-    this.particleSystem.adaptiveParticleLimits(this.currentFPS);
+    // Note: Particle limits now handled by auto-scaling in updateFPS()
     
     this.gameTime += deltaTime / 1000;
     
@@ -439,6 +506,16 @@ export default class Engine {
             meteors: this.meteorPool.getPoolSize(),
             particles: this.particleSystem.getPoolSize()
           },
+          autoScaling: {
+            enabled: this.autoScaleEnabled,
+            shadowsEnabled: this.shadowsEnabled,
+            maxParticles: this.dynamicMaxParticles
+          },
+          performance: {
+            averageFrameTime: this.averageFrameTime,
+            memoryUsage: this.memoryUsageEstimate,
+            lastScalingEvent: this.lastScalingEvent
+          },
           settings: this.gameSettings
         });
         
@@ -466,6 +543,16 @@ export default class Engine {
       poolSizes: {
         meteors: this.meteorPool.getPoolSize(),
         particles: this.particleSystem.getPoolSize()
+      },
+      autoScaling: {
+        enabled: this.autoScaleEnabled,
+        shadowsEnabled: this.shadowsEnabled,
+        maxParticles: this.dynamicMaxParticles
+      },
+      performance: {
+        averageFrameTime: this.averageFrameTime,
+        memoryUsage: this.memoryUsageEstimate,
+        lastScalingEvent: this.lastScalingEvent
       },
       settings: this.gameSettings
     });
@@ -541,6 +628,17 @@ export default class Engine {
     this.playerRingPhase = 0;
     this.screenShake = { x: 0, y: 0, intensity: 0, duration: 0 };
     
+    // Reset performance tracking
+    this.frameTimes.length = 0;
+    this.averageFrameTime = 0;
+    this.memoryUsageEstimate = 0;
+    this.lastScalingEvent = 'reset';
+    this.scalingEventTime = Date.now();
+    
+    // Reset auto-scaling to defaults
+    this.shadowsEnabled = true;
+    this.dynamicMaxParticles = 300;
+    
     // Reset touch tracking
     this.activeTouchId = null;
     this.isTouchDevice = false;
@@ -552,6 +650,8 @@ export default class Engine {
     
     // Reset systems
     this.particleSystem.reset();
+    this.particleSystem.setMaxParticles(this.dynamicMaxParticles);
+    this.renderSystem.setShadowsEnabled(this.shadowsEnabled);
     this.powerUpManager.reset();
     
     console.log('Game reset completed');
@@ -559,5 +659,43 @@ export default class Engine {
 
   getSettings(): GameSettings {
     return { ...this.gameSettings };
+  }
+  
+  // Auto-scaling control methods
+  setAutoScalingEnabled(enabled: boolean): void {
+    this.autoScaleEnabled = enabled;
+    if (!enabled) {
+      // Reset to high quality when disabled
+      this.shadowsEnabled = true;
+      this.dynamicMaxParticles = 300;
+      this.particleSystem.setMaxParticles(this.dynamicMaxParticles);
+      this.renderSystem.setShadowsEnabled(this.shadowsEnabled);
+      this.lastScalingEvent = 'auto-scaling-disabled';
+      this.scalingEventTime = Date.now();
+    }
+  }
+  
+  getAutoScalingEnabled(): boolean {
+    return this.autoScaleEnabled;
+  }
+  
+  getPerformanceStats(): {
+    fps: number;
+    averageFrameTime: number;
+    memoryUsage: number;
+    shadowsEnabled: boolean;
+    maxParticles: number;
+    lastScalingEvent: string;
+    scalingEventTime: number;
+  } {
+    return {
+      fps: this.currentFPS,
+      averageFrameTime: this.averageFrameTime,
+      memoryUsage: this.memoryUsageEstimate,
+      shadowsEnabled: this.shadowsEnabled,
+      maxParticles: this.dynamicMaxParticles,
+      lastScalingEvent: this.lastScalingEvent,
+      scalingEventTime: this.scalingEventTime
+    };
   }
 }
