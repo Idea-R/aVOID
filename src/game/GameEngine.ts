@@ -116,16 +116,16 @@ export class GameEngine {
   /**
    * Main game loop
    */
-  private gameLoop = (currentTime: number): void => {
+  private gameLoop = (timestamp: number): void => {
     if (!this.gameState.isRunning || this.gameState.isPaused) {
       return;
     }
     
-    const deltaTime = currentTime - this.lastFrameTime;
-    this.lastFrameTime = currentTime;
+    const deltaTime = timestamp - this.lastFrameTime;
+    this.lastFrameTime = timestamp;
     
     // Update FPS counter
-    this.updateFPS(currentTime);
+    this.updateFPS(timestamp);
     
     // Update game systems
     this.update(deltaTime);
@@ -137,6 +137,123 @@ export class GameEngine {
     this.animationFrameId = requestAnimationFrame(this.gameLoop);
   };
   
+  /**
+   * Enhanced game loop with performance monitoring and adaptive timing
+   */
+  private enhancedGameLoop = (timestamp: number): void => {
+    if (!this.gameState.isRunning) return;
+    
+    // Handle pause state
+    if (this.gameState.isPaused) {
+      // Don't update game logic, but keep the loop alive for resume
+      this.animationFrameId = requestAnimationFrame(this.enhancedGameLoop);
+      return;
+    }
+    
+    // Calculate delta time with frame limiting
+    const deltaTime = Math.min(timestamp - this.lastFrameTime, 33.33); // Cap at ~30fps minimum
+    this.lastFrameTime = timestamp;
+    
+    // Skip frame if delta is too small (avoid micro-updates)
+    if (deltaTime < 1) {
+      this.animationFrameId = requestAnimationFrame(this.enhancedGameLoop);
+      return;
+    }
+    
+    // Update FPS and performance metrics
+    this.updatePerformanceMetrics(timestamp, deltaTime);
+    
+    // Update game systems with delta time
+    this.updateGameSystems(deltaTime);
+    
+    // Render current frame
+    this.renderFrame();
+    
+    // Schedule next frame
+    this.animationFrameId = requestAnimationFrame(this.enhancedGameLoop);
+  };
+  
+  /**
+   * Update performance metrics and FPS tracking
+   */
+  private updatePerformanceMetrics(timestamp: number, deltaTime: number): void {
+    this.frameCount++;
+    
+    // Update FPS every second
+    if (timestamp - this.lastFPSUpdate >= 1000) {
+      this.fpsCounter = Math.round((this.frameCount * 1000) / (timestamp - this.lastFPSUpdate));
+      this.frameCount = 0;
+      this.lastFPSUpdate = timestamp;
+      
+      // Performance mode detection
+      if (this.config.enablePerformanceMode && this.fpsCounter < 45) {
+        this.enablePerformanceOptimizations();
+      } else if (this.fpsCounter > 55) {
+        this.disablePerformanceOptimizations();
+      }
+    }
+  }
+  
+  /**
+   * Update all game systems with delta time
+   */
+  private updateGameSystems(deltaTime: number): void {
+    if (this.gameState.isGameOver) return;
+    
+    // Update game time
+    this.gameState.gameTime += deltaTime / 1000;
+    
+    // Update core systems
+    this.particleSystem.update(deltaTime);
+    this.scoreSystem.update(deltaTime, performance.now());
+    this.powerUpManager.update(this.gameState.gameTime, deltaTime);
+    
+    // Update game entities
+    this.updateMeteors(deltaTime);
+    
+    // Process collisions
+    this.checkCollisions();
+    
+    // Update score
+    this.gameState.score = this.scoreSystem.getTotalScore();
+  }
+  
+  /**
+   * Render current frame
+   */
+  private renderFrame(): void {
+    // Clear spatial grid for next frame
+    this.spatialGrid.clear();
+    
+    // Render implementation will be enhanced
+    // this.renderSystem.render(this.buildRenderState());
+  }
+  
+  /**
+   * Enable performance optimizations when FPS drops
+   */
+  private enablePerformanceOptimizations(): void {
+    // Reduce particle count
+    this.particleSystem.setMaxParticles(150);
+    
+    // Disable expensive visual effects
+    // this.renderSystem.setShadowsEnabled(false);
+    
+    console.log('🔧 Performance optimizations enabled (FPS < 45)');
+  }
+  
+  /**
+   * Disable performance optimizations when FPS improves
+   */
+  private disablePerformanceOptimizations(): void {
+    // Restore full particle count
+    this.particleSystem.setMaxParticles(300);
+    
+    // Re-enable visual effects
+    // this.renderSystem.setShadowsEnabled(true);
+    
+    console.log('🔧 Performance optimizations disabled (FPS > 55)');
+  }
   /**
    * Update all game systems
    */
@@ -258,7 +375,10 @@ export class GameEngine {
     this.gameState.isRunning = true;
     this.gameState.isPaused = false;
     this.lastFrameTime = performance.now();
-    this.animationFrameId = requestAnimationFrame(this.gameLoop);
+    this.lastFPSUpdate = this.lastFrameTime;
+    this.animationFrameId = requestAnimationFrame(this.enhancedGameLoop);
+    
+    console.log('🎮 GameEngine started with enhanced loop');
   }
   
   /**
@@ -271,23 +391,29 @@ export class GameEngine {
       cancelAnimationFrame(this.animationFrameId);
       this.animationFrameId = null;
     }
+    
+    console.log('🎮 GameEngine stopped');
   }
   
   /**
    * Pause the game
    */
   public pause(): void {
+    if (!this.gameState.isRunning) return;
+    
     this.gameState.isPaused = true;
+    console.log('⏸️ GameEngine paused');
   }
   
   /**
    * Resume the game
    */
   public resume(): void {
-    if (this.gameState.isRunning) {
+    if (this.gameState.isRunning && this.gameState.isPaused) {
       this.gameState.isPaused = false;
+      // Reset frame timing to prevent large delta
       this.lastFrameTime = performance.now();
-      this.animationFrameId = requestAnimationFrame(this.gameLoop);
+      console.log('▶️ GameEngine resumed');
     }
   }
   
