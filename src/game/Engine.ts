@@ -51,7 +51,6 @@ export default class Engine {
   private playerTrail: Array<{ x: number; y: number; alpha: number }> = [];
   private isGameOver: boolean = false;
   private powerUpManager: PowerUpManager = new PowerUpManager();
-  private hasKnockbackPower: boolean = false;
   private knockbackCooldown: number = 0;
   private playerRingPhase: number = 0;
   private screenShake: { x: number; y: number; intensity: number; duration: number } = { x: 0, y: 0, intensity: 0, duration: 0 };
@@ -327,7 +326,7 @@ export default class Engine {
     }
   };
   private handleDoubleClick = (e: MouseEvent) => {
-    if (this.isGameOver || !this.hasKnockbackPower || this.isTouchDevice) return;
+    if (this.isGameOver || !this.powerUpManager.hasCharges() || this.isTouchDevice) return;
     this.activateKnockback();
   };
 
@@ -369,7 +368,7 @@ export default class Engine {
     const now = Date.now();
     if (now - this.lastClickTime < 300) {
       this.clickCount++;
-      if (this.clickCount >= 2 && this.hasKnockbackPower) {
+      if (this.clickCount >= 2 && this.powerUpManager.hasCharges()) {
         this.activateKnockback();
         this.clickCount = 0;
       }
@@ -380,13 +379,33 @@ export default class Engine {
   };
 
   private activateKnockback() {
-    if (!this.hasKnockbackPower) return;
+    if (!this.powerUpManager.useCharge()) return;
 
-    this.hasKnockbackPower = false;
     this.knockbackCooldown = 30;
 
     this.screenShake = { x: 0, y: 0, intensity: 15, duration: 500 };
     this.particleSystem.createShockwave(this.mouseX, this.mouseY);
+
+    // Mild knockback effect for nearby meteors when collecting power-up
+    const nearbyMeteors = this.activeMeteors.filter(meteor => {
+      const dx = meteor.x - this.mouseX;
+      const dy = meteor.y - this.mouseY;
+      const distance = Math.sqrt(dx * dx + dy * dy);
+      return distance <= 30; // Very close proximity
+    });
+    
+    // Apply mild force to nearby meteors
+    for (const meteor of nearbyMeteors) {
+      const dx = meteor.x - this.mouseX;
+      const dy = meteor.y - this.mouseY;
+      const distance = Math.sqrt(dx * dx + dy * dy);
+      if (distance > 0) {
+        const force = 2; // Mild force
+        const angle = Math.atan2(dy, dx);
+        meteor.vx += Math.cos(angle) * force;
+        meteor.vy += Math.sin(angle) * force;
+      }
+    }
 
     // Use collision system for optimized knockback detection
     const knockbackResult = this.collisionSystem.processKnockbackCollisions(
@@ -608,15 +627,19 @@ export default class Engine {
     
     const collectedPowerUp = this.powerUpManager.checkCollision(this.mouseX, this.mouseY);
     if (collectedPowerUp && collectedPowerUp.type === 'knockback') {
-      this.hasKnockbackPower = true;
       this.playerRingPhase = 0;
+      
+      // Create collection effect particles
+      this.particleSystem.createExplosion(collectedPowerUp.x, collectedPowerUp.y, '#ffd700', false);
     }
     
     if (this.knockbackCooldown > 0) {
       this.knockbackCooldown -= deltaTime / 1000;
     }
     
-    if (this.hasKnockbackPower) {
+    // Update player ring phase based on charges
+    const charges = this.powerUpManager.getCharges();
+    if (charges > 0) {
       this.playerRingPhase += deltaTime * 0.008;
     }
     
@@ -777,8 +800,9 @@ export default class Engine {
       powerUps: this.powerUpManager.getPowerUps(),
       scoreTexts: this.scoreSystem.getActiveScoreTexts(),
       playerTrail: this.playerTrail,
+      powerUpCharges: this.powerUpManager.getCharges(),
+      maxPowerUpCharges: this.powerUpManager.getMaxCharges(),
       isGameOver: this.isGameOver,
-      hasKnockbackPower: this.hasKnockbackPower,
       playerRingPhase: this.playerRingPhase,
       screenShake: this.screenShake,
       adaptiveTrailsActive: this.adaptiveTrailsActive && !this.performanceModeActive,
@@ -911,7 +935,6 @@ export default class Engine {
     this.gameTime = 0;
     this.gracePeriodActive = true;
     this.gracePeriodStartTime = performance.now();
-    this.hasKnockbackPower = false;
     this.knockbackCooldown = 0;
     this.playerRingPhase = 0;
     this.screenShake = { x: 0, y: 0, intensity: 0, duration: 0 };
