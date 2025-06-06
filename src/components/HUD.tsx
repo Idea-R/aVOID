@@ -22,6 +22,19 @@ export default function HUD({ score, time, fps, meteors = 0, particles = 0, pool
   const [showSignup, setShowSignup] = useState(false);
   const [showLeaderboard, setShowLeaderboard] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  
+  // Mobile detection - screen width < 768px (md breakpoint)
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  
+  // Update mobile state on window resize
+  React.useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   const getFPSColor = (fps: number) => {
     if (fps >= 55) return 'text-green-400';
@@ -67,48 +80,63 @@ export default function HUD({ score, time, fps, meteors = 0, particles = 0, pool
             </div>
           )}
           
+          {/* Show appropriate control instructions based on device */}
           <div className="text-xs text-yellow-400 opacity-80">
-            Double-click to use knockback power when available
+            {isMobile 
+              ? "Double-tap to use knockback power when available"
+              : "Double-click to use knockback power when available"
+            }
           </div>
         </div>
       )}
 
-      {/* Top Right Controls - Always visible */}
-      <div className="absolute top-4 right-4 flex gap-2">
-        <button
-          onClick={() => setShowSettings(true)}
-          className="bg-gray-600 hover:bg-gray-700 text-white p-2 rounded-lg transition-colors duration-200 flex items-center gap-2 text-sm font-semibold"
-        >
-          <Settings className="w-4 h-4" />
-          Settings
-        </button>
-
-        <button
-          onClick={() => setShowLeaderboard(true)}
-          className="bg-yellow-600 hover:bg-yellow-700 text-white p-2 rounded-lg transition-colors duration-200 flex items-center gap-2 text-sm font-semibold"
-        >
-          <Trophy className="w-4 h-4" />
-          Leaderboard
-        </button>
-
-        {user ? (
+      {/* Top Right Controls - Hide on mobile during active gameplay, always show on desktop or when game is over */}
+      {(!isMobile || isGameOver) && (
+        <div className="absolute top-4 right-4 flex gap-2">
           <button
-            onClick={() => setShowAccount(true)}
-            className="bg-cyan-600 hover:bg-cyan-700 text-white p-2 rounded-lg transition-colors duration-200 flex items-center gap-2 text-sm font-semibold"
+            onClick={() => setShowSettings(true)}
+            className="bg-gray-600 hover:bg-gray-700 text-white p-2 rounded-lg transition-colors duration-200 flex items-center gap-2 text-sm font-semibold"
           >
-            <User className="w-4 h-4" />
-            {user.user_metadata?.display_name || user.email?.split('@')[0] || 'Account'}
+            <Settings className="w-4 h-4" />
+            <span className="hidden sm:inline">Settings</span>
           </button>
-        ) : (
+
           <button
-            onClick={() => setShowSignup(true)}
-            className="bg-green-600 hover:bg-green-700 text-white p-2 rounded-lg transition-colors duration-200 flex items-center gap-2 text-sm font-semibold"
+            onClick={() => setShowLeaderboard(true)}
+            className="bg-yellow-600 hover:bg-yellow-700 text-white p-2 rounded-lg transition-colors duration-200 flex items-center gap-2 text-sm font-semibold"
           >
-            <UserPlus className="w-4 h-4" />
-            Sign Up
+            <Trophy className="w-4 h-4" />
+            <span className="hidden sm:inline">Leaderboard</span>
           </button>
-        )}
-      </div>
+
+          {user ? (
+            <button
+              onClick={() => setShowAccount(true)}
+              className="bg-cyan-600 hover:bg-cyan-700 text-white p-2 rounded-lg transition-colors duration-200 flex items-center gap-2 text-sm font-semibold"
+            >
+              <User className="w-4 h-4" />
+              <span className="hidden sm:inline">
+                {user.user_metadata?.display_name || user.email?.split('@')[0] || 'Account'}
+              </span>
+            </button>
+          ) : (
+            <button
+              onClick={() => setShowSignup(true)}
+              className="bg-green-600 hover:bg-green-700 text-white p-2 rounded-lg transition-colors duration-200 flex items-center gap-2 text-sm font-semibold"
+            >
+              <UserPlus className="w-4 h-4" />
+              <span className="hidden sm:inline">Sign Up</span>
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Mobile-specific notification when buttons are hidden */}
+      {isMobile && !isGameOver && (
+        <div className="absolute top-4 right-4 bg-black/50 text-cyan-300 px-3 py-1 rounded-lg text-xs border border-cyan-500/30">
+          Menu available after game
+        </div>
+      )}
 
       <AccountModal
         isOpen={showAccount}
