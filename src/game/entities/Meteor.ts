@@ -6,8 +6,7 @@ export interface Meteor {
   vy: number;
   radius: number;
   color: string;
-  gradient: CanvasGradient | null;
-  gradientCacheKey: string;
+  gradient?: CanvasGradient;
   trail: Array<{ x: number; y: number; alpha: number }>;
   isSuper: boolean;
   active: boolean;
@@ -22,8 +21,7 @@ export function createMeteor(): Meteor {
     vy: 0,
     radius: 0,
     color: '',
-    gradient: null,
-    gradientCacheKey: '',
+    gradient: undefined,
     trail: [],
     isSuper: false,
     active: false
@@ -38,8 +36,7 @@ export function resetMeteor(meteor: Meteor): void {
   meteor.vy = 0;
   meteor.radius = 0;
   meteor.color = '';
-  meteor.gradient = null;
-  meteor.gradientCacheKey = '';
+  meteor.gradient = undefined;
   meteor.trail.length = 0;
   meteor.isSuper = false;
   meteor.active = false;
@@ -65,8 +62,4 @@ export function initializeMeteor(
   meteor.isSuper = isSuper;
   meteor.active = true;
   meteor.trail.length = 0;
-  
-  // Create cache key for gradient (radius + color + isSuper)
-  meteor.gradientCacheKey = `${Math.round(radius)}_${color}_${isSuper}`;
-  meteor.gradient = null; // Will be created on first render
 }

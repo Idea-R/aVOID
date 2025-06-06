@@ -313,6 +313,8 @@ export default class Engine {
       meteor.x += meteor.vx;
       meteor.y += meteor.vy;
 
+      meteor.gradient = this.renderSystem.createMeteorGradient(meteor.x, meteor.y, meteor.radius, meteor.color, meteor.isSuper);
+
       // Update trail with length limit (only if trails are enabled)
       if (this.gameSettings.showTrails) {
         meteor.trail.unshift({ x: meteor.x, y: meteor.y, alpha: 1 });
