@@ -646,6 +646,13 @@ export class GameEngine {
    * Reset game to initial state
    */
   public reset(): void {
+    console.log('🔄 Starting comprehensive game reset...');
+    
+    // Stop current game loop if running
+    const wasRunning = this.gameState.isRunning;
+    this.stop();
+    
+    // Reset core game state
     this.gameState = {
       isRunning: false,
       isPaused: false,
@@ -655,14 +662,98 @@ export class GameEngine {
       level: 1
     };
     
+    // Reset timing and performance tracking
+    this.resetTimingState();
+    
+    // Reset physics coordination
+    this.resetPhysicsState();
+    
+    // Clear and reset all game entities
+    this.resetGameEntities();
+    
+    // Reset all game systems
+    this.resetGameSystems();
+    
+    // Reset performance monitoring
+    this.resetPerformanceTracking();
+    
+    console.log('✅ Game reset completed successfully');
+    
+    // Restart if it was previously running
+    if (wasRunning) {
+      this.start();
+    }
+  }
+  
+  /**
+   * Reset timing and frame tracking state
+   */
+  private resetTimingState(): void {
+    this.lastFrameTime = 0;
+    this.frameCount = 0;
+    this.fpsCounter = 0;
+    this.lastFPSUpdate = 0;
+    this.animationFrameId = null;
+  }
+  
+  /**
+   * Reset physics coordination state
+   */
+  private resetPhysicsState(): void {
+    this.physicsAccumulator = 0;
+    this.lastPhysicsTime = 0;
+    this.physicsUpdateCount = 0;
+  }
+  
+  /**
+   * Clear and reset all game entities
+   */
+  private resetGameEntities(): void {
+    // Clear active meteors and return to pool
+    this.activeMeteors.forEach(meteor => {
+      this.meteorPool.release(meteor);
+    });
+    
     // Clear active entities
     this.activeMeteors.forEach(meteor => this.meteorPool.release(meteor));
     this.activeMeteors.length = 0;
+    
+    // Clear spatial grid
+    this.spatialGrid.clear();
+    
+    // Reset object pools
+    this.meteorPool.clear();
+  }
+  
+  /**
+   * Reset all game systems to initial state
+   */
+  private resetGameSystems(): void {
     
     // Reset systems
     this.particleSystem.reset();
     this.scoreSystem.reset();
     this.powerUpManager.reset();
+    
+    // Reset render system state
+    this.renderSystem.clearGradientCache();
+    
+    // Reset collision system
+    this.collisionSystem.updateSpatialGrid(this.spatialGrid);
+  }
+  
+  /**
+   * Reset performance monitoring and tracking
+   */
+  private resetPerformanceTracking(): void {
+    this.systemTimings.clear();
+    this.systemPerformanceHistory.clear();
+    this.totalSystemTime = 0;
+    
+    // Initialize system performance history for all systems
+    for (const systemName of this.systemUpdateOrder) {
+      this.systemPerformanceHistory.set(systemName, []);
+    }
   }
   
   /**
