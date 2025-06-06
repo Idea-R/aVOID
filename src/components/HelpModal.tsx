@@ -106,7 +106,7 @@ export default function HelpModal({ isOpen, onClose }: HelpModalProps) {
             <div className="bg-gray-800 rounded-lg p-4">
               <h3 className="text-lg font-semibold text-cyan-300 mb-4 flex items-center gap-2">
                 <Zap className="w-5 h-5" />
-                Knockback Power
+                Detonator Power-ups
               </h3>
               
               <div className="space-y-3">
@@ -115,13 +115,27 @@ export default function HelpModal({ isOpen, onClose }: HelpModalProps) {
                     <Star className="w-5 h-5 text-white" />
                   </div>
                   <div>
-                    <p className="text-yellow-300 font-semibold">Golden Power-up</p>
-                    <p className="text-yellow-200 text-sm">Appears every 30 seconds - collect it for knockback power!</p>
+                    <p className="text-yellow-300 font-semibold">Atomic Detonator</p>
+                    <p className="text-yellow-200 text-sm">Appears every 5-20 seconds - collect up to 3 charges!</p>
                   </div>
                 </div>
 
                 <div className="bg-gray-700 rounded-lg p-3">
-                  <p className="text-white font-semibold mb-2">How to Use:</p>
+                  <p className="text-white font-semibold mb-2">Stockpiling System:</p>
+                  <p className="text-gray-300 text-sm mb-2">
+                    • Hold up to 3 detonator charges simultaneously
+                  </p>
+                  <p className="text-gray-300 text-sm mb-2">
+                    • Each use consumes only 1 charge, not all charges
+                  </p>
+                  <p className="text-gray-300 text-sm mb-2">
+                    • Multiple pulsing rings show your current charge count
+                  </p>
+                  <p className="text-gray-300 text-sm mb-4">
+                    • Power-ups are magnetically attracted when you get close
+                  </p>
+                  
+                  <p className="text-white font-semibold mb-2">How to Activate:</p>
                   <p className="text-gray-300 text-sm mb-2">
                     {isMobile 
                       ? '• Double-tap anywhere on screen to activate knockback'
@@ -133,6 +147,9 @@ export default function HelpModal({ isOpen, onClose }: HelpModalProps) {
                   </p>
                   <p className="text-gray-300 text-sm">
                     • Pushes away meteors in medium range
+                  </p>
+                  <p className="text-gray-300 text-sm">
+                    • Collecting power-ups creates mild knockback effect
                   </p>
                 </div>
               </div>
@@ -178,7 +195,11 @@ export default function HelpModal({ isOpen, onClose }: HelpModalProps) {
                 </div>
                 <div className="flex items-start gap-2">
                   <span className="text-cyan-400">•</span>
-                  <span className="text-gray-300">Save knockback power for emergency situations</span>
+                  <span className="text-gray-300">Stockpile multiple charges for strategic advantage</span>
+                </div>
+                <div className="flex items-start gap-2">
+                  <span className="text-cyan-400">•</span>
+                  <span className="text-gray-300">Use magnetic attraction to collect power-ups safely</span>
                 </div>
                 <div className="flex items-start gap-2">
                   <span className="text-cyan-400">•</span>

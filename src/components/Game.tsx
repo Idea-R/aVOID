@@ -154,6 +154,9 @@ export default function Game({ autoStart = false }: GameProps) {
       {gameState.settings.showUI && (
         <HUD 
           score={gameState.score} 
+          comboInfo={gameState.comboInfo}
+          powerUpCharges={gameState.powerUpCharges}
+          maxPowerUpCharges={gameState.maxPowerUpCharges}
           time={gameState.time} 
           fps={gameState.settings.showFPS ? gameState.fps : 0}
           meteors={gameState.settings.showPerformanceStats ? gameState.meteors : 0}
@@ -164,6 +167,8 @@ export default function Game({ autoStart = false }: GameProps) {
          settings={gameState.settings}
           isGameOver={gameState.isGameOver}
           showIntro={showIntro}
+          powerUpCharges={gameState.powerUpCharges}
+          maxPowerUpCharges={gameState.maxPowerUpCharges}
         />
       )}
       {gameState.isGameOver && (

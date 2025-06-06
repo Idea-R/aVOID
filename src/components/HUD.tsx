@@ -12,6 +12,8 @@ import HelpModal from './HelpModal';
 interface HUDProps {
   score: number;
   comboInfo?: ComboInfo;
+  powerUpCharges?: number;
+  maxPowerUpCharges?: number;
   time: number;
   fps: number;
   meteors?: number;
@@ -25,7 +27,7 @@ interface HUDProps {
   isPaused?: boolean;
 }
 
-export default function HUD({ score, comboInfo, time, fps, meteors = 0, particles = 0, poolSizes, autoScaling, performance, settings, isGameOver = false, showIntro = false, isPaused = false }: HUDProps) {
+export default function HUD({ score, comboInfo, powerUpCharges = 0, maxPowerUpCharges = 3, time, fps, meteors = 0, particles = 0, poolSizes, autoScaling, performance, settings, isGameOver = false, showIntro = false, isPaused = false }: HUDProps) {
   const { user } = useAuthStore();
   const [showAccount, setShowAccount] = useState(false);
   const [showSignup, setShowSignup] = useState(false);
@@ -67,6 +69,20 @@ export default function HUD({ score, comboInfo, time, fps, meteors = 0, particle
         <div className="absolute top-4 left-4 flex flex-col gap-2 text-cyan-500 font-mono text-sm">
           <div className="flex gap-6 items-center">
             <div className="text-lg font-semibold">Score: {score.toLocaleString()}</div>
+            
+            {/* Power-up Charges Display */}
+            {maxPowerUpCharges > 0 && (
+              <div className="flex items-center gap-2 bg-yellow-900/30 border border-yellow-500/50 rounded-lg px-3 py-1">
+                <span className="text-yellow-300 font-semibold">⚡</span>
+                <span className="text-yellow-200">
+                  {powerUpCharges}/{maxPowerUpCharges}
+                </span>
+                {powerUpCharges > 0 && (
+                  <span className="text-yellow-400 text-xs animate-pulse">CHARGED!</span>
+                )}
+              </div>
+            )}
+            
             <div>Time: {Math.floor(time)}s</div>
             {fps > 0 && <div className={`${getFPSColor(fps)}`}>FPS: {fps}</div>}
           </div>
@@ -118,8 +134,8 @@ export default function HUD({ score, comboInfo, time, fps, meteors = 0, particle
           {/* Show appropriate control instructions based on device */}
           <div className="text-xs text-yellow-400 opacity-80">
             {isMobile 
-              ? "Double-tap to use knockback power when available"
-              : "Double-click to use knockback power when available"
+              ? `Double-tap to use knockback power ${powerUpCharges > 0 ? `(${powerUpCharges} charges)` : '(collect power-ups)'}`
+              : `Double-click to use knockback power ${powerUpCharges > 0 ? `(${powerUpCharges} charges)` : '(collect power-ups)'}`
             }
           </div>
         </div>
