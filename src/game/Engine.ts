@@ -131,9 +131,8 @@ export default class Engine {
     settings: GameSettings;
   }) => void = () => {};
 
-  constructor(canvas: HTMLCanvasElement, userId: string | null = null) {
+  constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
-    this.userId = userId;
     
     // Initialize systems
     this.renderSystem = new RenderSystem(canvas);
