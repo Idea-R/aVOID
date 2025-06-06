@@ -34,17 +34,43 @@ interface ShadowGroup {
   }>;
 }
 
+interface GradientCacheEntry {
+  gradient: CanvasGradient;
+  timestamp: number;
+}
+
 export class RenderSystem {
   private ctx: CanvasRenderingContext2D;
   private canvas: HTMLCanvasElement;
   private shadowGroups: Map<string, ShadowGroup> = new Map();
+  
+  // Gradient caching system
+  private gradientCache: Map<string, GradientCacheEntry> = new Map();
+  private cacheEnabled: boolean = true;
+  private maxCacheSize: number = 200;
+  private cacheCleanupInterval: number = 5000; // 5 seconds
+  private lastCacheCleanup: number = 0;
+  private cacheHits: number = 0;
+  private cacheMisses: number = 0;
+  private lastPerformanceLog: number = 0;
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
     const context = canvas.getContext('2d', { alpha: false });
     if (!context) throw new Error('Could not get canvas context');
     this.ctx = context;
+    
+    // Listen for canvas resize to clear cache
+    window.addEventListener('resize', this.handleCanvasResize);
   }
+
+  private handleCanvasResize = (): void => {
+    try {
+      this.clearGradientCache();
+    } catch (error) {
+      console.warn('Error clearing gradient cache on resize:', error);
+    }
+  };
 
   render(state: RenderState): void {
     this.ctx.save();
@@ -64,6 +90,9 @@ export class RenderSystem {
     
     this.ctx.globalCompositeOperation = 'source-over';
     this.ctx.restore();
+    
+    // Periodic cache maintenance
+    this.maintainGradientCache();
   }
 
   private prepareShadowGroups(state: RenderState): void {
@@ -301,7 +330,40 @@ export class RenderSystem {
     this.ctx.fill();
   }
 
+  // GRADIENT CACHING SYSTEM - STABILITY-FIRST IMPLEMENTATION
   createMeteorGradient(x: number, y: number, radius: number, color: string, isSuper: boolean = false): CanvasGradient {
+    // Always attempt to create gradient - cache is purely an optimization
+    let gradient: CanvasGradient;
+    
+    try {
+      if (this.cacheEnabled) {
+        // Generate cache key based on gradient parameters
+        const cacheKey = this.generateGradientCacheKey(radius, color, isSuper);
+        
+        // Try to get from cache first
+        const cached = this.getFromGradientCache(cacheKey);
+        if (cached) {
+          this.cacheHits++;
+          return cached;
+        }
+        
+        // Create new gradient and cache it
+        gradient = this.createGradientInternal(x, y, radius, color, isSuper);
+        this.addToGradientCache(cacheKey, gradient);
+        this.cacheMisses++;
+        
+        return gradient;
+      }
+    } catch (error) {
+      // Never throw errors - always fallback to direct creation
+      console.warn('Gradient cache error, falling back to direct creation:', error);
+    }
+    
+    // Fallback: always create gradient directly if cache fails
+    return this.createGradientInternal(x, y, radius, color, isSuper);
+  }
+
+  private createGradientInternal(x: number, y: number, radius: number, color: string, isSuper: boolean): CanvasGradient {
     const gradient = this.ctx.createRadialGradient(x, y, 0, x, y, radius * 2);
     
     if (isSuper) {
@@ -320,5 +382,144 @@ export class RenderSystem {
     }
     
     return gradient;
+  }
+
+  private generateGradientCacheKey(radius: number, color: string, isSuper: boolean): string {
+    // Round radius to reduce cache fragmentation while maintaining visual quality
+    const roundedRadius = Math.round(radius * 2) / 2; // Round to nearest 0.5
+    return `${roundedRadius}:${color}:${isSuper}`;
+  }
+
+  private getFromGradientCache(key: string): CanvasGradient | null {
+    try {
+      const entry = this.gradientCache.get(key);
+      if (entry) {
+        // Update timestamp for LRU tracking
+        entry.timestamp = Date.now();
+        return entry.gradient;
+      }
+    } catch (error) {
+      console.warn('Error retrieving from gradient cache:', error);
+    }
+    return null;
+  }
+
+  private addToGradientCache(key: string, gradient: CanvasGradient): void {
+    try {
+      // Prevent cache from growing too large
+      if (this.gradientCache.size >= this.maxCacheSize) {
+        this.cleanupOldestCacheEntries();
+      }
+      
+      this.gradientCache.set(key, {
+        gradient,
+        timestamp: Date.now()
+      });
+    } catch (error) {
+      console.warn('Error adding to gradient cache:', error);
+    }
+  }
+
+  private cleanupOldestCacheEntries(): void {
+    try {
+      // Remove oldest 25% of entries to make room
+      const entries = Array.from(this.gradientCache.entries());
+      entries.sort((a, b) => a[1].timestamp - b[1].timestamp);
+      
+      const removeCount = Math.floor(entries.length * 0.25);
+      for (let i = 0; i < removeCount; i++) {
+        this.gradientCache.delete(entries[i][0]);
+      }
+    } catch (error) {
+      console.warn('Error cleaning up gradient cache:', error);
+    }
+  }
+
+  private maintainGradientCache(): void {
+    try {
+      const now = Date.now();
+      
+      // Periodic cache cleanup
+      if (now - this.lastCacheCleanup > this.cacheCleanupInterval) {
+        this.performCacheCleanup();
+        this.lastCacheCleanup = now;
+      }
+      
+      // Log performance metrics every 10 seconds
+      if (now - this.lastPerformanceLog > 10000) {
+        this.logCachePerformance();
+        this.lastPerformanceLog = now;
+      }
+    } catch (error) {
+      console.warn('Error maintaining gradient cache:', error);
+    }
+  }
+
+  private performCacheCleanup(): void {
+    try {
+      const now = Date.now();
+      const maxAge = 30000; // 30 seconds
+      
+      for (const [key, entry] of this.gradientCache.entries()) {
+        if (now - entry.timestamp > maxAge) {
+          this.gradientCache.delete(key);
+        }
+      }
+    } catch (error) {
+      console.warn('Error performing cache cleanup:', error);
+    }
+  }
+
+  private logCachePerformance(): void {
+    try {
+      const totalRequests = this.cacheHits + this.cacheMisses;
+      if (totalRequests > 0) {
+        const hitRatio = (this.cacheHits / totalRequests * 100).toFixed(1);
+        console.log(`Gradient Cache Performance: ${hitRatio}% hit ratio (${this.cacheHits}/${totalRequests}), ${this.gradientCache.size} entries`);
+      }
+    } catch (error) {
+      console.warn('Error logging cache performance:', error);
+    }
+  }
+
+  // PUBLIC CACHE MANAGEMENT METHODS
+  clearGradientCache(): void {
+    try {
+      this.gradientCache.clear();
+      this.cacheHits = 0;
+      this.cacheMisses = 0;
+      console.log('Gradient cache cleared');
+    } catch (error) {
+      console.warn('Error clearing gradient cache:', error);
+    }
+  }
+
+  disableGradientCache(): void {
+    this.cacheEnabled = false;
+    this.clearGradientCache();
+  }
+
+  enableGradientCache(): void {
+    this.cacheEnabled = true;
+  }
+
+  getCacheStats(): { hits: number; misses: number; size: number; hitRatio: number } {
+    const totalRequests = this.cacheHits + this.cacheMisses;
+    return {
+      hits: this.cacheHits,
+      misses: this.cacheMisses,
+      size: this.gradientCache.size,
+      hitRatio: totalRequests > 0 ? (this.cacheHits / totalRequests) : 0
+    };
+  }
+
+  // Cleanup method for proper disposal
+  dispose(): void {
+    try {
+      window.removeEventListener('resize', this.handleCanvasResize);
+      this.clearGradientCache();
+    } catch (error) {
+      console.warn('Error disposing RenderSystem:', error);
+    }
   }
 }
