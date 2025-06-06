@@ -755,3 +755,9 @@ export default class Engine {
             collisionResult.collidedMeteor.x, 
             collisionResult.collidedMeteor.y, 
             collisionResult.collidedMeteor.color, 
+          )
+        }
+      }
+    }
+  }
+}
