@@ -102,30 +102,6 @@ export class ParticleSystem {
       this.activeParticles.push(particle);
     }
   }
-  
-  createDeflectionEffect(x: number, y: number, color: string): void {
-    // Create small deflection particles - limit to prevent performance impact
-    const particleCount = Math.min(3, this.maxParticles - this.activeParticles.length);
-    
-    for (let i = 0; i < particleCount; i++) {
-      const angle = Math.random() * Math.PI * 2;
-      const velocity = 1 + Math.random() * 2;
-      const life = 20 + Math.random() * 20; // Short-lived particles
-      
-      const particle = this.particlePool.get();
-      initializeParticle(
-        particle,
-        x + (Math.random() - 0.5) * 10, // Small random offset
-        y + (Math.random() - 0.5) * 10,
-        Math.cos(angle) * velocity,
-        Math.sin(angle) * velocity,
-        1 + Math.random() * 2, // Small particles
-        color,
-        life
-      );
-      this.activeParticles.push(particle);
-    }
-  }
 
   update(deltaTime: number): void {
     // Update particles
