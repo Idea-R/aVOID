@@ -172,5 +172,3 @@ export default function Game({ autoStart = false }: GameProps) {
     </>
   );
 }
-
-export default Game
