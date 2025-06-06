@@ -17,23 +17,42 @@ export default function Game() {
   });
 
   useEffect(() => {
-    if (!canvasRef.current) return;
+    if (!canvasRef.current) {
+      console.error('Canvas ref is null!');
+      return;
+    }
     
     console.log('Initializing game engine...');
-    const engine = new Engine(canvasRef.current);
-    engineRef.current = engine;
+    console.log('Canvas element:', canvasRef.current);
+    console.log('Canvas dimensions:', canvasRef.current.offsetWidth, 'x', canvasRef.current.offsetHeight);
     
-    engine.onStateUpdate = (state) => {
-      console.log('State update received:', state);
-      setGameState(state);
-    };
-    
-    engine.start();
-    console.log('Game engine started');
+    try {
+      const engine = new Engine(canvasRef.current);
+      engineRef.current = engine;
+      
+      engine.onStateUpdate = (state) => {
+        console.log('State update received:', state);
+        setGameState(state);
+      };
+      
+      engine.start();
+      console.log('Game engine started successfully');
+      
+      // Force initial state update
+      setTimeout(() => {
+        console.log('Forcing initial state update...');
+        setGameState(prev => ({ ...prev, fps: 60 }));
+      }, 100);
+      
+    } catch (error) {
+      console.error('Error initializing game engine:', error);
+    }
 
     return () => {
       console.log('Cleaning up game engine...');
-      engine.stop();
+      if (engineRef.current) {
+        engineRef.current.stop();
+      }
     };
   }, []);
 
@@ -48,11 +67,16 @@ export default function Game() {
   console.log('Rendering Game component, isGameOver:', gameState.isGameOver);
 
   return (
-    <>
+    <div className="w-full h-full relative">
       <canvas
         ref={canvasRef}
-        className="w-full h-full absolute inset-0"
-        style={{ cursor: gameState.isGameOver ? 'default' : 'none' }}
+        className="w-full h-full absolute inset-0 bg-black"
+        style={{ 
+          cursor: gameState.isGameOver ? 'default' : 'none',
+          display: 'block'
+        }}
+        width={window.innerWidth}
+        height={window.innerHeight}
       />
       <HUD 
         score={gameState.score} 
@@ -69,6 +93,6 @@ export default function Game() {
           onPlayAgain={handlePlayAgain}
         />
       )}
-    </>
+    </div>
   );
 }
