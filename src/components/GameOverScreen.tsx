@@ -16,18 +16,25 @@ export default function GameOverScreen({ score, onPlayAgain }: GameOverScreenPro
   const [showSignup, setShowSignup] = useState(false);
   const [showLeaderboard, setShowLeaderboard] = useState(false);
   const [playerRank, setPlayerRank] = useState<number | null>(null);
+  const [verifiedRank, setVerifiedRank] = useState<number | null>(null);
   const [scoreSaved, setScoreSaved] = useState(false);
   
   const { user } = useAuthStore();
 
   useEffect(() => {
     console.log('GameOverScreen mounted with score:', score);
-    const getPlayerRank = async () => {
-      const rank = await LeaderboardAPI.getPlayerRank(score);
-      console.log('Player rank calculated:', rank);
-      setPlayerRank(rank);
+    const getPlayerRanks = async () => {
+      // Get overall rank (including guests)
+      const overallRank = await LeaderboardAPI.getPlayerRank(score);
+      setPlayerRank(overallRank);
+      
+      // Get verified-only rank for leaderboard positioning
+      const verifiedOnlyRank = await LeaderboardAPI.getVerifiedPlayerRank(score);
+      setVerifiedRank(verifiedOnlyRank);
+      
+      console.log('Player ranks calculated - Overall:', overallRank, 'Verified:', verifiedOnlyRank);
     };
-    getPlayerRank();
+    getPlayerRanks();
   }, [score]);
 
   const handleSaveGuestScore = async () => {
@@ -79,9 +86,18 @@ export default function GameOverScreen({ score, onPlayAgain }: GameOverScreenPro
           <div className="text-center mb-6">
             <p className="text-xl mb-2 text-cyan-300">Final Score: {score.toLocaleString()}</p>
             {playerRank && (
-              <p className="text-lg text-yellow-400 font-semibold">
-                🎯 You placed #{playerRank} globally!
-              </p>
+              <div className="space-y-2">
+                <p className="text-lg text-yellow-400 font-semibold">
+                  🎯 You placed #{playerRank} globally!
+                </p>
+                {!user && verifiedRank && (
+                  <p className="text-sm text-cyan-300 bg-cyan-900/30 border border-cyan-500/50 rounded-lg p-3">
+                    💎 You would be <span className="font-bold text-yellow-400">#{verifiedRank}</span> on the verified leaderboard!
+                    <br />
+                    <span className="text-xs text-cyan-400">Sign up to claim your spot!</span>
+                  </p>
+                )}
+              </div>
             )}
           </div>
 
@@ -108,6 +124,14 @@ export default function GameOverScreen({ score, onPlayAgain }: GameOverScreenPro
               ) : (
                 // Guest user flow
                 <>
+                  <div className="bg-yellow-900/30 border border-yellow-500/50 rounded-lg p-4 mb-4">
+                    <p className="text-yellow-300 text-sm text-center">
+                      <strong>Note:</strong> Guest scores are saved but don't appear on the public leaderboard.
+                      <br />
+                      Sign up to compete with verified players!
+                    </p>
+                  </div>
+
                   <input
                     type="text"
                     placeholder="Enter your name"
@@ -140,7 +164,7 @@ export default function GameOverScreen({ score, onPlayAgain }: GameOverScreenPro
                   >
                     <div className="flex items-center justify-center gap-2">
                       <UserPlus className="w-5 h-5" />
-                      <span>Sign up to save your score!</span>
+                      <span>Sign up to compete on leaderboard!</span>
                     </div>
                   </button>
                 </>
@@ -151,6 +175,11 @@ export default function GameOverScreen({ score, onPlayAgain }: GameOverScreenPro
               <p className="text-green-300 text-center font-semibold">
                 ✅ Score saved successfully!
               </p>
+              {user && verifiedRank && (
+                <p className="text-green-200 text-center text-sm mt-2">
+                  You're now #{verifiedRank} on the verified leaderboard!
+                </p>
+              )}
             </div>
           )}
 
@@ -160,7 +189,7 @@ export default function GameOverScreen({ score, onPlayAgain }: GameOverScreenPro
               className="w-full bg-transparent border border-yellow-500 text-yellow-500 hover:bg-yellow-500 hover:text-black font-bold py-2 px-4 rounded transition-colors duration-200 flex items-center justify-center gap-2"
             >
               <Eye className="w-4 h-4" />
-              View Global Leaderboard
+              View Verified Leaderboard
             </button>
             
             <button

@@ -5,6 +5,7 @@ export class LeaderboardAPI {
     const { data, error } = await supabase
       .from('leaderboard_scores')
       .select('*')
+      .eq('is_verified', true) // Only show verified scores
       .order('score', { ascending: false })
       .limit(limit);
 
@@ -17,6 +18,7 @@ export class LeaderboardAPI {
   }
 
   static async getPlayerRank(score: number): Promise<number> {
+    // Get rank among ALL scores (including guests) for accurate positioning
     const { count, error } = await supabase
       .from('leaderboard_scores')
       .select('*', { count: 'exact', head: true })
@@ -24,6 +26,22 @@ export class LeaderboardAPI {
 
     if (error) {
       console.error('Error getting player rank:', error);
+      return 0;
+    }
+
+    return (count || 0) + 1;
+  }
+
+  static async getVerifiedPlayerRank(score: number): Promise<number> {
+    // Get rank among only verified scores for leaderboard positioning
+    const { count, error } = await supabase
+      .from('leaderboard_scores')
+      .select('*', { count: 'exact', head: true })
+      .eq('is_verified', true)
+      .gt('score', score);
+
+    if (error) {
+      console.error('Error getting verified player rank:', error);
       return 0;
     }
 

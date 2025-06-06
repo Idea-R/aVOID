@@ -22,7 +22,8 @@ export default function LeaderboardModal({ isOpen, onClose, playerScore }: Leade
       setScores(topScores);
 
       if (playerScore !== undefined) {
-        const rank = await LeaderboardAPI.getPlayerRank(playerScore);
+        // Use verified rank for leaderboard positioning
+        const rank = await LeaderboardAPI.getVerifiedPlayerRank(playerScore);
         setPlayerRank(rank);
       }
 
@@ -68,15 +69,15 @@ export default function LeaderboardModal({ isOpen, onClose, playerScore }: Leade
           <div className="flex items-center gap-3">
             <Trophy className="w-8 h-8 text-yellow-400" />
             <div>
-              <h2 className="text-2xl font-bold text-white">Global Leaderboard</h2>
-              <p className="text-cyan-100">Top players worldwide</p>
+              <h2 className="text-2xl font-bold text-white">Verified Leaderboard</h2>
+              <p className="text-cyan-100">Top verified players worldwide</p>
             </div>
           </div>
 
           {playerRank && playerScore !== undefined && (
             <div className="mt-4 bg-black bg-opacity-30 rounded-lg p-3">
               <p className="text-white text-lg">
-                🎯 You placed <span className="font-bold text-yellow-400">#{playerRank}</span> globally with {formatScore(playerScore)} points!
+                🎯 You would place <span className="font-bold text-yellow-400">#{playerRank}</span> on the verified leaderboard with {formatScore(playerScore)} points!
               </p>
             </div>
           )}
@@ -92,7 +93,7 @@ export default function LeaderboardModal({ isOpen, onClose, playerScore }: Leade
           ) : scores.length === 0 ? (
             <div className="text-center py-8">
               <Users className="w-12 h-12 text-gray-500 mx-auto mb-3" />
-              <p className="text-gray-400">No scores yet. Be the first to play!</p>
+              <p className="text-gray-400">No verified scores yet. Be the first to sign up and play!</p>
             </div>
           ) : (
             <div className="space-y-3">
@@ -103,7 +104,7 @@ export default function LeaderboardModal({ isOpen, onClose, playerScore }: Leade
                     index < 3
                       ? 'bg-gradient-to-r from-yellow-900/30 to-yellow-800/30 border border-yellow-600/50'
                       : 'bg-gray-800/50 border border-gray-700'
-                  } ${score.is_verified ? 'shadow-lg shadow-cyan-500/20' : ''}`}
+                  } shadow-lg shadow-cyan-500/20`}
                 >
                   <div className="flex items-center gap-4">
                     <div className={`flex items-center justify-center w-8 h-8 rounded-full font-bold ${
@@ -117,16 +118,10 @@ export default function LeaderboardModal({ isOpen, onClose, playerScore }: Leade
                     
                     <div>
                       <div className="flex items-center gap-2">
-                        <span className={`font-semibold ${
-                          score.is_verified 
-                            ? 'text-cyan-300 drop-shadow-lg' 
-                            : 'text-gray-300'
-                        }`}>
+                        <span className="font-semibold text-cyan-300 drop-shadow-lg">
                           {score.player_name}
                         </span>
-                        {score.is_verified && (
-                          <Star className="w-4 h-4 text-cyan-400 fill-current animate-pulse" />
-                        )}
+                        <Star className="w-4 h-4 text-cyan-400 fill-current animate-pulse" />
                       </div>
                       <p className="text-xs text-gray-500">
                         {formatDate(score.created_at)}
@@ -135,13 +130,11 @@ export default function LeaderboardModal({ isOpen, onClose, playerScore }: Leade
                   </div>
 
                   <div className="text-right">
-                    <div className={`text-lg font-bold ${
-                      score.is_verified ? 'text-cyan-300' : 'text-gray-300'
-                    }`}>
+                    <div className="text-lg font-bold text-cyan-300">
                       {formatScore(score.score)}
                     </div>
-                    <div className="text-xs text-gray-500">
-                      {score.is_verified ? 'Verified' : 'Guest'}
+                    <div className="text-xs text-cyan-400">
+                      Verified
                     </div>
                   </div>
                 </div>
@@ -155,7 +148,7 @@ export default function LeaderboardModal({ isOpen, onClose, playerScore }: Leade
           <div className="flex items-center justify-between text-sm">
             <div className="flex items-center gap-2 text-gray-400">
               <Star className="w-4 h-4 text-cyan-400" />
-              <span>Verified players shown with glowing text</span>
+              <span>Only verified players shown • Sign up to compete!</span>
             </div>
             <div className="text-gray-500">
               Updates in real-time
