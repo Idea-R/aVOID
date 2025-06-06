@@ -1,8 +1,12 @@
+Here's the complete file content after applying the diff correctly:
+
+```typescript
 import { PowerUpManager, PowerUp } from './entities/PowerUp';
 import { ObjectPool } from './utils/ObjectPool';
 import { SpatialGrid, GridObject } from './utils/SpatialGrid';
 import { Meteor, createMeteor, resetMeteor, initializeMeteor } from './entities/Meteor';
 import { Particle, createParticle, resetParticle, initializeParticle } from './entities/Particle';
+import { RenderSystem } from './systems/RenderSystem';
 
 interface GameSettings {
   volume: number;
@@ -15,11 +19,13 @@ interface GameSettings {
 
 export default class Engine {
   private canvas: HTMLCanvasElement;
-  private ctx: CanvasRenderingContext2D;
   private animationFrame: number | null = null;
   private lastTime: number = 0;
   private gameTime: number = 0;
   private score: number = 0;
+  
+  // Rendering system
+  private renderSystem: RenderSystem;
   
   // Object pools
   private meteorPool: ObjectPool<Meteor>;
@@ -77,9 +83,9 @@ export default class Engine {
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
-    const context = canvas.getContext('2d', { alpha: false });
-    if (!context) throw new Error('Could not get canvas context');
-    this.ctx = context;
+    
+    // Initialize rendering system
+    this.renderSystem = new RenderSystem(canvas);
     
     // Initialize object pools
     this.meteorPool = new ObjectPool(createMeteor, resetMeteor, 20, this.MAX_METEORS);
@@ -241,27 +247,6 @@ export default class Engine {
     this.spatialGrid.resize(window.innerWidth, window.innerHeight);
   };
 
-  private createMeteorGradient(x: number, y: number, radius: number, color: string, isSuper: boolean = false): CanvasGradient {
-    const gradient = this.ctx.createRadialGradient(x, y, 0, x, y, radius * 2);
-    
-    if (isSuper) {
-      gradient.addColorStop(0, '#fff');
-      gradient.addColorStop(0.2, '#fff');
-      gradient.addColorStop(0.4, color);
-      gradient.addColorStop(0.6, color.replace(/,\s*[\d.]+\)$/, ', 0.8)'));
-      gradient.addColorStop(0.8, color.replace(/,\s*[\d.]+\)$/, ', 0.4)'));
-      gradient.addColorStop(1, color.replace(/,\s*[\d.]+\)$/, ', 0)'));
-    } else {
-      gradient.addColorStop(0, '#fff');
-      gradient.addColorStop(0.2, color);
-      gradient.addColorStop(0.5, color.replace(/,\s*[\d.]+\)$/, ', 0.6)'));
-      gradient.addColorStop(0.8, color.replace(/,\s*[\d.]+\)$/, ', 0.3)'));
-      gradient.addColorStop(1, color.replace(/,\s*[\d.]+\)$/, ', 0)'));
-    }
-    
-    return gradient;
-  }
-
   private getRandomColor(): string {
     const hue = Math.random() * 360;
     return `hsla(${hue}, 100%, 60%, 1)`;
@@ -419,7 +404,7 @@ export default class Engine {
       meteor.x += meteor.vx;
       meteor.y += meteor.vy;
 
-      meteor.gradient = this.createMeteorGradient(meteor.x, meteor.y, meteor.radius, meteor.color, meteor.isSuper);
+      meteor.gradient = this.renderSystem.createMeteorGradient(meteor.x, meteor.y, meteor.radius, meteor.color, meteor.isSuper);
 
       // Update trail with length limit (only if trails are enabled)
       if (this.gameSettings.showTrails) {
@@ -514,137 +499,21 @@ export default class Engine {
   }
 
   private render() {
-    this.ctx.save();
-    this.ctx.translate(this.screenShake.x, this.screenShake.y);
+    const renderState = {
+      mouseX: this.mouseX,
+      mouseY: this.mouseY,
+      activeMeteors: this.activeMeteors,
+      activeParticles: this.activeParticles,
+      powerUps: this.powerUpManager.getPowerUps(),
+      playerTrail: this.playerTrail,
+      isGameOver: this.isGameOver,
+      hasKnockbackPower: this.hasKnockbackPower,
+      playerRingPhase: this.playerRingPhase,
+      screenShake: this.screenShake,
+      gameSettings: this.gameSettings
+    };
     
-    this.ctx.fillStyle = 'rgba(0, 0, 0, 0.15)';
-    this.ctx.fillRect(-this.screenShake.x, -this.screenShake.y, this.canvas.width, this.canvas.height);
-    
-    this.ctx.globalCompositeOperation = 'lighter';
-    
-    // Draw power-ups
-    const powerUps = this.powerUpManager.getPowerUps();
-    powerUps.forEach(powerUp => {
-      this.ctx.beginPath();
-      this.ctx.arc(powerUp.x, powerUp.y, powerUp.radius * 2, 0, Math.PI * 2);
-      this.ctx.fillStyle = `rgba(255, 215, 0, ${powerUp.glowIntensity * 0.3})`;
-      this.ctx.shadowBlur = 30;
-      this.ctx.shadowColor = '#ffd700';
-      this.ctx.fill();
-      this.ctx.shadowBlur = 0;
-      
-      this.ctx.beginPath();
-      this.ctx.arc(powerUp.x, powerUp.y, powerUp.radius, 0, Math.PI * 2);
-      const gradient = this.ctx.createRadialGradient(
-        powerUp.x, powerUp.y, 0,
-        powerUp.x, powerUp.y, powerUp.radius
-      );
-      gradient.addColorStop(0, '#ffff80');
-      gradient.addColorStop(0.7, '#ffd700');
-      gradient.addColorStop(1, '#ffb000');
-      this.ctx.fillStyle = gradient;
-      this.ctx.fill();
-      
-      this.ctx.beginPath();
-      this.ctx.arc(powerUp.x - 5, powerUp.y - 5, powerUp.radius * 0.3, 0, Math.PI * 2);
-      this.ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
-      this.ctx.fill();
-    });
-    
-    // Draw meteor trails (only if enabled)
-    if (this.gameSettings.showTrails) {
-      this.activeMeteors.forEach(meteor => {
-        if (!meteor.active) return;
-        
-        meteor.trail.forEach((point, index) => {
-          const progress = 1 - index / meteor.trail.length;
-          const trailRadius = meteor.radius * progress * (meteor.isSuper ? 1.8 : 1.3); // Reduced trail size
-          
-          this.ctx.beginPath();
-          this.ctx.arc(point.x, point.y, trailRadius, 0, Math.PI * 2);
-          const gradient = this.createMeteorGradient(point.x, point.y, trailRadius, meteor.color, meteor.isSuper);
-          this.ctx.fillStyle = gradient;
-          this.ctx.fill();
-          
-          this.ctx.shadowBlur = meteor.isSuper ? 20 : 12; // Reduced glow
-          this.ctx.shadowColor = meteor.color;
-          this.ctx.fill();
-          this.ctx.shadowBlur = 0;
-        });
-      });
-    }
-
-    // Draw meteors
-    this.activeMeteors.forEach(meteor => {
-      if (!meteor.active) return;
-      
-      this.ctx.beginPath();
-      this.ctx.arc(meteor.x, meteor.y, meteor.radius * (meteor.isSuper ? 1.8 : 1.3), 0, Math.PI * 2);
-      this.ctx.fillStyle = meteor.gradient || meteor.color;
-      
-      this.ctx.shadowBlur = meteor.isSuper ? 25 : 15;
-      this.ctx.shadowColor = meteor.color;
-      this.ctx.fill();
-      this.ctx.shadowBlur = 0;
-    });
-    
-    this.ctx.globalCompositeOperation = 'source-over';
-    
-    // Draw player trail
-    this.playerTrail.forEach((point, index) => {
-      const progress = 1 - index / this.playerTrail.length;
-      this.ctx.beginPath();
-      this.ctx.arc(point.x, point.y, 8 * progress, 0, Math.PI * 2);
-      this.ctx.fillStyle = `rgba(6, 182, 212, ${point.alpha * 0.7})`;
-      
-      this.ctx.shadowBlur = 15;
-      this.ctx.shadowColor = '#06b6d4';
-      this.ctx.fill();
-      this.ctx.shadowBlur = 0;
-    });
-    
-    // Draw knockback power ring
-    if (this.hasKnockbackPower) {
-      const ringRadius = 15 + Math.sin(this.playerRingPhase) * 3;
-      this.ctx.beginPath();
-      this.ctx.arc(this.mouseX, this.mouseY, ringRadius, 0, Math.PI * 2);
-      this.ctx.strokeStyle = `rgba(255, 215, 0, ${0.8 + Math.sin(this.playerRingPhase * 2) * 0.2})`;
-      this.ctx.lineWidth = 3;
-      this.ctx.shadowBlur = 10;
-      this.ctx.shadowColor = '#ffd700';
-      this.ctx.stroke();
-      this.ctx.shadowBlur = 0;
-    }
-    
-    // Draw player
-    if (!this.isGameOver) {
-      this.ctx.beginPath();
-      this.ctx.arc(this.mouseX, this.mouseY, 8, 0, Math.PI * 2);
-      this.ctx.fillStyle = '#06b6d4';
-      
-      this.ctx.shadowBlur = 20;
-      this.ctx.shadowColor = '#06b6d4';
-      this.ctx.fill();
-      this.ctx.shadowBlur = 0;
-    }
-
-    // Draw particles
-    this.ctx.globalCompositeOperation = 'lighter';
-    this.activeParticles.forEach(particle => {
-      if (!particle.active) return;
-      
-      this.ctx.beginPath();
-      this.ctx.arc(particle.x, particle.y, particle.radius, 0, Math.PI * 2);
-      this.ctx.fillStyle = particle.color.replace(/,\s*[\d.]+\)$/, `, ${particle.alpha})`);
-      
-      this.ctx.shadowBlur = 8; // Reduced particle glow
-      this.ctx.shadowColor = particle.color;
-      this.ctx.fill();
-      this.ctx.shadowBlur = 0;
-    });
-    
-    this.ctx.globalCompositeOperation = 'source-over';
-    this.ctx.restore();
+    this.renderSystem.render(renderState);
   }
 
   private gameLoop = (timestamp: number) => {
@@ -721,3 +590,4 @@ export default class Engine {
     return { ...this.gameSettings };
   }
 }
+```
