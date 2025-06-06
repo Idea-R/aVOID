@@ -23,7 +23,7 @@ export default class Engine {
   
   // Performance limits
   private readonly MAX_METEORS = 50;
-  private readonly MAX_PARTICLES = 300;
+  private MAX_PARTICLES = 300; // Changed from readonly to allow dynamic adjustment
   
   private playerTrail: Array<{ x: number; y: number; alpha: number }> = [];
   private isGameOver: boolean = false;
@@ -105,6 +105,17 @@ export default class Engine {
     }
     this.lastClickTime = now;
   };
+
+  // Adaptive particle limits based on FPS performance
+  private adaptiveParticleLimits() {
+    if (this.currentFPS < 30) {
+      this.MAX_PARTICLES = 150; // Reduce by 50%
+    } else if (this.currentFPS < 45) {
+      this.MAX_PARTICLES = 225; // Reduce by 25%
+    } else {
+      this.MAX_PARTICLES = 300; // Full quality
+    }
+  }
 
   private activateKnockback() {
     if (!this.hasKnockbackPower) return;
@@ -311,6 +322,9 @@ export default class Engine {
 
   private update(deltaTime: number) {
     if (this.isGameOver) return;
+    
+    // Apply adaptive particle limits based on current FPS
+    this.adaptiveParticleLimits();
     
     this.gameTime += deltaTime / 1000;
     
@@ -636,6 +650,9 @@ export default class Engine {
     this.knockbackCooldown = 0;
     this.playerRingPhase = 0;
     this.screenShake = { x: 0, y: 0, intensity: 0, duration: 0 };
+    
+    // Reset particle limit to default
+    this.MAX_PARTICLES = 300;
     
     // Clear all active objects
     this.activeMeteors.forEach(meteor => this.meteorPool.release(meteor));
