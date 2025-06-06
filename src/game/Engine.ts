@@ -14,6 +14,7 @@ interface GameSettings {
   showPerformanceStats: boolean;
   showTrails: boolean;
   performanceMode: boolean;
+  cursorColor: string;
   autoPerformanceModeEnabled?: boolean;
 }
 
@@ -86,7 +87,8 @@ export default class Engine {
     showFPS: true,
     showPerformanceStats: true,
     showTrails: true,
-    performanceMode: false
+    performanceMode: false,
+    cursorColor: '#06b6d4'
   };
   
   onStateUpdate: (state: { 
@@ -137,7 +139,11 @@ export default class Engine {
       const savedSettings = localStorage.getItem('avoidGameSettings');
       if (savedSettings) {
         const parsed = JSON.parse(savedSettings);
-        this.gameSettings = { ...this.gameSettings, ...parsed };
+        this.gameSettings = { 
+          ...this.gameSettings, 
+          ...parsed,
+          cursorColor: parsed.cursorColor || '#06b6d4'
+        };
       }
     } catch (error) {
       console.error('Error loading game settings:', error);

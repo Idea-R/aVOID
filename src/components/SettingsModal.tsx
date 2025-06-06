@@ -14,6 +14,7 @@ interface GameSettings {
   showPerformanceStats: boolean;
   showTrails: boolean;
   performanceMode: boolean;
+  cursorColor: string;
 }
 
 export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
@@ -24,11 +25,14 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
     showFPS: true,
     showPerformanceStats: true,
     showTrails: true,
-    performanceMode: false
+    performanceMode: false,
+    cursorColor: '#06b6d4'
   });
 
   const [activeTab, setActiveTab] = useState<'settings' | 'social'>('settings');
   const [autoPerformanceModeEnabled, setAutoPerformanceModeEnabled] = useState(false);
+  const [showColorWheel, setShowColorWheel] = useState(false);
+  const [previewColor, setPreviewColor] = useState<string | null>(null);
 
   // Load settings from localStorage on mount
   useEffect(() => {
@@ -54,12 +58,139 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
     
     if (isMobile && !localStorage.getItem('avoidGameSettings')) {
       // First time on mobile - enable performance mode by default
-      setSettings(prev => ({ ...prev, performanceMode: true }));
+      setSettings(prev => ({ ...prev, performanceMode: true, cursorColor: '#06b6d4' }));
       setAutoPerformanceModeEnabled(true);
       localStorage.setItem('avoidGameAutoPerformanceMode', 'true');
       console.log('🔧 Auto-enabled Performance Mode for mobile device');
     }
   }, []);
+
+  // Color wheel interaction handlers
+  const handleColorWheelClick = (event: React.MouseEvent<HTMLCanvasElement>) => {
+    const canvas = event.currentTarget;
+    const rect = canvas.getBoundingClientRect();
+    const centerX = canvas.width / 2;
+    const centerY = canvas.height / 2;
+    const radius = Math.min(centerX, centerY) - 10;
+    
+    const x = event.clientX - rect.left - centerX;
+    const y = event.clientY - rect.top - centerY;
+    const distance = Math.sqrt(x * x + y * y);
+    
+    if (distance <= radius) {
+      const angle = Math.atan2(y, x);
+      const hue = ((angle * 180 / Math.PI) + 360) % 360;
+      const saturation = Math.min(distance / radius * 100, 100);
+      const lightness = 60; // Fixed lightness for vibrant colors
+      
+      const color = `hsl(${hue}, ${saturation}%, ${lightness}%)`;
+      updateSetting('cursorColor', color);
+      setPreviewColor(null);
+    }
+  };
+
+  const handleColorWheelMouseMove = (event: React.MouseEvent<HTMLCanvasElement>) => {
+    const canvas = event.currentTarget;
+    const rect = canvas.getBoundingClientRect();
+    const centerX = canvas.width / 2;
+    const centerY = canvas.height / 2;
+    const radius = Math.min(centerX, centerY) - 10;
+    
+    const x = event.clientX - rect.left - centerX;
+    const y = event.clientY - rect.top - centerY;
+    const distance = Math.sqrt(x * x + y * y);
+    
+    if (distance <= radius) {
+      const angle = Math.atan2(y, x);
+      const hue = ((angle * 180 / Math.PI) + 360) % 360;
+      const saturation = Math.min(distance / radius * 100, 100);
+      const lightness = 60;
+      
+      const color = `hsl(${hue}, ${saturation}%, ${lightness}%)`;
+      setPreviewColor(color);
+    } else {
+      setPreviewColor(null);
+    }
+  };
+
+  const handleColorWheelMouseLeave = () => {
+    setPreviewColor(null);
+  };
+
+  // Draw color wheel on canvas
+  const drawColorWheel = (canvas: HTMLCanvasElement) => {
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    
+    const centerX = canvas.width / 2;
+    const centerY = canvas.height / 2;
+    const radius = Math.min(centerX, centerY) - 10;
+    
+    // Clear canvas
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    // Draw color wheel
+    for (let angle = 0; angle < 360; angle += 1) {
+      const startAngle = (angle - 1) * Math.PI / 180;
+      const endAngle = angle * Math.PI / 180;
+      
+      for (let r = 0; r < radius; r += 1) {
+        const saturation = (r / radius) * 100;
+        const lightness = 60;
+        const color = `hsl(${angle}, ${saturation}%, ${lightness}%)`;
+        
+        ctx.beginPath();
+        ctx.arc(centerX, centerY, r, startAngle, endAngle);
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      }
+    }
+    
+    // Draw border
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+    ctx.strokeStyle = '#374151';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+  };
+
+  // Color wheel ref and effect
+  const colorWheelRef = React.useRef<HTMLCanvasElement>(null);
+  
+  React.useEffect(() => {
+    if (showColorWheel && colorWheelRef.current) {
+      drawColorWheel(colorWheelRef.current);
+    }
+  }, [showColorWheel]);
+
+  // Preset colors
+  const presetColors = [
+    { name: 'Cyan', color: '#06b6d4' },
+    { name: 'Purple', color: '#8b5cf6' },
+    { name: 'Green', color: '#10b981' },
+    { name: 'Orange', color: '#f59e0b' },
+    { name: 'Pink', color: '#ec4899' },
+    { name: 'Red', color: '#ef4444' },
+    { name: 'Blue', color: '#3b82f6' },
+    { name: 'Yellow', color: '#eab308' }
+  ];
+
+  const resetSettings = () => {
+    const defaultSettings: GameSettings = {
+      volume: 0.7,
+      soundEnabled: true,
+      showUI: true,
+      showFPS: true,
+      showPerformanceStats: true,
+      showTrails: true,
+      performanceMode: false,
+      cursorColor: '#06b6d4'
+    };
+    setSettings(defaultSettings);
+    setAutoPerformanceModeEnabled(false);
+    setPreviewColor(null);
+  };
 
   // Save settings to localStorage whenever they change
   useEffect(() => {
@@ -116,20 +247,6 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
       updateSetting('soundEnabled', true);
       updateSetting('volume', 0.7);
     }
-  };
-
-  const resetSettings = () => {
-    const defaultSettings: GameSettings = {
-      volume: 0.7,
-      soundEnabled: true,
-      showUI: true,
-      showFPS: true,
-      showPerformanceStats: true,
-      showTrails: true,
-      performanceMode: false
-    };
-    setSettings(defaultSettings);
-    setAutoPerformanceModeEnabled(false);
   };
 
   const handlePayPalTip = () => {
@@ -278,6 +395,100 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                           autoPerformanceModeEnabled ? 'translate-x-5' : 'translate-x-0.5'
                         }`} />
                       </button>
+                    </div>
+                  </div>
+
+                  {/* Cursor Color Settings */}
+                  <div className="bg-gray-800 rounded-lg p-4">
+                    <h3 className="text-lg font-semibold text-cyan-300 mb-4 flex items-center gap-2">
+                      <div 
+                        className="w-5 h-5 rounded-full border-2 border-white shadow-lg"
+                        style={{ backgroundColor: previewColor || settings.cursorColor }}
+                      />
+                      Cursor Color
+                    </h3>
+                    
+                    <div className="space-y-4">
+                      {/* Current Color Display */}
+                      <div className="flex items-center justify-between">
+                        <span className="text-gray-300">Current Color:</span>
+                        <div className="flex items-center gap-3">
+                          <div 
+                            className="w-8 h-8 rounded-full border-2 border-white shadow-lg cursor-pointer transition-transform hover:scale-110"
+                            style={{ backgroundColor: previewColor || settings.cursorColor }}
+                            onClick={() => setShowColorWheel(!showColorWheel)}
+                          />
+                          <span className="text-sm text-gray-400 font-mono">
+                            {previewColor || settings.cursorColor}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Preset Colors */}
+                      <div>
+                        <label className="text-gray-300 block mb-2">Preset Colors:</label>
+                        <div className="grid grid-cols-4 gap-2">
+                          {presetColors.map((preset) => (
+                            <button
+                              key={preset.name}
+                              onClick={() => updateSetting('cursorColor', preset.color)}
+                              className={`w-12 h-12 rounded-full border-2 transition-all duration-200 hover:scale-110 hover:shadow-lg ${
+                                settings.cursorColor === preset.color 
+                                  ? 'border-white shadow-lg ring-2 ring-cyan-500' 
+                                  : 'border-gray-600 hover:border-white'
+                              }`}
+                              style={{ backgroundColor: preset.color }}
+                              title={preset.name}
+                            />
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Color Wheel Toggle */}
+                      <div className="flex items-center justify-between">
+                        <span className="text-gray-300">Custom Color Wheel:</span>
+                        <button
+                          onClick={() => setShowColorWheel(!showColorWheel)}
+                          className={`px-4 py-2 rounded-lg font-semibold transition-colors duration-200 ${
+                            showColorWheel 
+                              ? 'bg-cyan-600 text-white' 
+                              : 'bg-gray-600 text-gray-300 hover:bg-gray-500'
+                          }`}
+                        >
+                          {showColorWheel ? 'Hide Wheel' : 'Show Wheel'}
+                        </button>
+                      </div>
+
+                      {/* Color Wheel */}
+                      {showColorWheel && (
+                        <div className="flex flex-col items-center space-y-3">
+                          <canvas
+                            ref={colorWheelRef}
+                            width={200}
+                            height={200}
+                            className="cursor-crosshair rounded-full shadow-lg border-2 border-gray-600"
+                            onClick={handleColorWheelClick}
+                            onMouseMove={handleColorWheelMouseMove}
+                            onMouseLeave={handleColorWheelMouseLeave}
+                          />
+                          <p className="text-xs text-gray-400 text-center">
+                            Click anywhere on the wheel to select a color
+                            <br />
+                            Distance from center = saturation
+                          </p>
+                          {previewColor && (
+                            <div className="bg-gray-700 rounded-lg p-3 border border-gray-600">
+                              <p className="text-sm text-gray-300">
+                                Preview: <span className="font-mono text-cyan-300">{previewColor}</span>
+                              </p>
+                              <div 
+                                className="w-full h-4 rounded mt-2 border border-gray-500"
+                                style={{ backgroundColor: previewColor }}
+                              />
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
                   </div>
 
