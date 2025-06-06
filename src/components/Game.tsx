@@ -107,8 +107,6 @@ export default function Game({ autoStart = false }: GameProps) {
     }
   };
 
-  const handleIntroComplete = () => {
-  }
   const handleIntroComplete = React.useCallback(() => {
     console.log('Intro completed, hiding intro and starting engine');
     setShowIntro(false);
