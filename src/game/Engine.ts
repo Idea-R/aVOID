@@ -12,22 +12,18 @@ export default class Engine {
   private gameTime: number = 0;
   private score: number = 0;
   
-  // Object pools with increased initial sizes for better performance
+  // Object pools
   private meteorPool: ObjectPool<Meteor>;
   private particlePool: ObjectPool<Particle>;
   private activeMeteors: Meteor[] = [];
   private activeParticles: Particle[] = [];
   
-  // Spatial partitioning with optimized cell size
+  // Spatial partitioning
   private spatialGrid: SpatialGrid;
   
   // Performance limits
-  private readonly MAX_METEORS = 40; // Reduced from 50 for better performance
-  private readonly MAX_PARTICLES = 250; // Reduced from 300 for better performance
-  
-  // Pre-allocated arrays for batching operations
-  private meteorsToRemove: number[] = [];
-  private particlesToRemove: number[] = [];
+  private readonly MAX_METEORS = 50;
+  private readonly MAX_PARTICLES = 300;
   
   private playerTrail: Array<{ x: number; y: number; alpha: number }> = [];
   private isGameOver: boolean = false;
@@ -49,15 +45,6 @@ export default class Engine {
   private meteorCount: number = 0;
   private particleCount: number = 0;
   
-  // Cached values for performance
-  private canvasWidth: number = 0;
-  private canvasHeight: number = 0;
-  private playerRadius: number = 8;
-  
-  // Collision detection optimization
-  private lastCollisionCheck: number = 0;
-  private collisionCheckInterval: number = 16; // Check collisions every 16ms (~60fps)
-  
   onStateUpdate: (state: { 
     score: number; 
     time: number; 
@@ -70,20 +57,16 @@ export default class Engine {
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
-    const context = canvas.getContext('2d', { 
-      alpha: false,
-      desynchronized: true, // Better performance for animations
-      willReadFrequently: false
-    });
+    const context = canvas.getContext('2d', { alpha: false });
     if (!context) throw new Error('Could not get canvas context');
     this.ctx = context;
     
-    // Initialize object pools with larger initial sizes
-    this.meteorPool = new ObjectPool(createMeteor, resetMeteor, 30, this.MAX_METEORS);
-    this.particlePool = new ObjectPool(createParticle, resetParticle, 100, this.MAX_PARTICLES);
+    // Initialize object pools
+    this.meteorPool = new ObjectPool(createMeteor, resetMeteor, 20, this.MAX_METEORS);
+    this.particlePool = new ObjectPool(createParticle, resetParticle, 50, this.MAX_PARTICLES);
     
-    // Initialize spatial grid with optimized cell size
-    this.spatialGrid = new SpatialGrid(window.innerWidth, window.innerHeight, 120);
+    // Initialize spatial grid
+    this.spatialGrid = new SpatialGrid(window.innerWidth, window.innerHeight, 150);
     
     this.resizeCanvas();
     window.addEventListener('resize', this.resizeCanvas);
@@ -143,14 +126,13 @@ export default class Engine {
 
       const dx = meteor.x - this.mouseX;
       const dy = meteor.y - this.mouseY;
-      const distanceSquared = dx * dx + dy * dy; // Avoid sqrt for performance
+      const distance = Math.sqrt(dx * dx + dy * dy);
 
-      if (distanceSquared <= 22500) { // 150 * 150
+      if (distance <= 150) {
         this.createExplosion(meteor.x, meteor.y, meteor.color, meteor.isSuper);
         this.releaseMeteor(meteor);
         destroyedCount++;
-      } else if (distanceSquared <= 90000) { // 300 * 300
-        const distance = Math.sqrt(distanceSquared);
+      } else if (distance <= 300) {
         const pushForce = (300 - distance) / 300 * 8;
         const angle = Math.atan2(dy, dx);
         meteor.vx += Math.cos(angle) * pushForce;
@@ -162,15 +144,11 @@ export default class Engine {
   }
 
   private createShockwave(x: number, y: number) {
-    // Calculate available particle slots
-    const availableSlots = this.MAX_PARTICLES - this.activeParticles.length;
-    if (availableSlots <= 0) return;
-
-    // Limit shockwave particles based on available slots
-    const ringParticles = Math.min(30, Math.floor(availableSlots * 0.6));
+    // Limit shockwave particles to prevent lag
+    const ringParticles = Math.min(40, this.MAX_PARTICLES - this.activeParticles.length);
     for (let i = 0; i < ringParticles; i++) {
       const angle = (Math.PI * 2 * i) / ringParticles;
-      const distance = 50 + Math.random() * 80;
+      const distance = 50 + Math.random() * 100;
       
       const particle = this.particlePool.get();
       initializeParticle(
@@ -181,15 +159,15 @@ export default class Engine {
         Math.sin(angle) * 4,
         3 + Math.random() * 2,
         '#ffd700',
-        50 + Math.random() * 25
+        60 + Math.random() * 30
       );
       this.activeParticles.push(particle);
     }
 
-    const centralParticles = Math.min(20, availableSlots - ringParticles);
+    const centralParticles = Math.min(25, this.MAX_PARTICLES - this.activeParticles.length);
     for (let i = 0; i < centralParticles; i++) {
       const angle = Math.random() * Math.PI * 2;
-      const velocity = 2 + Math.random() * 5;
+      const velocity = 2 + Math.random() * 6;
       
       const particle = this.particlePool.get();
       initializeParticle(
@@ -198,20 +176,18 @@ export default class Engine {
         y,
         Math.cos(angle) * velocity,
         Math.sin(angle) * velocity,
-        3 + Math.random() * 2,
+        4 + Math.random() * 3,
         '#ffff00',
-        60 + Math.random() * 30
+        80 + Math.random() * 40
       );
       this.activeParticles.push(particle);
     }
   }
 
   private resizeCanvas = () => {
-    this.canvasWidth = window.innerWidth;
-    this.canvasHeight = window.innerHeight;
-    this.canvas.width = this.canvasWidth;
-    this.canvas.height = this.canvasHeight;
-    this.spatialGrid.resize(this.canvasWidth, this.canvasHeight);
+    this.canvas.width = window.innerWidth;
+    this.canvas.height = window.innerHeight;
+    this.spatialGrid.resize(window.innerWidth, window.innerHeight);
   };
 
   private createMeteorGradient(x: number, y: number, radius: number, color: string, isSuper: boolean = false): CanvasGradient {
@@ -241,18 +217,15 @@ export default class Engine {
   }
 
   private createExplosion(x: number, y: number, color: string, isSuper: boolean = false) {
-    const availableSlots = this.MAX_PARTICLES - this.activeParticles.length;
-    if (availableSlots <= 0) return;
-
     const particleCount = Math.min(
-      isSuper ? 35 : 25, 
-      availableSlots
+      isSuper ? 50 : 30, 
+      this.MAX_PARTICLES - this.activeParticles.length
     );
     
     for (let i = 0; i < particleCount; i++) {
       const angle = (Math.PI * 2 * i) / particleCount;
-      const velocity = (isSuper ? 3 : 2) + Math.random() * 3;
-      const life = (isSuper ? 60 : 45) + Math.random() * 30;
+      const velocity = (isSuper ? 3 : 2) + Math.random() * 4;
+      const life = (isSuper ? 80 : 60) + Math.random() * 40;
       
       const particle = this.particlePool.get();
       initializeParticle(
@@ -261,7 +234,7 @@ export default class Engine {
         y,
         Math.cos(angle) * velocity,
         Math.sin(angle) * velocity,
-        (isSuper ? 2.5 : 2) + Math.random() * 2,
+        (isSuper ? 3 : 2) + Math.random() * 3,
         color,
         life
       );
@@ -276,24 +249,24 @@ export default class Engine {
     let x, y;
     
     switch(side) {
-      case 0: x = Math.random() * this.canvasWidth; y = -20; break;
-      case 1: x = this.canvasWidth + 20; y = Math.random() * this.canvasHeight; break;
-      case 2: x = Math.random() * this.canvasWidth; y = this.canvasHeight + 20; break;
-      default: x = -20; y = Math.random() * this.canvasHeight; break;
+      case 0: x = Math.random() * this.canvas.width; y = -20; break;
+      case 1: x = this.canvas.width + 20; y = Math.random() * this.canvas.height; break;
+      case 2: x = Math.random() * this.canvas.width; y = this.canvas.height + 20; break;
+      default: x = -20; y = Math.random() * this.canvas.height; break;
     }
 
     const angle = Math.atan2(this.mouseY - y, this.mouseX - x);
-    const isSuper = Math.random() < 0.12; // Slightly reduced super meteor chance
+    const isSuper = Math.random() < 0.15;
     
     const baseSpeed = 0.8;
-    const speedIncrease = Math.min(this.gameTime / 90, 1.8);
+    const speedIncrease = Math.min(this.gameTime / 90, 2.0);
     let speed = baseSpeed + speedIncrease;
     speed *= 0.8 + Math.random() * 0.4;
-    if (isSuper) speed *= 1.8; // Slightly reduced super meteor speed
+    if (isSuper) speed *= 2;
 
     const color = isSuper ? '#ff4040' : this.getRandomColor();
-    const baseRadius = isSuper ? 11 : 6;
-    const radiusVariation = isSuper ? 3 : 5;
+    const baseRadius = isSuper ? 12 : 6;
+    const radiusVariation = isSuper ? 4 : 6;
     
     const meteor = this.meteorPool.get();
     initializeMeteor(
@@ -371,34 +344,32 @@ export default class Engine {
       this.screenShake.y = 0;
     }
     
-    // Update player trail with optimized length
+    // Update player trail
     this.playerTrail.unshift({ x: this.mouseX, y: this.mouseY, alpha: 1 });
-    if (this.playerTrail.length > 20) this.playerTrail.pop(); // Reduced from 25
+    if (this.playerTrail.length > 25) this.playerTrail.pop();
     this.playerTrail.forEach(point => point.alpha *= 0.92);
 
     // Spawn meteors with performance consideration
     const baseSpawnChance = 0.003;
-    const maxSpawnChance = 0.018; // Reduced from 0.02
+    const maxSpawnChance = 0.02; // Reduced from 0.03
     const spawnIncrease = Math.min(this.gameTime / 150, maxSpawnChance - baseSpawnChance);
     if (Math.random() < baseSpawnChance + spawnIncrease) {
       this.spawnMeteor();
     }
 
-    // Clear removal arrays
-    this.meteorsToRemove.length = 0;
-    this.particlesToRemove.length = 0;
-
-    // Batch meteor updates
-    for (let i = 0; i < this.activeMeteors.length; i++) {
+    // Update meteors
+    for (let i = this.activeMeteors.length - 1; i >= 0; i--) {
       const meteor = this.activeMeteors[i];
       if (!meteor.active) continue;
 
       meteor.x += meteor.vx;
       meteor.y += meteor.vy;
 
-      // Update trail with reduced length
+      meteor.gradient = this.createMeteorGradient(meteor.x, meteor.y, meteor.radius, meteor.color, meteor.isSuper);
+
+      // Update trail with length limit
       meteor.trail.unshift({ x: meteor.x, y: meteor.y, alpha: 1 });
-      const maxTrailLength = meteor.isSuper ? 12 : 10; // Reduced trail length
+      const maxTrailLength = meteor.isSuper ? 15 : 12; // Reduced trail length
       if (meteor.trail.length > maxTrailLength) meteor.trail.pop();
       meteor.trail.forEach(point => point.alpha *= meteor.isSuper ? 0.9 : 0.88);
 
@@ -410,28 +381,27 @@ export default class Engine {
         id: meteor.id
       });
 
-      // Optimized collision detection with early exit
+      // Check collision with player
       const dx = meteor.x - this.mouseX;
       const dy = meteor.y - this.mouseY;
-      const distanceSquared = dx * dx + dy * dy;
-      const collisionRadius = meteor.radius + this.playerRadius;
+      const distance = Math.sqrt(dx * dx + dy * dy);
       
-      if (distanceSquared < collisionRadius * collisionRadius) {
+      if (distance < meteor.radius + 6) {
         this.createExplosion(this.mouseX, this.mouseY, '#06b6d4');
         this.createExplosion(meteor.x, meteor.y, meteor.color, meteor.isSuper);
         this.isGameOver = true;
         return;
       }
 
-      // Check if meteor is off-screen with margin
-      if (meteor.x < -60 || meteor.x > this.canvasWidth + 60 ||
-          meteor.y < -60 || meteor.y > this.canvasHeight + 60) {
-        this.meteorsToRemove.push(i);
+      // Remove meteors that are off-screen
+      if (meteor.x < -50 || meteor.x > this.canvas.width + 50 ||
+          meteor.y < -50 || meteor.y > this.canvas.height + 50) {
+        this.releaseMeteor(meteor);
       }
     }
 
-    // Batch particle updates
-    for (let i = 0; i < this.activeParticles.length; i++) {
+    // Update particles
+    for (let i = this.activeParticles.length - 1; i >= 0; i--) {
       const particle = this.activeParticles[i];
       if (!particle.active) continue;
 
@@ -442,28 +412,9 @@ export default class Engine {
       particle.alpha = particle.life / particle.maxLife;
       particle.life--;
 
-      // Early exit for dead particles
-      if (particle.life <= 0 || particle.alpha <= 0.01 ||
-          particle.x < -50 || particle.x > this.canvasWidth + 50 ||
-          particle.y < -50 || particle.y > this.canvasHeight + 50) {
-        this.particlesToRemove.push(i);
+      if (particle.life <= 0 || particle.alpha <= 0.01) {
+        this.releaseParticle(particle);
       }
-    }
-
-    // Batch remove meteors (reverse order to maintain indices)
-    for (let i = this.meteorsToRemove.length - 1; i >= 0; i--) {
-      const index = this.meteorsToRemove[i];
-      const meteor = this.activeMeteors[index];
-      this.activeMeteors.splice(index, 1);
-      this.meteorPool.release(meteor);
-    }
-
-    // Batch remove particles (reverse order to maintain indices)
-    for (let i = this.particlesToRemove.length - 1; i >= 0; i--) {
-      const index = this.particlesToRemove[i];
-      const particle = this.activeParticles[index];
-      this.activeParticles.splice(index, 1);
-      this.particlePool.release(particle);
     }
 
     this.score = Math.floor(this.gameTime);
@@ -488,99 +439,89 @@ export default class Engine {
     this.ctx.save();
     this.ctx.translate(this.screenShake.x, this.screenShake.y);
     
-    // Full canvas clear for smooth visuals
     this.ctx.fillStyle = 'rgba(0, 0, 0, 0.15)';
-    this.ctx.fillRect(-this.screenShake.x, -this.screenShake.y, this.canvasWidth, this.canvasHeight);
+    this.ctx.fillRect(-this.screenShake.x, -this.screenShake.y, this.canvas.width, this.canvas.height);
     
     this.ctx.globalCompositeOperation = 'lighter';
     
-    // Batch render power-ups
+    // Draw power-ups
     const powerUps = this.powerUpManager.getPowerUps();
-    if (powerUps.length > 0) {
-      powerUps.forEach(powerUp => {
-        this.ctx.beginPath();
-        this.ctx.arc(powerUp.x, powerUp.y, powerUp.radius * 2, 0, Math.PI * 2);
-        this.ctx.fillStyle = `rgba(255, 215, 0, ${powerUp.glowIntensity * 0.3})`;
-        this.ctx.shadowBlur = 30;
-        this.ctx.shadowColor = '#ffd700';
-        this.ctx.fill();
-        this.ctx.shadowBlur = 0;
-        
-        this.ctx.beginPath();
-        this.ctx.arc(powerUp.x, powerUp.y, powerUp.radius, 0, Math.PI * 2);
-        const gradient = this.ctx.createRadialGradient(
-          powerUp.x, powerUp.y, 0,
-          powerUp.x, powerUp.y, powerUp.radius
-        );
-        gradient.addColorStop(0, '#ffff80');
-        gradient.addColorStop(0.7, '#ffd700');
-        gradient.addColorStop(1, '#ffb000');
-        this.ctx.fillStyle = gradient;
-        this.ctx.fill();
-        
-        this.ctx.beginPath();
-        this.ctx.arc(powerUp.x - 5, powerUp.y - 5, powerUp.radius * 0.3, 0, Math.PI * 2);
-        this.ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
-        this.ctx.fill();
-      });
-    }
-    
-    // Batch render meteor trails
-    for (const meteor of this.activeMeteors) {
-      if (!meteor.active) continue;
+    powerUps.forEach(powerUp => {
+      this.ctx.beginPath();
+      this.ctx.arc(powerUp.x, powerUp.y, powerUp.radius * 2, 0, Math.PI * 2);
+      this.ctx.fillStyle = `rgba(255, 215, 0, ${powerUp.glowIntensity * 0.3})`;
+      this.ctx.shadowBlur = 30;
+      this.ctx.shadowColor = '#ffd700';
+      this.ctx.fill();
+      this.ctx.shadowBlur = 0;
       
-      for (let i = 0; i < meteor.trail.length; i++) {
-        const point = meteor.trail[i];
-        const progress = 1 - i / meteor.trail.length;
-        const trailRadius = meteor.radius * progress * (meteor.isSuper ? 1.6 : 1.2);
+      this.ctx.beginPath();
+      this.ctx.arc(powerUp.x, powerUp.y, powerUp.radius, 0, Math.PI * 2);
+      const gradient = this.ctx.createRadialGradient(
+        powerUp.x, powerUp.y, 0,
+        powerUp.x, powerUp.y, powerUp.radius
+      );
+      gradient.addColorStop(0, '#ffff80');
+      gradient.addColorStop(0.7, '#ffd700');
+      gradient.addColorStop(1, '#ffb000');
+      this.ctx.fillStyle = gradient;
+      this.ctx.fill();
+      
+      this.ctx.beginPath();
+      this.ctx.arc(powerUp.x - 5, powerUp.y - 5, powerUp.radius * 0.3, 0, Math.PI * 2);
+      this.ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+      this.ctx.fill();
+    });
+    
+    // Draw meteor trails
+    this.activeMeteors.forEach(meteor => {
+      if (!meteor.active) return;
+      
+      meteor.trail.forEach((point, index) => {
+        const progress = 1 - index / meteor.trail.length;
+        const trailRadius = meteor.radius * progress * (meteor.isSuper ? 1.8 : 1.3); // Reduced trail size
         
         this.ctx.beginPath();
         this.ctx.arc(point.x, point.y, trailRadius, 0, Math.PI * 2);
-        
-        // Cache gradient creation
-        if (!meteor.gradient) {
-          meteor.gradient = this.createMeteorGradient(meteor.x, meteor.y, meteor.radius, meteor.color, meteor.isSuper);
-        }
-        
-        this.ctx.fillStyle = meteor.gradient;
+        const gradient = this.createMeteorGradient(point.x, point.y, trailRadius, meteor.color, meteor.isSuper);
+        this.ctx.fillStyle = gradient;
         this.ctx.fill();
         
-        this.ctx.shadowBlur = meteor.isSuper ? 18 : 12;
+        this.ctx.shadowBlur = meteor.isSuper ? 20 : 12; // Reduced glow
         this.ctx.shadowColor = meteor.color;
         this.ctx.fill();
         this.ctx.shadowBlur = 0;
-      }
-    }
+      });
+    });
 
-    // Batch render meteors
-    for (const meteor of this.activeMeteors) {
-      if (!meteor.active) continue;
+    // Draw meteors
+    this.activeMeteors.forEach(meteor => {
+      if (!meteor.active) return;
       
       this.ctx.beginPath();
-      this.ctx.arc(meteor.x, meteor.y, meteor.radius * (meteor.isSuper ? 1.6 : 1.2), 0, Math.PI * 2);
+      this.ctx.arc(meteor.x, meteor.y, meteor.radius * (meteor.isSuper ? 1.8 : 1.3), 0, Math.PI * 2);
       this.ctx.fillStyle = meteor.gradient || meteor.color;
       
-      this.ctx.shadowBlur = meteor.isSuper ? 22 : 14;
+      this.ctx.shadowBlur = meteor.isSuper ? 25 : 15;
       this.ctx.shadowColor = meteor.color;
       this.ctx.fill();
       this.ctx.shadowBlur = 0;
-    }
+    });
     
     this.ctx.globalCompositeOperation = 'source-over';
     
-    // Batch render player trail
-    for (let i = 0; i < this.playerTrail.length; i++) {
-      const point = this.playerTrail[i];
-      const progress = 1 - i / this.playerTrail.length;
+    // Draw player trail
+    this.playerTrail.forEach((point, index) => {
+      const progress = 1 - index / this.playerTrail.length;
       this.ctx.beginPath();
-      this.ctx.arc(point.x, point.y, 7 * progress, 0, Math.PI * 2);
+      this.ctx.arc(point.x, point.y, 8 * progress, 0, Math.PI * 2);
       this.ctx.fillStyle = `rgba(6, 182, 212, ${point.alpha * 0.7})`;
       
-      this.ctx.shadowBlur = 14;
+      this.ctx.shadowBlur = 15;
       this.ctx.shadowColor = '#06b6d4';
       this.ctx.fill();
       this.ctx.shadowBlur = 0;
-    }
+    });
     
     // Draw knockback power ring
     if (this.hasKnockbackPower) {
@@ -598,29 +539,29 @@ export default class Engine {
     // Draw player
     if (!this.isGameOver) {
       this.ctx.beginPath();
-      this.ctx.arc(this.mouseX, this.mouseY, this.playerRadius, 0, Math.PI * 2);
+      this.ctx.arc(this.mouseX, this.mouseY, 8, 0, Math.PI * 2);
       this.ctx.fillStyle = '#06b6d4';
       
-      this.ctx.shadowBlur = 18;
+      this.ctx.shadowBlur = 20;
       this.ctx.shadowColor = '#06b6d4';
       this.ctx.fill();
       this.ctx.shadowBlur = 0;
     }
 
-    // Batch render particles
+    // Draw particles
     this.ctx.globalCompositeOperation = 'lighter';
-    for (const particle of this.activeParticles) {
-      if (!particle.active) continue;
+    this.activeParticles.forEach(particle => {
+      if (!particle.active) return;
       
       this.ctx.beginPath();
       this.ctx.arc(particle.x, particle.y, particle.radius, 0, Math.PI * 2);
       this.ctx.fillStyle = particle.color.replace(/,\s*[\d.]+\)$/, `, ${particle.alpha})`);
       
-      this.ctx.shadowBlur = 6;
+      this.ctx.shadowBlur = 8; // Reduced particle glow
       this.ctx.shadowColor = particle.color;
       this.ctx.fill();
       this.ctx.shadowBlur = 0;
-    }
+    });
     
     this.ctx.globalCompositeOperation = 'source-over';
     this.ctx.restore();
