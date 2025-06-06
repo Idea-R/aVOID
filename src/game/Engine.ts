@@ -149,6 +149,9 @@ export default class Engine {
     // Load settings from localStorage
     this.loadSettings();
     
+    // Initialize deflection area
+    this.updateDeflectionArea();
+    
     this.resizeCanvas();
     window.addEventListener('resize', this.resizeCanvas);
     window.addEventListener('mousemove', this.handleMouseMove);
