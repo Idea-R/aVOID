@@ -206,7 +206,7 @@ export default class Engine {
   private activateFlame() {
     this.flameActive = true;
     this.flameTimeRemaining = this.flameDuration;
-    this.speedMultiplier = 1.5;
+    this.speedMultiplier = 3.0;
     this.scoreMultiplier = 2.0;
     
     // Create minimal flame particles (max 6 for performance)
