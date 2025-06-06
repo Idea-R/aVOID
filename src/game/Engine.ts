@@ -761,3 +761,12 @@ export default class Engine {
             shadowsEnabled: this.shadowsEnabled,
             maxParticles: this.dynamicMaxParticles,
             
+          }
+        }
+        )
+      }
+    }
+  }
+}
+
+export default Engine
