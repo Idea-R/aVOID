@@ -80,11 +80,21 @@ export class ProfileAPI {
     gameMeteors?: number;
     gameSurvivalTime?: number;
     gameDistance?: number;
+    distanceTraveled?: number;
+    currentScore?: number;
+    currentMeteors?: number;
+    currentTime?: number;
+    currentDistance?: number;
   }): Promise<boolean> {
     const { error } = await supabase.rpc('update_game_statistics', {
       user_id: userId,
       games_increment: stats.gamesPlayed || 0,
       meteors_increment: stats.meteorsDestroyed || 0,
+      survival_increment: stats.survivalTime || 0,
+      distance_increment: stats.distanceTraveled || 0,
+      current_score: stats.currentScore || 0,
+      current_meteors: stats.currentMeteors || 0,
+      current_time: stats.currentTime || 0,
       survival_increment: stats.survivalTime || 0,
       distance_increment: stats.distanceTraveled || 0,
       game_score: stats.gameScore || 0,
