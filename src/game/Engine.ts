@@ -190,11 +190,11 @@ export default class Engine {
 
       if (distance <= 150) {
         // Calculate points based on meteor type and distance
-        let points = meteor.isSuper ? 100 : 50; // Base points
+        let points = meteor.isSuper ? 15 : 10; // Base points
         
         // Distance bonus: closer meteors give more points
-        const distanceBonus = Math.floor((150 - distance) / 150 * 25);
-        points += distanceBonus;
+        const distanceBonus = Math.floor((150 - distance) / 150 * (meteor.isSuper ? 15 : 5));
+        points = Math.max(5, Math.min(meteor.isSuper ? 30 : 15, points));
         
         totalPoints += points;
         
