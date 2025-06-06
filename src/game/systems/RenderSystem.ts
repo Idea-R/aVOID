@@ -9,6 +9,7 @@ interface GameSettings {
   showFPS: boolean;
   showPerformanceStats: boolean;
   showTrails: boolean;
+  cursorColor: string;
 }
 
 interface RenderState {
@@ -45,6 +46,7 @@ export class RenderSystem {
   private canvas: HTMLCanvasElement;
   private shadowsEnabled: boolean = true;
   private shadowGroups: Map<string, ShadowGroup> = new Map();
+  private currentGameSettings?: GameSettings;
   
   // Gradient caching system
   private gradientCache: Map<string, GradientCacheEntry> = new Map();
@@ -75,6 +77,9 @@ export class RenderSystem {
   };
 
   render(state: RenderState): void {
+    // Store current game settings for use in rendering
+    this.currentGameSettings = state.gameSettings;
+    
     this.ctx.save();
     this.ctx.translate(state.screenShake.x, state.screenShake.y);
     
@@ -151,23 +156,26 @@ export class RenderSystem {
       );
     }
 
-    // Group player trail (shadow blur: 15, color: #06b6d4)
+    // Group player trail (shadow blur: 15, color: cursor color)
     if (state.playerTrail.length > 0) {
-      this.addToShadowGroup('15:#06b6d4', 15, '#06b6d4', 
+      const cursorColor = state.gameSettings.cursorColor || '#06b6d4';
+      this.addToShadowGroup(`15:${cursorColor}`, 15, cursorColor, 
         [{ type: 'playerTrail' as const, data: state.playerTrail }]
       );
     }
 
-    // Group knockback ring (shadow blur: 10, color: #ffd700)
+    // Group knockback ring (shadow blur: 10, color: cursor color)
     if (state.hasKnockbackPower) {
-      this.addToShadowGroup('10:#ffd700', 10, '#ffd700', 
+      const cursorColor = state.gameSettings.cursorColor || '#06b6d4';
+      this.addToShadowGroup(`10:${cursorColor}`, 10, cursorColor, 
         [{ type: 'knockbackRing' as const, data: { x: state.mouseX, y: state.mouseY, phase: state.playerRingPhase } }]
       );
     }
 
-    // Group player (shadow blur: 20, color: #06b6d4)
+    // Group player (shadow blur: 20, color: cursor color)
     if (!state.isGameOver) {
-      this.addToShadowGroup('20:#06b6d4', 20, '#06b6d4', 
+      const cursorColor = state.gameSettings.cursorColor || '#06b6d4';
+      this.addToShadowGroup(`20:${cursorColor}`, 20, cursorColor, 
         [{ type: 'player' as const, data: { x: state.mouseX, y: state.mouseY } }]
       );
     }
@@ -197,7 +205,7 @@ export class RenderSystem {
 
         // Render all objects in this group without shadows
         for (const obj of group.objects) {
-          this.renderObject(obj);
+          this.renderObject(obj, this.currentGameSettings);
         }
       }
       return;
@@ -216,7 +224,7 @@ export class RenderSystem {
 
       // Render all objects in this shadow group
       for (const obj of group.objects) {
-        this.renderObject(obj);
+        this.renderObject(obj, this.currentGameSettings);
       }
 
       // Reset shadow after each group
@@ -238,7 +246,7 @@ export class RenderSystem {
     ];
   }
 
-  private renderObject(obj: { type: string; data: any }): void {
+  private renderObject(obj: { type: string; data: any }, gameSettings?: GameSettings): void {
     switch (obj.type) {
       case 'powerUp':
         this.drawPowerUp(obj.data);
@@ -250,13 +258,13 @@ export class RenderSystem {
         this.drawMeteor(obj.data);
         break;
       case 'playerTrail':
-        this.drawPlayerTrail(obj.data);
+        this.drawPlayerTrail(obj.data, gameSettings?.cursorColor || '#06b6d4');
         break;
       case 'knockbackRing':
-        this.drawKnockbackRing(obj.data.x, obj.data.y, obj.data.phase);
+        this.drawKnockbackRing(obj.data.x, obj.data.y, obj.data.phase, gameSettings?.cursorColor || '#06b6d4');
         break;
       case 'player':
-        this.drawPlayer(obj.data.x, obj.data.y);
+        this.drawPlayer(obj.data.x, obj.data.y, gameSettings?.cursorColor || '#06b6d4');
         break;
       case 'particle':
         this.drawParticle(obj.data);
@@ -337,29 +345,36 @@ export class RenderSystem {
     this.ctx.fill();
   }
 
-  private drawPlayerTrail(trail: Array<{ x: number; y: number; alpha: number }>): void {
+  private drawPlayerTrail(trail: Array<{ x: number; y: number; alpha: number }>, cursorColor: string): void {
     trail.forEach((point, index) => {
       const progress = 1 - index / trail.length;
       this.ctx.beginPath();
       this.ctx.arc(point.x, point.y, 8 * progress, 0, Math.PI * 2);
-      this.ctx.fillStyle = `rgba(6, 182, 212, ${point.alpha * 0.7})`;
+      
+      // Convert cursor color to rgba with alpha
+      const color = this.hexToRgba(cursorColor, point.alpha * 0.7);
+      this.ctx.fillStyle = color;
       this.ctx.fill();
     });
   }
 
-  private drawKnockbackRing(x: number, y: number, phase: number): void {
+  private drawKnockbackRing(x: number, y: number, phase: number, cursorColor: string): void {
     const ringRadius = 15 + Math.sin(phase) * 3;
     this.ctx.beginPath();
     this.ctx.arc(x, y, ringRadius, 0, Math.PI * 2);
-    this.ctx.strokeStyle = `rgba(255, 215, 0, ${0.8 + Math.sin(phase * 2) * 0.2})`;
+    
+    // Use cursor color for knockback ring with golden tint
+    const alpha = 0.8 + Math.sin(phase * 2) * 0.2;
+    const color = this.hexToRgba(cursorColor, alpha);
+    this.ctx.strokeStyle = color;
     this.ctx.lineWidth = 3;
     this.ctx.stroke();
   }
 
-  private drawPlayer(x: number, y: number): void {
+  private drawPlayer(x: number, y: number, cursorColor: string): void {
     this.ctx.beginPath();
     this.ctx.arc(x, y, 8, 0, Math.PI * 2);
-    this.ctx.fillStyle = '#06b6d4';
+    this.ctx.fillStyle = cursorColor;
     this.ctx.fill();
   }
 
@@ -373,6 +388,67 @@ export class RenderSystem {
       this.ctx.shadowColor = particle.color;
     }
     this.ctx.fill();
+  }
+
+  // Helper function to convert hex color to rgba
+  private hexToRgba(hex: string, alpha: number): string {
+    // Handle HSL colors
+    if (hex.startsWith('hsl')) {
+      // Extract HSL values and convert to rgba
+      const hslMatch = hex.match(/hsl\((\d+),\s*(\d+)%,\s*(\d+)%\)/);
+      if (hslMatch) {
+        const h = parseInt(hslMatch[1]);
+        const s = parseInt(hslMatch[2]) / 100;
+        const l = parseInt(hslMatch[3]) / 100;
+        
+        const rgb = this.hslToRgb(h, s, l);
+        return `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${alpha})`;
+      }
+    }
+    
+    // Handle hex colors
+    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+    if (result) {
+      const r = parseInt(result[1], 16);
+      const g = parseInt(result[2], 16);
+      const b = parseInt(result[3], 16);
+      return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+    }
+    
+    // Fallback to original color with alpha
+    return hex.replace(/rgb\(([^)]+)\)/, `rgba($1, ${alpha})`);
+  }
+
+  // Convert HSL to RGB
+  private hslToRgb(h: number, s: number, l: number): { r: number; g: number; b: number } {
+    h /= 360;
+    
+    const hue2rgb = (p: number, q: number, t: number) => {
+      if (t < 0) t += 1;
+      if (t > 1) t -= 1;
+      if (t < 1/6) return p + (q - p) * 6 * t;
+      if (t < 1/2) return q;
+      if (t < 2/3) return p + (q - p) * (2/3 - t) * 6;
+      return p;
+    };
+    
+    let r, g, b;
+    
+    if (s === 0) {
+      r = g = b = l; // achromatic
+    } else {
+      const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+      const p = 2 * l - q;
+      r = hue2rgb(p, q, h + 1/3);
+      g = hue2rgb(p, q, h);
+      b = hue2rgb(p, q, h - 1/3);
+    }
+    
+    return {
+      r: Math.round(r * 255),
+      g: Math.round(g * 255),
+      b: Math.round(b * 255)
+    };
   }
 
   // GRADIENT CACHING SYSTEM - STABILITY-FIRST IMPLEMENTATION
