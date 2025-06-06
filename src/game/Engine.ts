@@ -336,7 +336,15 @@ export default class Engine {
       const dy = meteor.y - this.mouseY;
       const distance = Math.sqrt(dx * dx + dy * dy);
       
-      if (distance < meteor.radius + 6) {
+      // Debug logging for collision detection
+      console.log('Checking collision:');
+      console.log(`Player: (${this.mouseX}, ${this.mouseY})`);
+      console.log(`Meteor: (${meteor.x}, ${meteor.y}), Radius: ${meteor.radius}`);
+      console.log(`Distance: ${distance}`);
+      console.log(`Collision condition (distance < meteor.radius + 8): ${distance < meteor.radius + 8}`);
+      
+      if (distance < meteor.radius + 8) {
+        console.log('COLLISION DETECTED! Game Over triggered.');
         this.particleSystem.createExplosion(this.mouseX, this.mouseY, '#06b6d4');
         this.particleSystem.createExplosion(meteor.x, meteor.y, meteor.color, meteor.isSuper);
         this.isGameOver = true;
