@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Trophy, Star, Users, X } from 'lucide-react';
+import { Trophy, Star, Users, X, UserCircle } from 'lucide-react';
 import { LeaderboardAPI, LeaderboardScore } from '../api/leaderboard';
+import { useAuthStore } from '../store/authStore';
+import ProfileModal from './ProfileModal';
 
 interface LeaderboardModalProps {
   isOpen: boolean;
@@ -12,6 +14,10 @@ export default function LeaderboardModal({ isOpen, onClose, playerScore }: Leade
   const [scores, setScores] = useState<LeaderboardScore[]>([]);
   const [playerRank, setPlayerRank] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
+  const [showProfile, setShowProfile] = useState(false);
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
+  
+  const { user } = useAuthStore();
 
   useEffect(() => {
     if (!isOpen) return;
@@ -42,6 +48,11 @@ export default function LeaderboardModal({ isOpen, onClose, playerScore }: Leade
     };
   }, [isOpen, playerScore]);
 
+  const handleProfileClick = (userId: string | null) => {
+    if (!userId) return;
+    setSelectedUserId(userId);
+    setShowProfile(true);
+  };
   if (!isOpen) return null;
 
   const formatScore = (score: number) => score.toLocaleString();
@@ -118,10 +129,24 @@ export default function LeaderboardModal({ isOpen, onClose, playerScore }: Leade
                     
                     <div>
                       <div className="flex items-center gap-2">
-                        <span className="font-semibold text-cyan-300 drop-shadow-lg">
+                        <span 
+                          className={`font-semibold text-cyan-300 drop-shadow-lg ${
+                            score.user_id ? 'cursor-pointer hover:text-cyan-200 transition-colors' : ''
+                          }`}
+                          onClick={() => handleProfileClick(score.user_id)}
+                        >
                           {score.player_name}
                         </span>
-                        <Star className="w-4 h-4 text-cyan-400 fill-current animate-pulse" />
+                        <div className="flex items-center gap-1">
+                          <Star className="w-4 h-4 text-cyan-400 fill-current animate-pulse" />
+                          {score.user_id && (
+                            <UserCircle 
+                              className="w-4 h-4 text-cyan-400 cursor-pointer hover:text-cyan-300 transition-colors" 
+                              onClick={() => handleProfileClick(score.user_id)}
+                              title="View Profile"
+                            />
+                          )}
+                        </div>
                       </div>
                       <p className="text-xs text-gray-500">
                         {formatDate(score.created_at)}
@@ -156,6 +181,12 @@ export default function LeaderboardModal({ isOpen, onClose, playerScore }: Leade
           </div>
         </div>
       </div>
+
+      <ProfileModal
+        isOpen={showProfile}
+        onClose={() => setShowProfile(false)}
+        userId={selectedUserId || undefined}
+      />
     </div>
   );
 }

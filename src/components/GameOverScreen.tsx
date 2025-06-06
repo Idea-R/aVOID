@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Trophy, Star, UserPlus, Eye, RotateCcw, Settings, User } from 'lucide-react';
+import { Trophy, Star, UserPlus, Eye, RotateCcw, Settings, UserCircle } from 'lucide-react';
 import { LeaderboardAPI } from '../api/leaderboard';
 import { useAuthStore } from '../store/authStore';
 import SignupModal from './SignupModal';
 import LeaderboardModal from './LeaderboardModal';
 import AccountModal from './AccountModal';
 import SettingsModal from './SettingsModal';
+import ProfileModal from './ProfileModal';
 import logoImage from '../assets/Futuristic aVOID with Fiery Meteors.png';
 
 interface GameOverScreenProps {
@@ -20,6 +21,7 @@ export default function GameOverScreen({ score, onPlayAgain }: GameOverScreenPro
   const [showLeaderboard, setShowLeaderboard] = useState(false);
   const [showAccount, setShowAccount] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [showProfile, setShowProfile] = useState(false);
   const [playerRank, setPlayerRank] = useState<number | null>(null);
   const [verifiedRank, setVerifiedRank] = useState<number | null>(null);
   const [scoreSaved, setScoreSaved] = useState(false);
@@ -151,11 +153,11 @@ export default function GameOverScreen({ score, onPlayAgain }: GameOverScreenPro
 
               {user ? (
                 <button
-                  onClick={() => setShowAccount(true)}
+                  onClick={() => setShowProfile(true)}
                   className="bg-cyan-600 hover:bg-cyan-700 text-white p-2 rounded-lg transition-colors duration-200"
-                  title="Account"
+                  title="Profile"
                 >
-                  <User className="w-4 h-4" />
+                  <UserCircle className="w-4 h-4" />
                 </button>
               ) : (
                 <button
@@ -310,6 +312,11 @@ export default function GameOverScreen({ score, onPlayAgain }: GameOverScreenPro
       <SettingsModal
         isOpen={showSettings}
         onClose={() => setShowSettings(false)}
+      />
+
+      <ProfileModal
+        isOpen={showProfile}
+        onClose={() => setShowProfile(false)}
       />
     </>
   );

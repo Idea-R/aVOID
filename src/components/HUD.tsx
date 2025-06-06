@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { Trophy, User, UserPlus, Settings } from 'lucide-react';
+import { Trophy, User, UserPlus, Settings, UserCircle } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import AccountModal from './AccountModal';
 import SignupModal from './SignupModal';
 import LeaderboardModal from './LeaderboardModal';
 import SettingsModal from './SettingsModal';
+import ProfileModal from './ProfileModal';
 
 interface HUDProps {
   score: number;
@@ -25,6 +26,7 @@ export default function HUD({ score, time, fps, meteors = 0, particles = 0, pool
   const [showSignup, setShowSignup] = useState(false);
   const [showLeaderboard, setShowLeaderboard] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [showProfile, setShowProfile] = useState(false);
   
   // Mobile detection - screen width < 768px (md breakpoint)
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
@@ -125,12 +127,12 @@ export default function HUD({ score, time, fps, meteors = 0, particles = 0, pool
 
           {user ? (
             <button
-              onClick={() => setShowAccount(true)}
+              onClick={() => setShowProfile(true)}
               className="bg-cyan-600 hover:bg-cyan-700 text-white p-2 rounded-lg transition-colors duration-200 flex items-center gap-2 text-sm font-semibold"
             >
-              <User className="w-4 h-4" />
+              <UserCircle className="w-4 h-4" />
               <span className="hidden sm:inline">
-                {user.user_metadata?.display_name || user.email?.split('@')[0] || 'Account'}
+                {user.user_metadata?.display_name || user.email?.split('@')[0] || 'Profile'}
               </span>
             </button>
           ) : (
@@ -172,6 +174,11 @@ export default function HUD({ score, time, fps, meteors = 0, particles = 0, pool
       <SettingsModal
         isOpen={showSettings}
         onClose={() => setShowSettings(false)}
+      />
+
+      <ProfileModal
+        isOpen={showProfile}
+        onClose={() => setShowProfile(false)}
       />
     </>
   );
