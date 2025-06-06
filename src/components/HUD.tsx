@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { Trophy, User, UserPlus, Settings, UserCircle, HelpCircle } from 'lucide-react';
+import { Trophy, User, UserPlus, Settings, UserCircle, HelpCircle, Star } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
+import { ComboInfo } from '../game/systems/ScoreSystem';
 import AccountModal from './AccountModal';
 import SignupModal from './SignupModal';
 import LeaderboardModal from './LeaderboardModal';
@@ -10,6 +11,7 @@ import HelpModal from './HelpModal';
 
 interface HUDProps {
   score: number;
+  comboInfo?: ComboInfo;
   time: number;
   fps: number;
   meteors?: number;
@@ -23,7 +25,7 @@ interface HUDProps {
   isPaused?: boolean;
 }
 
-export default function HUD({ score, time, fps, meteors = 0, particles = 0, poolSizes, autoScaling, performance, settings, isGameOver = false, showIntro = false, isPaused = false }: HUDProps) {
+export default function HUD({ score, comboInfo, time, fps, meteors = 0, particles = 0, poolSizes, autoScaling, performance, settings, isGameOver = false, showIntro = false, isPaused = false }: HUDProps) {
   const { user } = useAuthStore();
   const [showAccount, setShowAccount] = useState(false);
   const [showSignup, setShowSignup] = useState(false);
@@ -63,11 +65,24 @@ export default function HUD({ score, time, fps, meteors = 0, particles = 0, pool
       {/* Game Stats - Only show during active gameplay */}
       {!isGameOver && !showIntro && !isPaused && (
         <div className="absolute top-4 left-4 flex flex-col gap-2 text-cyan-500 font-mono text-sm">
-          <div className="flex gap-6">
-            <div>Score: {score}</div>
+          <div className="flex gap-6 items-center">
+            <div className="text-lg font-semibold">Score: {score.toLocaleString()}</div>
             <div>Time: {Math.floor(time)}s</div>
             {fps > 0 && <div className={`${getFPSColor(fps)}`}>FPS: {fps}</div>}
           </div>
+          
+          {/* Active Combo Display */}
+          {comboInfo && comboInfo.isActive && comboInfo.count >= 2 && (
+            <div className="bg-green-900/50 border border-green-500/50 rounded-lg px-3 py-1 animate-pulse">
+              <div className="flex items-center gap-2">
+                <Star className="w-4 h-4 text-yellow-400" />
+                <span className="text-green-300 font-bold">
+                  {comboInfo.count}x COMBO ACTIVE!
+                </span>
+                <Star className="w-4 h-4 text-yellow-400" />
+              </div>
+            </div>
+          )}
           
           {(meteors > 0 || particles > 0) && (
             <div className="flex gap-6 text-xs opacity-80">
