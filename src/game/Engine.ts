@@ -4,6 +4,7 @@ import { SpatialGrid, GridObject } from './utils/SpatialGrid';
 import { Meteor, createMeteor, resetMeteor, initializeMeteor } from './entities/Meteor';
 import { RenderSystem } from './systems/RenderSystem';
 import { ParticleSystem } from './systems/ParticleSystem';
+import { CollisionSystem } from './systems/CollisionSystem';
 
 interface GameSettings {
   volume: number;
@@ -24,6 +25,7 @@ export default class Engine {
   // Systems
   private renderSystem: RenderSystem;
   private particleSystem: ParticleSystem;
+  private collisionSystem: CollisionSystem;
   
   // Object pools
   private meteorPool: ObjectPool<Meteor>;
@@ -81,6 +83,7 @@ export default class Engine {
     // Initialize systems
     this.renderSystem = new RenderSystem(canvas);
     this.particleSystem = new ParticleSystem();
+    this.collisionSystem = new CollisionSystem(this.spatialGrid);
     
     // Initialize object pools
     this.meteorPool = new ObjectPool(createMeteor, resetMeteor, 20, this.MAX_METEORS);
@@ -232,38 +235,33 @@ export default class Engine {
     this.screenShake = { x: 0, y: 0, intensity: 15, duration: 500 };
     this.particleSystem.createShockwave(this.mouseX, this.mouseY);
 
-    let destroyedCount = 0;
+    // Use collision system for optimized knockback detection
+    const knockbackResult = this.collisionSystem.processKnockbackCollisions(
+      this.mouseX, 
+      this.mouseY, 
+      this.activeMeteors
+    );
 
-    // Use spatial grid for efficient collision detection
-    const nearbyMeteors = this.spatialGrid.query(this.mouseX, this.mouseY, 300);
-    
-    for (const gridObj of nearbyMeteors) {
-      const meteor = this.activeMeteors.find(m => m.id === gridObj.id);
-      if (!meteor || !meteor.active) continue;
-
-      const dx = meteor.x - this.mouseX;
-      const dy = meteor.y - this.mouseY;
-      const distance = Math.sqrt(dx * dx + dy * dy);
-
-      if (distance <= 150) {
-        this.particleSystem.createExplosion(meteor.x, meteor.y, meteor.color, meteor.isSuper);
-        this.releaseMeteor(meteor);
-        destroyedCount++;
-      } else if (distance <= 300) {
-        const pushForce = (300 - distance) / 300 * 8;
-        const angle = Math.atan2(dy, dx);
-        meteor.vx += Math.cos(angle) * pushForce;
-        meteor.vy += Math.sin(angle) * pushForce;
-      }
+    // Process destroyed meteors
+    for (const meteor of knockbackResult.destroyedMeteors) {
+      this.particleSystem.createExplosion(meteor.x, meteor.y, meteor.color, meteor.isSuper);
+      this.releaseMeteor(meteor);
     }
 
-    this.score += destroyedCount * 50;
+    // Process pushed meteors
+    for (const { meteor, pushForce, angle } of knockbackResult.pushedMeteors) {
+      meteor.vx += Math.cos(angle) * pushForce;
+      meteor.vy += Math.sin(angle) * pushForce;
+    }
+
+    this.score += knockbackResult.destroyedMeteors.length * 50;
   }
 
   private resizeCanvas = () => {
     this.canvas.width = window.innerWidth;
     this.canvas.height = window.innerHeight;
     this.spatialGrid.resize(window.innerWidth, window.innerHeight);
+    this.collisionSystem.updateSpatialGrid(this.spatialGrid);
   };
 
   private getRandomColor(): string {
@@ -410,14 +408,23 @@ export default class Engine {
         id: meteor.id
       });
 
-      // Check collision with player
-      const dx = meteor.x - this.mouseX;
-      const dy = meteor.y - this.mouseY;
-      const distance = Math.sqrt(dx * dx + dy * dy);
+      // Check collision with player using optimized collision system
+      const collisionResult = this.collisionSystem.checkPlayerMeteorCollisions(
+        this.mouseX, 
+        this.mouseY, 
+        [meteor] // Check individual meteor for performance
+      );
       
-      if (distance < meteor.radius + 6) {
+      if (collisionResult.hasCollision) {
         this.particleSystem.createExplosion(this.mouseX, this.mouseY, '#06b6d4');
-        this.particleSystem.createExplosion(meteor.x, meteor.y, meteor.color, meteor.isSuper);
+        if (collisionResult.collidedMeteor) {
+          this.particleSystem.createExplosion(
+            collisionResult.collidedMeteor.x, 
+            collisionResult.collidedMeteor.y, 
+            collisionResult.collidedMeteor.color, 
+            collisionResult.collidedMeteor.isSuper
+          );
+        }
         this.isGameOver = true;
         
         // Force immediate state update
