@@ -152,7 +152,6 @@ export default class Engine {
     // Initialize deflection area
     this.updateDeflectionArea();
     
-    this.updateDeflectionArea();
     this.resizeCanvas();
     window.addEventListener('resize', this.resizeCanvas);
     window.addEventListener('mousemove', this.handleMouseMove);
@@ -295,13 +294,6 @@ export default class Engine {
       this.scalingEventTime = Date.now();
       console.log('🔧 Performance Mode deactivated - Full visual quality restored');
     }
-  }
-
-  private updateDeflectionArea(): void {
-    // Calculate deflection area position for bottom-right corner (Bolt.new badge area)
-    // Using 16px padding (equivalent to Tailwind's bottom-4 and right-4)
-    this.deflectionArea.x = this.canvas.width - this.deflectionArea.width - 16;
-    this.deflectionArea.y = this.canvas.height - this.deflectionArea.height - 16;
   }
 
   private mouseX: number = 0;
@@ -470,7 +462,6 @@ export default class Engine {
     this.canvas.width = window.innerWidth;
     this.canvas.height = window.innerHeight;
     this.spatialGrid.resize(window.innerWidth, window.innerHeight);
-    this.updateDeflectionArea();
     this.collisionSystem.updateSpatialGrid(this.spatialGrid);
   };
 
@@ -755,15 +746,393 @@ export default class Engine {
             collisionResult.collidedMeteor.x, 
             collisionResult.collidedMeteor.y, 
             collisionResult.collidedMeteor.color, 
-          )
+            collisionResult.collidedMeteor.isSuper
+          );
         }
+        this.isGameOver = true;
+        
+        // Update user statistics if authenticated
+        this.updateUserStatistics();
+        
+        // Force immediate state update
+        this.onStateUpdate({
+          score: this.scoreSystem.getTotalScore(),
+          scoreBreakdown: this.scoreSystem.getScoreBreakdown(),
+          comboInfo: this.scoreSystem.getComboInfo(),
+          time: this.gameTime, 
+          isGameOver: true, 
+          fps: this.currentFPS,
+          meteors: this.meteorCount,
+          particles: this.particleSystem.getParticleCount(),
+          poolSizes: {
+            meteors: this.meteorPool.getPoolSize(),
+            particles: this.particleSystem.getPoolSize()
+          },
+          autoScaling: {
+            enabled: this.autoScaleEnabled,
+            shadowsEnabled: this.shadowsEnabled,
+            maxParticles: this.dynamicMaxParticles,
+            adaptiveTrailsActive: this.adaptiveTrailsActive
+          },
+          performance: {
+            averageFrameTime: this.averageFrameTime,
+            memoryUsage: this.memoryUsageEstimate,
+            lastScalingEvent: this.lastScalingEvent
+          },
+          settings: this.gameSettings
+        });
+        
+        return;
       }
+
+      // Remove meteors that are off-screen
+      if (meteor.x < -50 || meteor.x > this.canvas.width + 50 ||
+          meteor.y < -50 || meteor.y > this.canvas.height + 50) {
+        this.releaseMeteor(meteor);
+      }
+    }
+
+    this.meteorCount = this.activeMeteors.length;
+    
+    // Always update state, even during normal gameplay
+    this.onStateUpdate({
+      score: this.scoreSystem.getTotalScore(),
+      scoreBreakdown: this.scoreSystem.getScoreBreakdown(),
+      comboInfo: this.scoreSystem.getComboInfo(),
+      time: this.gameTime, 
+      isGameOver: this.isGameOver, 
+      fps: this.currentFPS,
+      meteors: this.meteorCount,
+      particles: this.particleSystem.getParticleCount(),
+      poolSizes: {
+        meteors: this.meteorPool.getPoolSize(),
+        particles: this.particleSystem.getPoolSize()
+      },
+      autoScaling: {
+        enabled: this.autoScaleEnabled,
+        shadowsEnabled: this.shadowsEnabled,
+        maxParticles: this.dynamicMaxParticles,
+        adaptiveTrailsActive: this.adaptiveTrailsActive
+      },
+      performance: {
+        averageFrameTime: this.averageFrameTime,
+        memoryUsage: this.memoryUsageEstimate,
+        lastScalingEvent: this.lastScalingEvent
+      },
+      settings: this.gameSettings
+    });
+  }
+
+  private render() {
+    if (this.isPaused) {
+      // Render pause overlay
+      this.renderPauseOverlay();
+      return;
+    }
+    
+    const renderState = {
+      mouseX: this.mouseX,
+      mouseY: this.mouseY,
+      activeMeteors: this.activeMeteors,
+      activeParticles: this.particleSystem.getActiveParticles(),
+      powerUps: this.powerUpManager.getPowerUps(),
+      scoreTexts: this.scoreSystem.getActiveScoreTexts(),
+      playerTrail: this.playerTrail,
+      powerUpCharges: this.powerUpManager.getCharges(),
+      maxPowerUpCharges: this.powerUpManager.getMaxCharges(),
+      isGameOver: this.isGameOver,
+      playerRingPhase: this.playerRingPhase,
+      screenShake: this.screenShake,
+      adaptiveTrailsActive: this.adaptiveTrailsActive && !this.performanceModeActive,
+      gameSettings: this.gameSettings
+    };
+    
+    this.renderSystem.render(renderState);
+  }
+
+  private renderPauseOverlay(): void {
+    const ctx = this.canvas.getContext('2d');
+    
+    if (!ctx) return;
+    
+    // Semi-transparent overlay
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+    ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+    
+    // Pause text
+    ctx.fillStyle = '#06b6d4';
+    ctx.font = 'bold 48px Arial';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    
+    const centerX = this.canvas.width / 2;
+    const centerY = this.canvas.height / 2;
+    
+    ctx.fillText('GAME PAUSED', centerX, centerY - 30);
+    
+    // Subtitle
+    ctx.fillStyle = '#67e8f9';
+    ctx.font = '24px Arial';
+    ctx.fillText('Click here to resume', centerX, centerY + 30);
+    
+    // Add glow effect
+    ctx.shadowColor = '#06b6d4';
+    ctx.shadowBlur = 20;
+    ctx.fillStyle = '#06b6d4';
+    ctx.fillText('GAME PAUSED', centerX, centerY - 30);
+    
+    ctx.shadowBlur = 0;
+  }
+  private gameLoop = (timestamp: number) => {
+    if (this.isPaused) return;
+    
+    const deltaTime = timestamp - this.lastTime;
+    this.lastTime = timestamp;
+
+    this.updateFPS(timestamp);
+    this.update(deltaTime);
+    this.render();
+
+    this.animationFrame = requestAnimationFrame(this.gameLoop);
+  };
+
+  start() {
+    if (this.animationFrame === null) {
+      this.lastTime = performance.now();
+      this.fpsLastTime = this.lastTime;
+      this.started = true;
+      this.gracePeriodActive = true;
+      this.gracePeriodStartTime = this.lastTime;
+      this.animationFrame = requestAnimationFrame(this.gameLoop);
+      
+      console.log('🎮 Game started with 3-second grace period');
     }
   }
-}Meteor.color, 
-          )
-        }
-      }
+
+  preWarm() {
+    // Pre-initialize systems without starting the game loop
+    // This allows for faster startup when intro completes
+    console.log('🔥 Pre-warming game engine systems');
+    
+    // Initialize timing
+    this.lastTime = performance.now();
+    this.fpsLastTime = this.lastTime;
+    
+    // Pre-allocate some objects in pools
+    for (let i = 0; i < 10; i++) {
+      const meteor = this.meteorPool.get();
+      this.meteorPool.release(meteor);
     }
+    
+    // Initialize particle system
+    this.particleSystem.reset();
+    
+    // Pre-warm render system
+    this.renderSystem.preWarm();
+    
+    console.log('🔥 Engine pre-warming complete');
+  }
+  stop() {
+    if (this.animationFrame !== null) {
+      cancelAnimationFrame(this.animationFrame);
+      this.animationFrame = null;
+      this.started = false;
+    }
+    
+    // Clean up pools and systems
+    this.meteorPool.clear();
+    this.particleSystem.clear();
+    this.scoreSystem.clear();
+    this.activeMeteors.length = 0;
+    
+    window.removeEventListener('resize', this.resizeCanvas);
+    window.removeEventListener('mousemove', this.handleMouseMove);
+    window.removeEventListener('dblclick', this.handleDoubleClick);
+    window.removeEventListener('touchstart', this.handleTouchStart);
+    window.removeEventListener('touchmove', this.handleTouchMove);
+    window.removeEventListener('touchend', this.handleTouchEnd);
+    window.removeEventListener('gameSettingsChanged', this.handleSettingsChange);
+    window.removeEventListener('blur', this.handleWindowBlur);
+    window.removeEventListener('focus', this.handleWindowFocus);
+    document.removeEventListener('visibilitychange', this.handleVisibilityChange);
+  }
+
+  isStarted(): boolean {
+    return this.started;
+  }
+
+  getGameOverState(): boolean {
+    return this.isGameOver;
+  }
+
+  resetGame() {
+    this.isGameOver = false;
+    this.isPaused = false;
+    this.pausedTime = 0;
+    this.lastPauseTime = 0;
+    this.gameTime = 0;
+    this.gracePeriodActive = true;
+    this.gracePeriodStartTime = performance.now();
+    this.knockbackCooldown = 0;
+    this.playerRingPhase = 0;
+    this.screenShake = { x: 0, y: 0, intensity: 0, duration: 0 };
+    
+    // Reset performance tracking
+    this.frameTimes.length = 0;
+    this.averageFrameTime = 0;
+    this.memoryUsageEstimate = 0;
+    this.lastScalingEvent = 'reset';
+    this.scalingEventTime = Date.now();
+    
+    // Reset auto-scaling to defaults
+    this.shadowsEnabled = true;
+    this.dynamicMaxParticles = 300;
+    this.adaptiveTrailsActive = true;
+    
+    // Reset performance mode tracking
+    this.performanceModeActive = this.gameSettings.performanceMode;
+    this.lowFPSStartTime = 0;
+    
+    // Apply current performance mode settings
+    if (this.performanceModeActive) {
+      this.applyPerformanceMode(true);
+    }
+    
+    // Reset touch tracking
+    this.activeTouchId = null;
+    this.isTouchDevice = false;
+    
+    // Clear all active objects
+    this.activeMeteors.forEach(meteor => this.meteorPool.release(meteor));
+    this.activeMeteors.length = 0;
+    this.playerTrail.length = 0;
+    
+    // Reset systems
+    this.particleSystem.reset();
+    this.particleSystem.setMaxParticles(this.dynamicMaxParticles);
+    this.renderSystem.setShadowsEnabled(this.shadowsEnabled);
+    this.powerUpManager.reset();
+    this.scoreSystem.reset();
+    
+    // Reset game statistics
+    this.gameStats = {
+      meteorsDestroyed: 0,
+      survivalTime: 0,
+      distanceTraveled: 0,
+      lastPlayerX: 0,
+      lastPlayerY: 0
+    };
+    
+    console.log('Game reset completed');
+  }
+
+  // Public pause/resume methods
+  pause(): void {
+    this.pauseGame();
+  }
+
+  resume(): void {
+    this.resumeGame();
+  }
+
+  isPausedState(): boolean {
+    return this.isPaused;
+  }
+
+  getSettings(): GameSettings {
+    return { ...this.gameSettings };
+  }
+  
+  // Performance mode control methods
+  setPerformanceMode(enabled: boolean): void {
+    this.gameSettings.performanceMode = enabled;
+    this.applyPerformanceMode(enabled);
+  }
+  
+  getPerformanceMode(): boolean {
+    return this.performanceModeActive;
+  }
+  
+  setAutoPerformanceModeEnabled(enabled: boolean): void {
+    this.autoPerformanceModeEnabled = enabled;
+    this.lowFPSStartTime = 0; // Reset timer
+  }
+  
+  getAutoPerformanceModeEnabled(): boolean {
+    return this.autoPerformanceModeEnabled;
+  }
+  
+  // Update user statistics when game ends
+  private async updateUserStatistics(): Promise<void> {
+    // Import ProfileAPI dynamically to avoid circular dependencies
+    try {
+      const { ProfileAPI } = await import('../api/profiles');
+      const { useAuthStore } = await import('../store/authStore');
+      
+      const authStore = useAuthStore.getState();
+      const user = authStore.user;
+      
+      if (user) {
+        await ProfileAPI.updateGameStats(user.id, {
+          gamesPlayed: 1,
+          meteorsDestroyed: this.gameStats.meteorsDestroyed,
+          survivalTime: this.gameStats.survivalTime,
+          distanceTraveled: Math.floor(this.gameStats.distanceTraveled),
+          currentScore: this.scoreSystem.getTotalScore(),
+          currentMeteors: this.gameStats.meteorsDestroyed,
+          currentTime: this.gameStats.survivalTime,
+          currentDistance: Math.floor(this.gameStats.distanceTraveled)
+        });
+        
+        console.log('📊 User statistics updated:', {
+          meteorsDestroyed: this.gameStats.meteorsDestroyed,
+          survivalTime: this.gameStats.survivalTime.toFixed(1),
+          distanceTraveled: Math.floor(this.gameStats.distanceTraveled)
+        });
+      }
+    } catch (error) {
+      console.warn('Failed to update user statistics:', error);
+    }
+  }
+  
+  // Auto-scaling control methods
+  setAutoScalingEnabled(enabled: boolean): void {
+    this.autoScaleEnabled = enabled;
+    if (!enabled) {
+      // Reset to high quality when disabled
+      this.shadowsEnabled = true;
+      this.dynamicMaxParticles = 300;
+      this.adaptiveTrailsActive = true;
+      this.particleSystem.setMaxParticles(this.dynamicMaxParticles);
+      this.renderSystem.setShadowsEnabled(this.shadowsEnabled);
+      this.lastScalingEvent = 'auto-scaling-disabled';
+      this.scalingEventTime = Date.now();
+    }
+  }
+  
+  getAutoScalingEnabled(): boolean {
+    return this.autoScaleEnabled;
+  }
+  
+  getPerformanceStats(): {
+    fps: number;
+    averageFrameTime: number;
+    memoryUsage: number;
+    shadowsEnabled: boolean;
+    maxParticles: number;
+    adaptiveTrailsActive: boolean;
+    lastScalingEvent: string;
+    scalingEventTime: number;
+  } {
+    return {
+      fps: this.currentFPS,
+      averageFrameTime: this.averageFrameTime,
+      memoryUsage: this.memoryUsageEstimate,
+      shadowsEnabled: this.shadowsEnabled,
+      maxParticles: this.dynamicMaxParticles,
+      adaptiveTrailsActive: this.adaptiveTrailsActive,
+      lastScalingEvent: this.lastScalingEvent,
+      scalingEventTime: this.scalingEventTime
+    };
   }
 }

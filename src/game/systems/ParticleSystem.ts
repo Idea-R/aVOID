@@ -103,24 +103,6 @@ export class ParticleSystem {
     }
   }
   
-  updatePhysics(timestep: number): void {
-    // Physics update with fixed timestep
-    const timeMultiplier = timestep / 16.67; // Normalize to 60fps
-    
-    for (const particle of this.activeParticles) {
-      if (!particle.active) continue;
-      
-      // Apply velocity with timestep
-      particle.x += particle.vx * timeMultiplier;
-      particle.y += particle.vy * timeMultiplier;
-      
-      // Apply physics forces
-      particle.vy += 0.05 * timeMultiplier; // Gravity
-      particle.vx *= Math.pow(0.99, timeMultiplier); // Air resistance
-      particle.vy *= Math.pow(0.99, timeMultiplier);
-    }
-  }
-  
   createDeflectionEffect(x: number, y: number, color: string): void {
     // Create small deflection particles - limit to prevent performance impact
     const particleCount = Math.min(3, this.maxParticles - this.activeParticles.length);

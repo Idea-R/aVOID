@@ -53,7 +53,7 @@ export default function Game({ autoStart = false }: GameProps) {
     if (!canvasRef.current) return;
     
     console.log('Initializing game engine...');
-    const engine = new Engine(canvasRef.current, user?.id || null);
+    const engine = new Engine(canvasRef.current);
     engineRef.current = engine;
     setEngineInitialized(true);
     
@@ -104,7 +104,7 @@ export default function Game({ autoStart = false }: GameProps) {
       clearInterval(pauseInterval);
       engine.stop();
     };
-  }, [user]);
+  }, []);
 
   useEffect(() => {
     if (autoStart && engineRef.current && !engineRef.current.isStarted()) {
