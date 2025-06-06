@@ -24,6 +24,10 @@ export default class Engine {
   private lastTime: number = 0;
   private gameTime: number = 0;
   private score: number = 0;
+  private started: boolean = false;
+  private gracePeriodActive: boolean = false;
+  private gracePeriodDuration: number = 3000; // 3 seconds
+  private gracePeriodStartTime: number = 0;
   
   // Systems
   private renderSystem: RenderSystem;
@@ -492,6 +496,15 @@ export default class Engine {
   private update(deltaTime: number) {
     if (this.isGameOver) return;
     
+    // Handle grace period
+    if (this.gracePeriodActive) {
+      const currentTime = performance.now();
+      if (currentTime - this.gracePeriodStartTime >= this.gracePeriodDuration) {
+        this.gracePeriodActive = false;
+        console.log('🎮 Grace period ended - meteors will now spawn');
+      }
+    }
+    
     // Apply adaptive particle limits based on current FPS
     // Note: Particle limits now handled by auto-scaling in updateFPS()
     
@@ -534,11 +547,14 @@ export default class Engine {
     this.playerTrail.forEach(point => point.alpha *= 0.92);
 
     // Spawn meteors with performance consideration
-    const baseSpawnChance = 0.003;
-    const maxSpawnChance = 0.02;
-    const spawnIncrease = Math.min(this.gameTime / 150, maxSpawnChance - baseSpawnChance);
-    if (Math.random() < baseSpawnChance + spawnIncrease) {
-      this.spawnMeteor();
+    // Only spawn meteors after grace period
+    if (!this.gracePeriodActive) {
+      const baseSpawnChance = 0.003;
+      const maxSpawnChance = 0.02;
+      const spawnIncrease = Math.min(this.gameTime / 150, maxSpawnChance - baseSpawnChance);
+      if (Math.random() < baseSpawnChance + spawnIncrease) {
+        this.spawnMeteor();
+      }
     }
 
     // Update meteors
@@ -688,7 +704,12 @@ export default class Engine {
     if (this.animationFrame === null) {
       this.lastTime = performance.now();
       this.fpsLastTime = this.lastTime;
+      this.started = true;
+      this.gracePeriodActive = true;
+      this.gracePeriodStartTime = this.lastTime;
       this.animationFrame = requestAnimationFrame(this.gameLoop);
+      
+      console.log('🎮 Game started with 3-second grace period');
     }
   }
 
@@ -696,6 +717,7 @@ export default class Engine {
     if (this.animationFrame !== null) {
       cancelAnimationFrame(this.animationFrame);
       this.animationFrame = null;
+      this.started = false;
     }
     
     // Clean up pools and systems
@@ -712,6 +734,10 @@ export default class Engine {
     window.removeEventListener('gameSettingsChanged', this.handleSettingsChange);
   }
 
+  isStarted(): boolean {
+    return this.started;
+  }
+
   getGameOverState(): boolean {
     return this.isGameOver;
   }
@@ -720,6 +746,8 @@ export default class Engine {
     this.isGameOver = false;
     this.gameTime = 0;
     this.score = 0;
+    this.gracePeriodActive = true;
+    this.gracePeriodStartTime = performance.now();
     this.hasKnockbackPower = false;
     this.knockbackCooldown = 0;
     this.playerRingPhase = 0;

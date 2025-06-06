@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import Engine from '../game/Engine';
 import HUD from './HUD';
 import GameOverScreen from './GameOverScreen';
+import GameIntro from './GameIntro';
 
 interface GameSettings {
   volume: number;
@@ -13,9 +14,14 @@ interface GameSettings {
   performanceMode: boolean;
 }
 
-export default function Game() {
+interface GameProps {
+  autoStart?: boolean;
+}
+
+export default function Game({ autoStart = false }: GameProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const engineRef = useRef<Engine | null>(null);
+  const [showIntro, setShowIntro] = useState(true);
   const [gameState, setGameState] = useState({ 
     score: 0, 
     time: 0, 
@@ -50,8 +56,19 @@ export default function Game() {
       setGameState(state);
     };
     
-    engine.start();
-    console.log('Game engine started');
+    // Start engine immediately if auto-start is enabled
+    if (autoStart) {
+      // Show intro sequence first
+      setTimeout(() => {
+        engine.start();
+        console.log('Game engine auto-started');
+      }, 100);
+      
+      // Hide intro after grace period
+      setTimeout(() => {
+        setShowIntro(false);
+      }, 6000); // 6 seconds total intro time
+    }
 
     // Listen for auto-performance mode activation
     const handleAutoPerformanceMode = (event: CustomEvent) => {
@@ -75,11 +92,25 @@ export default function Game() {
     };
   }, []);
 
+  useEffect(() => {
+    if (autoStart && engineRef.current && !engineRef.current.isStarted()) {
+      engineRef.current.start();
+    }
+  }, [autoStart]);
+
   const handlePlayAgain = () => {
     console.log('Play again clicked');
     if (engineRef.current) {
       engineRef.current.resetGame();
       setGameState(prev => ({ ...prev, isGameOver: false, score: 0, time: 0 }));
+      setShowIntro(false); // Skip intro on replay
+    }
+  };
+
+  const handleIntroComplete = () => {
+    setShowIntro(false);
+    if (engineRef.current && !engineRef.current.isStarted()) {
+      engineRef.current.start();
     }
   };
 
@@ -92,6 +123,12 @@ export default function Game() {
         className="w-full h-full absolute inset-0"
         style={{ cursor: gameState.isGameOver ? 'default' : 'none' }}
       />
+      
+      {/* Game Intro Overlay */}
+      {showIntro && autoStart && (
+        <GameIntro onComplete={handleIntroComplete} />
+      )}
+      
       {gameState.settings.showUI && (
         <HUD 
           score={gameState.score} 
@@ -104,6 +141,7 @@ export default function Game() {
           performance={gameState.performance}
          settings={gameState.settings}
           isGameOver={gameState.isGameOver}
+          showIntro={showIntro}
         />
       )}
       {gameState.isGameOver && (
