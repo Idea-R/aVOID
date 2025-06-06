@@ -721,4 +721,83 @@ export default class Engine {
         this.ctx.fillText(`COMBO +${popup.points}!`, popup.x, popup.y);
       } else {
         this.ctx.fillStyle = '#00ff00'; // Green for regular points
-        
+        this.ctx.fillText(`+${popup.points}`, popup.x, popup.y);
+      }
+      
+      this.ctx.restore();
+    });
+  }
+
+  public start() {
+    if (this.animationFrame) return;
+    
+    this.lastTime = performance.now();
+    this.fpsLastTime = this.lastTime;
+    this.gameLoop();
+  }
+
+  public stop() {
+    if (this.animationFrame) {
+      cancelAnimationFrame(this.animationFrame);
+      this.animationFrame = null;
+    }
+  }
+
+  public reset() {
+    this.stop();
+    
+    // Reset game state
+    this.gameTime = 0;
+    this.score = 0;
+    this.isGameOver = false;
+    this.hasKnockbackPower = false;
+    this.knockbackCooldown = 0;
+    this.playerRingPhase = 0;
+    this.screenShake = { x: 0, y: 0, intensity: 0, duration: 0 };
+    this.lastClickTime = 0;
+    this.clickCount = 0;
+    
+    // Clear arrays
+    this.activeMeteors.forEach(meteor => this.meteorPool.release(meteor));
+    this.activeMeteors.length = 0;
+    
+    this.activeParticles.forEach(particle => this.particlePool.release(particle));
+    this.activeParticles.length = 0;
+    
+    this.scorePopups.length = 0;
+    this.playerTrail.length = 0;
+    
+    // Reset power-up manager
+    this.powerUpManager = new PowerUpManager();
+    
+    // Reset spatial grid
+    this.spatialGrid.clear();
+    
+    // Reset FPS tracking
+    this.frameCount = 0;
+    this.currentFPS = 0;
+    this.meteorCount = 0;
+    this.particleCount = 0;
+  }
+
+  private gameLoop = () => {
+    const currentTime = performance.now();
+    const deltaTime = currentTime - this.lastTime;
+    this.lastTime = currentTime;
+    
+    this.updateFPS(currentTime);
+    this.update(deltaTime);
+    this.render();
+    
+    this.animationFrame = requestAnimationFrame(this.gameLoop);
+  };
+
+  public destroy() {
+    this.stop();
+    window.removeEventListener('resize', this.resizeCanvas);
+    window.removeEventListener('mousemove', this.handleMouseMove);
+    window.removeEventListener('dblclick', this.handleDoubleClick);
+    window.removeEventListener('touchend', this.handleTouchEnd);
+    window.removeEventListener('gameSettingsChanged', this.handleSettingsChange);
+  }
+}
