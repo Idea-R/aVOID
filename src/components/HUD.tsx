@@ -13,10 +13,12 @@ interface HUDProps {
   meteors?: number;
   particles?: number;
   poolSizes?: { meteors: number; particles: number };
+  autoScaling?: { enabled: boolean; shadowsEnabled: boolean; maxParticles: number };
+  performance?: { averageFrameTime: number; memoryUsage: number; lastScalingEvent: string };
   isGameOver?: boolean;
 }
 
-export default function HUD({ score, time, fps, meteors = 0, particles = 0, poolSizes, isGameOver = false }: HUDProps) {
+export default function HUD({ score, time, fps, meteors = 0, particles = 0, poolSizes, autoScaling, performance, isGameOver = false }: HUDProps) {
   const { user } = useAuthStore();
   const [showAccount, setShowAccount] = useState(false);
   const [showSignup, setShowSignup] = useState(false);

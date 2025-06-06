@@ -81,6 +81,8 @@ export default function Game() {
           meteors={gameState.settings.showPerformanceStats ? gameState.meteors : 0}
           particles={gameState.settings.showPerformanceStats ? gameState.particles : 0}
           poolSizes={gameState.settings.showPerformanceStats ? gameState.poolSizes : undefined}
+          autoScaling={gameState.autoScaling}
+          performance={gameState.performance}
           isGameOver={gameState.isGameOver}
         />
       )}
