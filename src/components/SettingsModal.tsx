@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Volume2, VolumeX, Eye, EyeOff, Settings, Heart, Github, Twitter, ExternalLink } from 'lucide-react';
+import { X, Volume2, VolumeX, Eye, EyeOff, Settings, Heart, Github, Twitter, ExternalLink, Twitch } from 'lucide-react';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -83,7 +83,7 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   };
 
   const handlePayPalTip = () => {
-    window.open('https://paypal.me/madxent', '_blank');
+    window.open('https://paypal.me/Xentrilo', '_blank');
   };
 
   if (!isOpen) return null;
@@ -297,13 +297,24 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                 
                 <div className="space-y-3">
                   <a
-                    href="https://twitter.com/madxent"
+                    href="https://twitter.com/Xentrilo"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="w-full bg-blue-500 hover:bg-blue-600 text-white font-semibold py-3 px-4 rounded-lg transition-colors duration-200 flex items-center justify-center gap-3"
                   >
                     <Twitter className="w-5 h-5" />
                     Follow on Twitter
+                    <ExternalLink className="w-4 h-4" />
+                  </a>
+
+                  <a
+                    href="https://twitch.tv/MadXent"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-3 px-4 rounded-lg transition-colors duration-200 flex items-center justify-center gap-3"
+                  >
+                    <Twitch className="w-5 h-5" />
+                    Watch on Twitch
                     <ExternalLink className="w-4 h-4" />
                   </a>
 
