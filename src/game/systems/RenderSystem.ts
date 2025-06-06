@@ -619,6 +619,26 @@ export class RenderSystem {
     }
   }
   
+  preWarm(): void {
+    // Pre-warm the render system by creating some common gradients
+    try {
+      const commonColors = ['#ff4040', '#06b6d4', '#ffd700', '#8b5cf6'];
+      const commonRadii = [6, 8, 12, 20];
+      
+      // Create a few gradients to warm up the system
+      for (const color of commonColors) {
+        for (const radius of commonRadii) {
+          this.createGradientInternal(100, 100, radius, color, false);
+          this.createGradientInternal(100, 100, radius, color, true);
+        }
+      }
+      
+      console.log('🎨 RenderSystem pre-warmed with common gradients');
+    } catch (error) {
+      console.warn('Error pre-warming RenderSystem:', error);
+    }
+  }
+  
   // Shadow control methods
   setShadowsEnabled(enabled: boolean): void {
     this.shadowsEnabled = enabled;

@@ -23,6 +23,7 @@ export default function Game({ autoStart = false }: GameProps) {
   const engineRef = useRef<Engine | null>(null);
   const [showIntro, setShowIntro] = useState(true);
   const [isPaused, setIsPaused] = useState(false);
+  const [engineInitialized, setEngineInitialized] = useState(false);
   const [gameState, setGameState] = useState({ 
     score: 0, 
     time: 0, 
@@ -51,6 +52,7 @@ export default function Game({ autoStart = false }: GameProps) {
     console.log('Initializing game engine...');
     const engine = new Engine(canvasRef.current);
     engineRef.current = engine;
+    setEngineInitialized(true);
     
     engine.onStateUpdate = (state) => {
       console.log('State update received:', state);
@@ -66,19 +68,16 @@ export default function Game({ autoStart = false }: GameProps) {
     
     const pauseInterval = setInterval(checkPauseState, 100);
     
-    // Start engine immediately if auto-start is enabled
-    if (autoStart) {
-      // Show intro sequence first
-      setTimeout(() => {
-        engine.start();
-        console.log('Game engine auto-started');
-      }, 100);
-      
-      // Hide intro after grace period
-      setTimeout(() => {
-        setShowIntro(false);
-      }, 6000); // 6 seconds total intro time
-    }
+    // Listen for engine initialization trigger during countdown
+    const handleEngineInit = () => {
+      if (engineRef.current && !engineRef.current.isStarted()) {
+        console.log('🚀 Pre-initializing game engine during countdown');
+        // Pre-warm the engine without starting the game loop
+        engineRef.current.preWarm();
+      }
+    };
+
+    window.addEventListener('startEngineInit', handleEngineInit);
 
     // Listen for auto-performance mode activation
     const handleAutoPerformanceMode = (event: CustomEvent) => {
@@ -97,6 +96,7 @@ export default function Game({ autoStart = false }: GameProps) {
 
     return () => {
       console.log('Cleaning up game engine...');
+      window.removeEventListener('startEngineInit', handleEngineInit);
       window.removeEventListener('autoPerformanceModeActivated', handleAutoPerformanceMode as EventListener);
       clearInterval(pauseInterval);
       engine.stop();
@@ -121,11 +121,11 @@ export default function Game({ autoStart = false }: GameProps) {
   const handleIntroComplete = React.useCallback(() => {
     console.log('Intro completed, hiding intro and starting engine');
     setShowIntro(false);
-    if (engineRef.current && !engineRef.current.isStarted()) {
+    if (engineRef.current && engineInitialized && !engineRef.current.isStarted()) {
       console.log('Starting engine after intro');
       engineRef.current.start();
     }
-  }, []); // Memoize to prevent recreation on every render
+  }, [engineInitialized]);
 
   const handleCanvasClick = () => {
     if (isPaused && engineRef.current) {
@@ -144,7 +144,7 @@ export default function Game({ autoStart = false }: GameProps) {
       />
       
       {/* Game Intro Overlay */}
-      {showIntro && autoStart && (
+      {showIntro && autoStart && engineInitialized && (
         <GameIntro onComplete={handleIntroComplete} />
       )}
       

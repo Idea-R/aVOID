@@ -828,6 +828,29 @@ export default class Engine {
     }
   }
 
+  preWarm() {
+    // Pre-initialize systems without starting the game loop
+    // This allows for faster startup when intro completes
+    console.log('🔥 Pre-warming game engine systems');
+    
+    // Initialize timing
+    this.lastTime = performance.now();
+    this.fpsLastTime = this.lastTime;
+    
+    // Pre-allocate some objects in pools
+    for (let i = 0; i < 10; i++) {
+      const meteor = this.meteorPool.get();
+      this.meteorPool.release(meteor);
+    }
+    
+    // Initialize particle system
+    this.particleSystem.reset();
+    
+    // Pre-warm render system
+    this.renderSystem.preWarm();
+    
+    console.log('🔥 Engine pre-warming complete');
+  }
   stop() {
     if (this.animationFrame !== null) {
       cancelAnimationFrame(this.animationFrame);
