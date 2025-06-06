@@ -32,11 +32,11 @@ export default function HUD({ score, time, fps, meteors = 0, particles = 0, pool
       </div>
       
       <div className="flex gap-6 text-xs opacity-80">
-        <div className={getPerformanceColor(meteors, 50)}>
-          Meteors: {meteors}/50
+        <div className={getPerformanceColor(meteors, 40)}>
+          Meteors: {meteors}/40
         </div>
-        <div className={getPerformanceColor(particles, 300)}>
-          Particles: {particles}/300
+        <div className={getPerformanceColor(particles, 250)}>
+          Particles: {particles}/250
         </div>
         {poolSizes && (
           <div className="text-blue-400">
