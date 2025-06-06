@@ -3,6 +3,15 @@ import Engine from '../game/Engine';
 import HUD from './HUD';
 import GameOverScreen from './GameOverScreen';
 
+interface GameSettings {
+  volume: number;
+  soundEnabled: boolean;
+  showUI: boolean;
+  showFPS: boolean;
+  showPerformanceStats: boolean;
+  showTrails: boolean;
+}
+
 export default function Game() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const engineRef = useRef<Engine | null>(null);
@@ -13,7 +22,15 @@ export default function Game() {
     fps: 0,
     meteors: 0,
     particles: 0,
-    poolSizes: { meteors: 0, particles: 0 }
+    poolSizes: { meteors: 0, particles: 0 },
+    settings: {
+      volume: 0.7,
+      soundEnabled: true,
+      showUI: true,
+      showFPS: true,
+      showPerformanceStats: true,
+      showTrails: true
+    } as GameSettings
   });
 
   useEffect(() => {
@@ -54,15 +71,17 @@ export default function Game() {
         className="w-full h-full absolute inset-0"
         style={{ cursor: gameState.isGameOver ? 'default' : 'none' }}
       />
-      <HUD 
-        score={gameState.score} 
-        time={gameState.time} 
-        fps={gameState.fps}
-        meteors={gameState.meteors}
-        particles={gameState.particles}
-        poolSizes={gameState.poolSizes}
-        isGameOver={gameState.isGameOver}
-      />
+      {gameState.settings.showUI && (
+        <HUD 
+          score={gameState.score} 
+          time={gameState.time} 
+          fps={gameState.settings.showFPS ? gameState.fps : 0}
+          meteors={gameState.settings.showPerformanceStats ? gameState.meteors : 0}
+          particles={gameState.settings.showPerformanceStats ? gameState.particles : 0}
+          poolSizes={gameState.settings.showPerformanceStats ? gameState.poolSizes : undefined}
+          isGameOver={gameState.isGameOver}
+        />
+      )}
       {gameState.isGameOver && (
         <GameOverScreen 
           score={gameState.score} 

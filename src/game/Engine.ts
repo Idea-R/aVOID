@@ -4,6 +4,15 @@ import { SpatialGrid, GridObject } from './utils/SpatialGrid';
 import { Meteor, createMeteor, resetMeteor, initializeMeteor } from './entities/Meteor';
 import { Particle, createParticle, resetParticle, initializeParticle } from './entities/Particle';
 
+interface GameSettings {
+  volume: number;
+  soundEnabled: boolean;
+  showUI: boolean;
+  showFPS: boolean;
+  showPerformanceStats: boolean;
+  showTrails: boolean;
+}
+
 export default class Engine {
   private canvas: HTMLCanvasElement;
   private ctx: CanvasRenderingContext2D;
@@ -45,6 +54,16 @@ export default class Engine {
   private meteorCount: number = 0;
   private particleCount: number = 0;
   
+  // Game settings
+  private gameSettings: GameSettings = {
+    volume: 0.7,
+    soundEnabled: true,
+    showUI: true,
+    showFPS: true,
+    showPerformanceStats: true,
+    showTrails: true
+  };
+  
   onStateUpdate: (state: { 
     score: number; 
     time: number; 
@@ -53,6 +72,7 @@ export default class Engine {
     meteors: number;
     particles: number;
     poolSizes: { meteors: number; particles: number };
+    settings: GameSettings;
   }) => void = () => {};
 
   constructor(canvas: HTMLCanvasElement) {
@@ -68,12 +88,32 @@ export default class Engine {
     // Initialize spatial grid
     this.spatialGrid = new SpatialGrid(window.innerWidth, window.innerHeight, 150);
     
+    // Load settings from localStorage
+    this.loadSettings();
+    
     this.resizeCanvas();
     window.addEventListener('resize', this.resizeCanvas);
     window.addEventListener('mousemove', this.handleMouseMove);
     window.addEventListener('dblclick', this.handleDoubleClick);
     window.addEventListener('touchend', this.handleTouchEnd);
+    window.addEventListener('gameSettingsChanged', this.handleSettingsChange);
   }
+
+  private loadSettings() {
+    try {
+      const savedSettings = localStorage.getItem('avoidGameSettings');
+      if (savedSettings) {
+        const parsed = JSON.parse(savedSettings);
+        this.gameSettings = { ...this.gameSettings, ...parsed };
+      }
+    } catch (error) {
+      console.error('Error loading game settings:', error);
+    }
+  }
+
+  private handleSettingsChange = (event: CustomEvent) => {
+    this.gameSettings = { ...this.gameSettings, ...event.detail };
+  };
 
   private mouseX: number = 0;
   private mouseY: number = 0;
@@ -381,11 +421,15 @@ export default class Engine {
 
       meteor.gradient = this.createMeteorGradient(meteor.x, meteor.y, meteor.radius, meteor.color, meteor.isSuper);
 
-      // Update trail with length limit
-      meteor.trail.unshift({ x: meteor.x, y: meteor.y, alpha: 1 });
-      const maxTrailLength = meteor.isSuper ? 15 : 12; // Reduced trail length
-      if (meteor.trail.length > maxTrailLength) meteor.trail.pop();
-      meteor.trail.forEach(point => point.alpha *= meteor.isSuper ? 0.9 : 0.88);
+      // Update trail with length limit (only if trails are enabled)
+      if (this.gameSettings.showTrails) {
+        meteor.trail.unshift({ x: meteor.x, y: meteor.y, alpha: 1 });
+        const maxTrailLength = meteor.isSuper ? 15 : 12; // Reduced trail length
+        if (meteor.trail.length > maxTrailLength) meteor.trail.pop();
+        meteor.trail.forEach(point => point.alpha *= meteor.isSuper ? 0.9 : 0.88);
+      } else {
+        meteor.trail.length = 0; // Clear trails if disabled
+      }
 
       // Add to spatial grid
       this.spatialGrid.insert({
@@ -417,7 +461,8 @@ export default class Engine {
           poolSizes: {
             meteors: this.meteorPool.getPoolSize(),
             particles: this.particlePool.getPoolSize()
-          }
+          },
+          settings: this.gameSettings
         });
         
         console.log('Game over state updated!'); // Debug log
@@ -463,7 +508,8 @@ export default class Engine {
       poolSizes: {
         meteors: this.meteorPool.getPoolSize(),
         particles: this.particlePool.getPoolSize()
-      }
+      },
+      settings: this.gameSettings
     });
   }
 
@@ -505,26 +551,28 @@ export default class Engine {
       this.ctx.fill();
     });
     
-    // Draw meteor trails
-    this.activeMeteors.forEach(meteor => {
-      if (!meteor.active) return;
-      
-      meteor.trail.forEach((point, index) => {
-        const progress = 1 - index / meteor.trail.length;
-        const trailRadius = meteor.radius * progress * (meteor.isSuper ? 1.8 : 1.3); // Reduced trail size
+    // Draw meteor trails (only if enabled)
+    if (this.gameSettings.showTrails) {
+      this.activeMeteors.forEach(meteor => {
+        if (!meteor.active) return;
         
-        this.ctx.beginPath();
-        this.ctx.arc(point.x, point.y, trailRadius, 0, Math.PI * 2);
-        const gradient = this.createMeteorGradient(point.x, point.y, trailRadius, meteor.color, meteor.isSuper);
-        this.ctx.fillStyle = gradient;
-        this.ctx.fill();
-        
-        this.ctx.shadowBlur = meteor.isSuper ? 20 : 12; // Reduced glow
-        this.ctx.shadowColor = meteor.color;
-        this.ctx.fill();
-        this.ctx.shadowBlur = 0;
+        meteor.trail.forEach((point, index) => {
+          const progress = 1 - index / meteor.trail.length;
+          const trailRadius = meteor.radius * progress * (meteor.isSuper ? 1.8 : 1.3); // Reduced trail size
+          
+          this.ctx.beginPath();
+          this.ctx.arc(point.x, point.y, trailRadius, 0, Math.PI * 2);
+          const gradient = this.createMeteorGradient(point.x, point.y, trailRadius, meteor.color, meteor.isSuper);
+          this.ctx.fillStyle = gradient;
+          this.ctx.fill();
+          
+          this.ctx.shadowBlur = meteor.isSuper ? 20 : 12; // Reduced glow
+          this.ctx.shadowColor = meteor.color;
+          this.ctx.fill();
+          this.ctx.shadowBlur = 0;
+        });
       });
-    });
+    }
 
     // Draw meteors
     this.activeMeteors.forEach(meteor => {
@@ -634,6 +682,7 @@ export default class Engine {
     window.removeEventListener('mousemove', this.handleMouseMove);
     window.removeEventListener('dblclick', this.handleDoubleClick);
     window.removeEventListener('touchend', this.handleTouchEnd);
+    window.removeEventListener('gameSettingsChanged', this.handleSettingsChange);
   }
 
   // Public method to get current game over state
@@ -665,5 +714,10 @@ export default class Engine {
     this.powerUpManager.reset();
     
     console.log('Game reset completed');
+  }
+
+  // Public method to get current settings
+  getSettings(): GameSettings {
+    return { ...this.gameSettings };
   }
 }
