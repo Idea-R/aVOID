@@ -24,23 +24,28 @@ export default function GameIntro({ onComplete }: GameIntroProps) {
   }, []);
 
   useEffect(() => {
+    console.log(`Timer phase: ${phase}, countdown: ${countdown}`);
     const timer = setTimeout(() => {
       if (phase === 'countdown') {
         if (countdown > 1) {
+          console.log(`Countdown: ${countdown} -> ${countdown - 1}`);
           setCountdown(countdown - 1);
         } else {
+          console.log('Countdown complete, switching to warning');
           setPhase('warning');
         }
       } else if (phase === 'warning') {
+        console.log('Warning complete, switching to instructions');
         setPhase('instructions');
       } else if (phase === 'instructions') {
+        console.log('Instructions complete, calling onComplete');
         setPhase('complete');
         onComplete();
       }
     }, phase === 'countdown' ? 1000 : phase === 'warning' ? 1000 : 2000);
 
     return () => clearTimeout(timer);
-  }, [phase, countdown, onComplete]);
+  }, [phase, countdown]); // Remove onComplete from dependencies to prevent timer reset
 
   // Track user engagement
   useEffect(() => {

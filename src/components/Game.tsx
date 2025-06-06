@@ -108,11 +108,14 @@ export default function Game({ autoStart = false }: GameProps) {
   };
 
   const handleIntroComplete = () => {
+  const handleIntroComplete = React.useCallback(() => {
+    console.log('Intro completed, hiding intro and starting engine');
     setShowIntro(false);
     if (engineRef.current && !engineRef.current.isStarted()) {
+      console.log('Starting engine after intro');
       engineRef.current.start();
     }
-  };
+  }, []); // Memoize to prevent recreation on every render
 
   console.log('Rendering Game component, isGameOver:', gameState.isGameOver);
 
