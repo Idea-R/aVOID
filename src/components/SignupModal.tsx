@@ -127,7 +127,7 @@ export default function SignupModal({ isOpen, onClose, playerScore, playerName }
               <span className="font-semibold text-purple-300">From the Developer</span>
             </div>
             <p className="text-purple-200 text-sm mb-3">
-              This is a free game made with passion! If you enjoy playing aVOID, consider supporting development.
+              This is a free game made with passion by <span className="font-semibold text-purple-100">MadXent</span>! If you enjoy playing aVOID, consider supporting development.
             </p>
             
             <div className="space-y-3">
@@ -150,7 +150,7 @@ export default function SignupModal({ isOpen, onClose, playerScore, playerName }
                   Follow
                 </a>
                 <a
-                  href="https://github.com/madxent"
+                  href="https://github.com/Idea-R"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex-1 bg-gray-800 hover:bg-gray-700 text-gray-300 py-2 px-3 rounded transition-colors duration-200 flex items-center justify-center gap-2 text-sm"
