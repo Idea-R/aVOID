@@ -26,7 +26,7 @@ export class ProfileAPI {
       .from('user_profiles')
       .select('*')
       .eq('id', userId)
-      .single();
+      .maybeSingle();
 
     if (error) {
       console.error('Error fetching user profile:', error);
@@ -42,7 +42,7 @@ export class ProfileAPI {
       .select('*')
       .eq('id', userId)
       .eq('is_public', true)
-      .single();
+      .maybeSingle();
 
     if (error) {
       console.error('Error fetching public profile:', error);
