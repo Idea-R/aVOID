@@ -2,7 +2,7 @@ export interface PowerUp {
   x: number;
   y: number;
   radius: number;
-  type: 'knockback';
+  type: 'knockback' | 'flame';
   collected: boolean;
   pulsePhase: number;
   glowIntensity: number;
@@ -11,10 +11,10 @@ export interface PowerUp {
 export class PowerUpManager {
   private powerUps: PowerUp[] = [];
   private lastSpawnTime: number = 0;
-  private spawnInterval: number = 30000; // 30 seconds
+  private spawnInterval: number = 25000; // 25 seconds
 
   update(gameTime: number, deltaTime: number) {
-    // Spawn power-up every 30 seconds
+    // Spawn power-up every 25 seconds
     if (gameTime * 1000 - this.lastSpawnTime >= this.spawnInterval) {
       this.spawnPowerUp();
       this.lastSpawnTime = gameTime * 1000;
@@ -33,11 +33,14 @@ export class PowerUpManager {
     const x = margin + Math.random() * (window.innerWidth - margin * 2);
     const y = margin + Math.random() * (window.innerHeight - margin * 2);
 
+    // 60% chance for flame, 40% chance for knockback
+    const powerUpType: 'knockback' | 'flame' = Math.random() < 0.6 ? 'flame' : 'knockback';
+
     this.powerUps.push({
       x,
       y,
       radius: 20,
-      type: 'knockback',
+      type: powerUpType,
       collected: false,
       pulsePhase: 0,
       glowIntensity: 1
