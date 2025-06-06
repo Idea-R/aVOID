@@ -1,6 +1,9 @@
 import { PowerUpManager, PowerUp } from './entities/PowerUp';
 import { ObjectPool } from './utils/ObjectPool';
 import { SpatialGrid, GridObject } from './utils/SpatialGrid';
+import { PerformanceMonitor, PerformanceMetrics } from './utils/PerformanceMonitor';
+import { DirtyRectManager } from './utils/DirtyRectManager';
+import { AdaptiveRenderer } from './utils/AdaptiveRenderer';
 import { Meteor, createMeteor, resetMeteor, initializeMeteor } from './entities/Meteor';
 import { Particle, createParticle, resetParticle, initializeParticle } from './entities/Particle';
 
@@ -12,6 +15,14 @@ export default class Engine {
   private gameTime: number = 0;
   private score: number = 0;
   
+  // Performance optimization systems
+  private performanceMonitor: PerformanceMonitor;
+  private dirtyRectManager: DirtyRectManager;
+  private adaptiveRenderer: AdaptiveRenderer;
+  private lastRenderTime: number = 0;
+  private lastUpdateTime: number = 0;
+  private frameSkipCounter: number = 0;
+  
   // Object pools
   private meteorPool: ObjectPool<Meteor>;
   private particlePool: ObjectPool<Particle>;
@@ -21,9 +32,9 @@ export default class Engine {
   // Spatial partitioning
   private spatialGrid: SpatialGrid;
   
-  // Performance limits
-  private readonly MAX_METEORS = 50;
-  private readonly MAX_PARTICLES = 300;
+  // Dynamic performance limits
+  private maxMeteors: number = 50;
+  private maxParticles: number = 300;
   
   private playerTrail: Array<{ x: number; y: number; alpha: number }> = [];
   private isGameOver: boolean = false;
@@ -35,15 +46,18 @@ export default class Engine {
   private lastClickTime: number = 0;
   private clickCount: number = 0;
   
-  // FPS tracking
-  private frameCount: number = 0;
-  private fpsLastTime: number = 0;
-  private currentFPS: number = 0;
-  private fpsUpdateInterval: number = 500;
-  
   // Performance tracking
   private meteorCount: number = 0;
   private particleCount: number = 0;
+  private performanceMetrics: PerformanceMetrics = {
+    fps: 60,
+    frameTime: 16.67,
+    renderTime: 0,
+    updateTime: 0,
+    meteorCount: 0,
+    particleCount: 0,
+    qualityLevel: 1.0
+  };
   
   onStateUpdate: (state: { 
     score: number; 
@@ -53,17 +67,27 @@ export default class Engine {
     meteors: number;
     particles: number;
     poolSizes: { meteors: number; particles: number };
+    performance: PerformanceMetrics;
   }) => void = () => {};
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
-    const context = canvas.getContext('2d', { alpha: false });
+    const context = canvas.getContext('2d', { 
+      alpha: false,
+      desynchronized: true, // Allow async rendering
+      willReadFrequently: false
+    });
     if (!context) throw new Error('Could not get canvas context');
     this.ctx = context;
     
-    // Initialize object pools
-    this.meteorPool = new ObjectPool(createMeteor, resetMeteor, 20, this.MAX_METEORS);
-    this.particlePool = new ObjectPool(createParticle, resetParticle, 50, this.MAX_PARTICLES);
+    // Initialize performance systems
+    this.performanceMonitor = new PerformanceMonitor();
+    this.dirtyRectManager = new DirtyRectManager(window.innerWidth, window.innerHeight);
+    this.adaptiveRenderer = new AdaptiveRenderer(this.performanceMonitor);
+    
+    // Initialize object pools with larger initial sizes for better performance
+    this.meteorPool = new ObjectPool(createMeteor, resetMeteor, 30, this.maxMeteors);
+    this.particlePool = new ObjectPool(createParticle, resetParticle, 100, this.maxParticles);
     
     // Initialize spatial grid
     this.spatialGrid = new SpatialGrid(window.innerWidth, window.innerHeight, 150);
@@ -77,10 +101,14 @@ export default class Engine {
 
   private mouseX: number = 0;
   private mouseY: number = 0;
+  private lastMouseX: number = 0;
+  private lastMouseY: number = 0;
 
   private handleMouseMove = (e: MouseEvent) => {
     if (this.isGameOver) return;
     const rect = this.canvas.getBoundingClientRect();
+    this.lastMouseX = this.mouseX;
+    this.lastMouseY = this.mouseY;
     this.mouseX = e.clientX - rect.left;
     this.mouseY = e.clientY - rect.top;
   };
@@ -115,6 +143,9 @@ export default class Engine {
     this.screenShake = { x: 0, y: 0, intensity: 15, duration: 500 };
     this.createShockwave(this.mouseX, this.mouseY);
 
+    // Mark large area as dirty for shockwave effect
+    this.dirtyRectManager.addCircleDirtyRect(this.mouseX, this.mouseY, 300, 50);
+
     let destroyedCount = 0;
 
     // Use spatial grid for efficient collision detection
@@ -130,6 +161,7 @@ export default class Engine {
 
       if (distance <= 150) {
         this.createExplosion(meteor.x, meteor.y, meteor.color, meteor.isSuper);
+        this.dirtyRectManager.addCircleDirtyRect(meteor.x, meteor.y, 100);
         this.releaseMeteor(meteor);
         destroyedCount++;
       } else if (distance <= 300) {
@@ -144,8 +176,13 @@ export default class Engine {
   }
 
   private createShockwave(x: number, y: number) {
-    // Limit shockwave particles to prevent lag
-    const ringParticles = Math.min(40, this.MAX_PARTICLES - this.activeParticles.length);
+    const settings = this.adaptiveRenderer.getCurrentSettings();
+    if (!settings.useParticles) return;
+
+    // Limit shockwave particles based on performance
+    const maxRingParticles = Math.min(40, settings.particleLimit - this.activeParticles.length);
+    const ringParticles = Math.floor(maxRingParticles * this.performanceMonitor.getQualityLevel());
+    
     for (let i = 0; i < ringParticles; i++) {
       const angle = (Math.PI * 2 * i) / ringParticles;
       const distance = 50 + Math.random() * 100;
@@ -164,7 +201,9 @@ export default class Engine {
       this.activeParticles.push(particle);
     }
 
-    const centralParticles = Math.min(25, this.MAX_PARTICLES - this.activeParticles.length);
+    const maxCentralParticles = Math.min(25, settings.particleLimit - this.activeParticles.length);
+    const centralParticles = Math.floor(maxCentralParticles * this.performanceMonitor.getQualityLevel());
+    
     for (let i = 0; i < centralParticles; i++) {
       const angle = Math.random() * Math.PI * 2;
       const velocity = 2 + Math.random() * 6;
@@ -188,6 +227,8 @@ export default class Engine {
     this.canvas.width = window.innerWidth;
     this.canvas.height = window.innerHeight;
     this.spatialGrid.resize(window.innerWidth, window.innerHeight);
+    this.dirtyRectManager.resize(window.innerWidth, window.innerHeight);
+    this.dirtyRectManager.markFullScreenDirty(); // Force full redraw on resize
   };
 
   private createMeteorGradient(x: number, y: number, radius: number, color: string, isSuper: boolean = false): CanvasGradient {
@@ -217,10 +258,15 @@ export default class Engine {
   }
 
   private createExplosion(x: number, y: number, color: string, isSuper: boolean = false) {
-    const particleCount = Math.min(
-      isSuper ? 50 : 30, 
-      this.MAX_PARTICLES - this.activeParticles.length
+    const settings = this.adaptiveRenderer.getCurrentSettings();
+    if (!settings.useParticles) return;
+
+    const baseParticleCount = isSuper ? 50 : 30;
+    const maxParticles = Math.min(
+      baseParticleCount, 
+      settings.particleLimit - this.activeParticles.length
     );
+    const particleCount = Math.floor(maxParticles * this.performanceMonitor.getQualityLevel());
     
     for (let i = 0; i < particleCount; i++) {
       const angle = (Math.PI * 2 * i) / particleCount;
@@ -243,7 +289,8 @@ export default class Engine {
   }
 
   private spawnMeteor() {
-    if (this.activeMeteors.length >= this.MAX_METEORS) return;
+    const settings = this.adaptiveRenderer.getCurrentSettings();
+    if (this.activeMeteors.length >= settings.meteorLimit) return;
 
     const side = Math.floor(Math.random() * 4);
     let x, y;
@@ -299,23 +346,21 @@ export default class Engine {
     }
   }
 
-  private updateFPS(timestamp: number) {
-    this.frameCount++;
-    
-    if (timestamp - this.fpsLastTime >= this.fpsUpdateInterval) {
-      this.currentFPS = Math.round((this.frameCount * 1000) / (timestamp - this.fpsLastTime));
-      this.frameCount = 0;
-      this.fpsLastTime = timestamp;
-    }
-  }
-
   private update(deltaTime: number) {
+    const updateStartTime = performance.now();
+    
     if (this.isGameOver) return;
     
     this.gameTime += deltaTime / 1000;
     
-    // Clear spatial grid
+    // Update adaptive rendering settings
+    const settings = this.adaptiveRenderer.updateSettings();
+    this.maxMeteors = settings.meteorLimit;
+    this.maxParticles = settings.particleLimit;
+    
+    // Clear spatial grid and dirty rects
     this.spatialGrid.clear();
+    this.dirtyRectManager.clear();
     
     // Update power-up system
     this.powerUpManager.update(this.gameTime, deltaTime);
@@ -324,6 +369,7 @@ export default class Engine {
     if (collectedPowerUp && collectedPowerUp.type === 'knockback') {
       this.hasKnockbackPower = true;
       this.playerRingPhase = 0;
+      this.dirtyRectManager.addCircleDirtyRect(this.mouseX, this.mouseY, 30);
     }
     
     if (this.knockbackCooldown > 0) {
@@ -339,21 +385,33 @@ export default class Engine {
       const intensity = (this.screenShake.duration / 500) * this.screenShake.intensity;
       this.screenShake.x = (Math.random() - 0.5) * intensity;
       this.screenShake.y = (Math.random() - 0.5) * intensity;
+      
+      if (this.screenShake.duration <= 0) {
+        this.dirtyRectManager.markFullScreenDirty(); // Clean up shake artifacts
+      }
     } else {
       this.screenShake.x = 0;
       this.screenShake.y = 0;
     }
     
-    // Update player trail
+    // Update player trail with dirty rect tracking
+    if (this.mouseX !== this.lastMouseX || this.mouseY !== this.lastMouseY) {
+      this.dirtyRectManager.addCircleDirtyRect(this.lastMouseX, this.lastMouseY, 15);
+      this.dirtyRectManager.addCircleDirtyRect(this.mouseX, this.mouseY, 15);
+    }
+    
     this.playerTrail.unshift({ x: this.mouseX, y: this.mouseY, alpha: 1 });
-    if (this.playerTrail.length > 25) this.playerTrail.pop();
+    const maxTrailLength = Math.floor(25 * this.performanceMonitor.getQualityLevel());
+    if (this.playerTrail.length > maxTrailLength) this.playerTrail.pop();
     this.playerTrail.forEach(point => point.alpha *= 0.92);
 
     // Spawn meteors with performance consideration
     const baseSpawnChance = 0.003;
-    const maxSpawnChance = 0.02; // Reduced from 0.03
+    const maxSpawnChance = 0.02;
     const spawnIncrease = Math.min(this.gameTime / 150, maxSpawnChance - baseSpawnChance);
-    if (Math.random() < baseSpawnChance + spawnIncrease) {
+    const adjustedSpawnChance = (baseSpawnChance + spawnIncrease) * this.performanceMonitor.getQualityLevel();
+    
+    if (Math.random() < adjustedSpawnChance) {
       this.spawnMeteor();
     }
 
@@ -362,16 +420,27 @@ export default class Engine {
       const meteor = this.activeMeteors[i];
       if (!meteor.active) continue;
 
+      // Mark old position as dirty
+      this.dirtyRectManager.addCircleDirtyRect(meteor.x, meteor.y, meteor.radius * 2, 10);
+
       meteor.x += meteor.vx;
       meteor.y += meteor.vy;
 
+      // Mark new position as dirty
+      this.dirtyRectManager.addCircleDirtyRect(meteor.x, meteor.y, meteor.radius * 2, 10);
+
       meteor.gradient = this.createMeteorGradient(meteor.x, meteor.y, meteor.radius, meteor.color, meteor.isSuper);
 
-      // Update trail with length limit
-      meteor.trail.unshift({ x: meteor.x, y: meteor.y, alpha: 1 });
-      const maxTrailLength = meteor.isSuper ? 15 : 12; // Reduced trail length
-      if (meteor.trail.length > maxTrailLength) meteor.trail.pop();
-      meteor.trail.forEach(point => point.alpha *= meteor.isSuper ? 0.9 : 0.88);
+      // Update trail with performance-based length
+      if (settings.useTrails) {
+        meteor.trail.unshift({ x: meteor.x, y: meteor.y, alpha: 1 });
+        const maxTrailLength = Math.floor(settings.trailLength * (meteor.isSuper ? 1.2 : 1));
+        if (meteor.trail.length > maxTrailLength) meteor.trail.pop();
+        meteor.trail.forEach(point => point.alpha *= meteor.isSuper ? 0.9 : 0.88);
+        
+        // Add trail to dirty rects
+        this.dirtyRectManager.addTrailDirtyRect(meteor.trail, meteor.radius);
+      }
 
       // Add to spatial grid
       this.spatialGrid.insert({
@@ -389,6 +458,7 @@ export default class Engine {
       if (distance < meteor.radius + 6) {
         this.createExplosion(this.mouseX, this.mouseY, '#06b6d4');
         this.createExplosion(meteor.x, meteor.y, meteor.color, meteor.isSuper);
+        this.dirtyRectManager.markFullScreenDirty(); // Game over effect
         this.isGameOver = true;
         return;
       }
@@ -400,10 +470,17 @@ export default class Engine {
       }
     }
 
-    // Update particles
+    // Update particles with performance-based culling
+    const particleSkipRatio = this.adaptiveRenderer.getParticleSkipRatio();
     for (let i = this.activeParticles.length - 1; i >= 0; i--) {
       const particle = this.activeParticles[i];
       if (!particle.active) continue;
+
+      // Skip some particles for performance
+      if (Math.random() > particleSkipRatio) continue;
+
+      // Mark old position as dirty
+      this.dirtyRectManager.addCircleDirtyRect(particle.x, particle.y, particle.radius * 2, 5);
 
       particle.x += particle.vx;
       particle.y += particle.vy;
@@ -411,6 +488,9 @@ export default class Engine {
       particle.vx *= 0.99;
       particle.alpha = particle.life / particle.maxLife;
       particle.life--;
+
+      // Mark new position as dirty
+      this.dirtyRectManager.addCircleDirtyRect(particle.x, particle.y, particle.radius * 2, 5);
 
       if (particle.life <= 0 || particle.alpha <= 0.01) {
         this.releaseParticle(particle);
@@ -421,26 +501,46 @@ export default class Engine {
     this.meteorCount = this.activeMeteors.length;
     this.particleCount = this.activeParticles.length;
     
-    this.onStateUpdate({ 
-      score: this.score, 
-      time: this.gameTime, 
-      isGameOver: this.isGameOver, 
-      fps: this.currentFPS,
-      meteors: this.meteorCount,
-      particles: this.particleCount,
-      poolSizes: {
-        meteors: this.meteorPool.getPoolSize(),
-        particles: this.particlePool.getPoolSize()
-      }
-    });
+    this.lastUpdateTime = performance.now() - updateStartTime;
   }
 
   private render() {
+    const renderStartTime = performance.now();
+    const settings = this.adaptiveRenderer.getCurrentSettings();
+    
+    // Skip frame if performance is too poor
+    if (this.adaptiveRenderer.shouldSkipFrame()) {
+      this.frameSkipCounter++;
+      if (this.frameSkipCounter < 3) { // Don't skip more than 2 consecutive frames
+        return;
+      }
+    }
+    this.frameSkipCounter = 0;
+
     this.ctx.save();
     this.ctx.translate(this.screenShake.x, this.screenShake.y);
     
-    this.ctx.fillStyle = 'rgba(0, 0, 0, 0.15)';
-    this.ctx.fillRect(-this.screenShake.x, -this.screenShake.y, this.canvas.width, this.canvas.height);
+    // Get dirty rectangles for optimized rendering
+    const dirtyRects = this.dirtyRectManager.getDirtyRects();
+    
+    // If too many dirty rects, just redraw everything
+    if (dirtyRects.length > 20 || this.performanceMonitor.getQualityLevel() < 0.5) {
+      this.ctx.fillStyle = 'rgba(0, 0, 0, 0.15)';
+      this.ctx.fillRect(-this.screenShake.x, -this.screenShake.y, this.canvas.width, this.canvas.height);
+    } else {
+      // Clear only dirty rectangles
+      for (const rect of dirtyRects) {
+        this.ctx.save();
+        this.ctx.beginPath();
+        this.ctx.rect(rect.x, rect.y, rect.width, rect.height);
+        this.ctx.clip();
+        
+        this.ctx.fillStyle = 'rgba(0, 0, 0, 0.15)';
+        this.ctx.fillRect(rect.x, rect.y, rect.width, rect.height);
+        
+        this.ctx.restore();
+      }
+    }
     
     this.ctx.globalCompositeOperation = 'lighter';
     
@@ -449,9 +549,12 @@ export default class Engine {
     powerUps.forEach(powerUp => {
       this.ctx.beginPath();
       this.ctx.arc(powerUp.x, powerUp.y, powerUp.radius * 2, 0, Math.PI * 2);
-      this.ctx.fillStyle = `rgba(255, 215, 0, ${powerUp.glowIntensity * 0.3})`;
-      this.ctx.shadowBlur = 30;
-      this.ctx.shadowColor = '#ffd700';
+      this.ctx.fillStyle = `rgba(255, 215, 0, ${powerUp.glowIntensity * 0.3 * settings.glowIntensity})`;
+      
+      if (settings.useGlow) {
+        this.ctx.shadowBlur = Math.floor(30 * settings.glowIntensity);
+        this.ctx.shadowColor = '#ffd700';
+      }
       this.ctx.fill();
       this.ctx.shadowBlur = 0;
       
@@ -473,26 +576,30 @@ export default class Engine {
       this.ctx.fill();
     });
     
-    // Draw meteor trails
-    this.activeMeteors.forEach(meteor => {
-      if (!meteor.active) return;
-      
-      meteor.trail.forEach((point, index) => {
-        const progress = 1 - index / meteor.trail.length;
-        const trailRadius = meteor.radius * progress * (meteor.isSuper ? 1.8 : 1.3); // Reduced trail size
+    // Draw meteor trails (if enabled)
+    if (settings.useTrails) {
+      this.activeMeteors.forEach(meteor => {
+        if (!meteor.active) return;
         
-        this.ctx.beginPath();
-        this.ctx.arc(point.x, point.y, trailRadius, 0, Math.PI * 2);
-        const gradient = this.createMeteorGradient(point.x, point.y, trailRadius, meteor.color, meteor.isSuper);
-        this.ctx.fillStyle = gradient;
-        this.ctx.fill();
-        
-        this.ctx.shadowBlur = meteor.isSuper ? 20 : 12; // Reduced glow
-        this.ctx.shadowColor = meteor.color;
-        this.ctx.fill();
-        this.ctx.shadowBlur = 0;
+        meteor.trail.forEach((point, index) => {
+          const progress = 1 - index / meteor.trail.length;
+          const trailRadius = meteor.radius * progress * (meteor.isSuper ? 1.4 : 1.1);
+          
+          this.ctx.beginPath();
+          this.ctx.arc(point.x, point.y, trailRadius, 0, Math.PI * 2);
+          const gradient = this.createMeteorGradient(point.x, point.y, trailRadius, meteor.color, meteor.isSuper);
+          this.ctx.fillStyle = gradient;
+          this.ctx.fill();
+          
+          if (settings.useGlow) {
+            this.ctx.shadowBlur = Math.floor(settings.shadowBlur * (meteor.isSuper ? 0.8 : 0.6));
+            this.ctx.shadowColor = meteor.color;
+            this.ctx.fill();
+            this.ctx.shadowBlur = 0;
+          }
+        });
       });
-    });
+    }
 
     // Draw meteors
     this.activeMeteors.forEach(meteor => {
@@ -502,8 +609,10 @@ export default class Engine {
       this.ctx.arc(meteor.x, meteor.y, meteor.radius * (meteor.isSuper ? 1.8 : 1.3), 0, Math.PI * 2);
       this.ctx.fillStyle = meteor.gradient || meteor.color;
       
-      this.ctx.shadowBlur = meteor.isSuper ? 25 : 15;
-      this.ctx.shadowColor = meteor.color;
+      if (settings.useGlow) {
+        this.ctx.shadowBlur = Math.floor(settings.shadowBlur * (meteor.isSuper ? 1.25 : 1) * settings.glowIntensity);
+        this.ctx.shadowColor = meteor.color;
+      }
       this.ctx.fill();
       this.ctx.shadowBlur = 0;
     });
@@ -517,8 +626,10 @@ export default class Engine {
       this.ctx.arc(point.x, point.y, 8 * progress, 0, Math.PI * 2);
       this.ctx.fillStyle = `rgba(6, 182, 212, ${point.alpha * 0.7})`;
       
-      this.ctx.shadowBlur = 15;
-      this.ctx.shadowColor = '#06b6d4';
+      if (settings.useGlow) {
+        this.ctx.shadowBlur = Math.floor(15 * settings.glowIntensity);
+        this.ctx.shadowColor = '#06b6d4';
+      }
       this.ctx.fill();
       this.ctx.shadowBlur = 0;
     });
@@ -528,10 +639,13 @@ export default class Engine {
       const ringRadius = 15 + Math.sin(this.playerRingPhase) * 3;
       this.ctx.beginPath();
       this.ctx.arc(this.mouseX, this.mouseY, ringRadius, 0, Math.PI * 2);
-      this.ctx.strokeStyle = `rgba(255, 215, 0, ${0.8 + Math.sin(this.playerRingPhase * 2) * 0.2})`;
+      this.ctx.strokeStyle = `rgba(255, 215, 0, ${(0.8 + Math.sin(this.playerRingPhase * 2) * 0.2) * settings.glowIntensity})`;
       this.ctx.lineWidth = 3;
-      this.ctx.shadowBlur = 10;
-      this.ctx.shadowColor = '#ffd700';
+      
+      if (settings.useGlow) {
+        this.ctx.shadowBlur = Math.floor(10 * settings.glowIntensity);
+        this.ctx.shadowColor = '#ffd700';
+      }
       this.ctx.stroke();
       this.ctx.shadowBlur = 0;
     }
@@ -542,38 +656,69 @@ export default class Engine {
       this.ctx.arc(this.mouseX, this.mouseY, 8, 0, Math.PI * 2);
       this.ctx.fillStyle = '#06b6d4';
       
-      this.ctx.shadowBlur = 20;
-      this.ctx.shadowColor = '#06b6d4';
+      if (settings.useGlow) {
+        this.ctx.shadowBlur = Math.floor(20 * settings.glowIntensity);
+        this.ctx.shadowColor = '#06b6d4';
+      }
       this.ctx.fill();
       this.ctx.shadowBlur = 0;
     }
 
-    // Draw particles
-    this.ctx.globalCompositeOperation = 'lighter';
-    this.activeParticles.forEach(particle => {
-      if (!particle.active) return;
+    // Draw particles (if enabled)
+    if (settings.useParticles) {
+      this.ctx.globalCompositeOperation = 'lighter';
+      const particleSkipRatio = this.adaptiveRenderer.getParticleSkipRatio();
       
-      this.ctx.beginPath();
-      this.ctx.arc(particle.x, particle.y, particle.radius, 0, Math.PI * 2);
-      this.ctx.fillStyle = particle.color.replace(/,\s*[\d.]+\)$/, `, ${particle.alpha})`);
-      
-      this.ctx.shadowBlur = 8; // Reduced particle glow
-      this.ctx.shadowColor = particle.color;
-      this.ctx.fill();
-      this.ctx.shadowBlur = 0;
-    });
+      this.activeParticles.forEach(particle => {
+        if (!particle.active) return;
+        
+        // Skip some particles for performance
+        if (Math.random() > particleSkipRatio) return;
+        
+        this.ctx.beginPath();
+        this.ctx.arc(particle.x, particle.y, particle.radius, 0, Math.PI * 2);
+        this.ctx.fillStyle = particle.color.replace(/,\s*[\d.]+\)$/, `, ${particle.alpha})`);
+        
+        if (settings.useGlow) {
+          this.ctx.shadowBlur = Math.floor(8 * settings.glowIntensity);
+          this.ctx.shadowColor = particle.color;
+        }
+        this.ctx.fill();
+        this.ctx.shadowBlur = 0;
+      });
+    }
     
     this.ctx.globalCompositeOperation = 'source-over';
     this.ctx.restore();
+    
+    this.lastRenderTime = performance.now() - renderStartTime;
   }
 
   private gameLoop = (timestamp: number) => {
     const deltaTime = timestamp - this.lastTime;
     this.lastTime = timestamp;
 
-    this.updateFPS(timestamp);
+    // Update performance metrics
+    this.performanceMetrics = this.performanceMonitor.update(timestamp, this.lastRenderTime, this.lastUpdateTime);
+    this.performanceMetrics.meteorCount = this.meteorCount;
+    this.performanceMetrics.particleCount = this.particleCount;
+
     this.update(deltaTime);
     this.render();
+
+    this.onStateUpdate({ 
+      score: this.score, 
+      time: this.gameTime, 
+      isGameOver: this.isGameOver, 
+      fps: this.performanceMetrics.fps,
+      meteors: this.meteorCount,
+      particles: this.particleCount,
+      poolSizes: {
+        meteors: this.meteorPool.getPoolSize(),
+        particles: this.particlePool.getPoolSize()
+      },
+      performance: this.performanceMetrics
+    });
 
     this.animationFrame = requestAnimationFrame(this.gameLoop);
   };
@@ -581,7 +726,6 @@ export default class Engine {
   start() {
     if (this.animationFrame === null) {
       this.lastTime = performance.now();
-      this.fpsLastTime = this.lastTime;
       this.animationFrame = requestAnimationFrame(this.gameLoop);
     }
   }
@@ -597,6 +741,10 @@ export default class Engine {
     this.particlePool.clear();
     this.activeMeteors.length = 0;
     this.activeParticles.length = 0;
+    
+    // Reset performance systems
+    this.performanceMonitor.reset();
+    this.dirtyRectManager.clear();
     
     window.removeEventListener('resize', this.resizeCanvas);
     window.removeEventListener('mousemove', this.handleMouseMove);

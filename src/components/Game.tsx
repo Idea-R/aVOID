@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import Engine from '../game/Engine';
 import HUD from './HUD';
 import GameOverScreen from './GameOverScreen';
+import { PerformanceMetrics } from '../game/utils/PerformanceMonitor';
 
 export default function Game() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -12,7 +13,16 @@ export default function Game() {
     fps: 0,
     meteors: 0,
     particles: 0,
-    poolSizes: { meteors: 0, particles: 0 }
+    poolSizes: { meteors: 0, particles: 0 },
+    performance: {
+      fps: 60,
+      frameTime: 16.67,
+      renderTime: 0,
+      updateTime: 0,
+      meteorCount: 0,
+      particleCount: 0,
+      qualityLevel: 1.0
+    } as PerformanceMetrics
   });
 
   useEffect(() => {
@@ -39,6 +49,7 @@ export default function Game() {
         meteors={gameState.meteors}
         particles={gameState.particles}
         poolSizes={gameState.poolSizes}
+        performance={gameState.performance}
       />
       {gameState.isGameOver && (
         <GameOverScreen score={gameState.score} />
