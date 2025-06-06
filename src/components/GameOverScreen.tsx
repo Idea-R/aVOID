@@ -103,7 +103,7 @@ export default function GameOverScreen({ score, onPlayAgain }: GameOverScreenPro
           <img 
             src={logoImage} 
             alt="aVOID Logo" 
-            className="h-48 w-auto object-contain"
+            className="h-48 w-auto object-contain border border-cyan-500 rounded-lg p-2 bg-black/20"
           />
         </div>
         
