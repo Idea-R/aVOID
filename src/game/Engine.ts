@@ -57,6 +57,7 @@ export default class Engine {
   private autoScaleEnabled: boolean = true;
   private shadowsEnabled: boolean = true;
   private dynamicMaxParticles: number = 300;
+  private adaptiveTrailsActive: boolean = true;
   
   // Performance tracking
   private frameTimes: number[] = [];
@@ -86,7 +87,7 @@ export default class Engine {
     meteors: number;
     particles: number;
     poolSizes: { meteors: number; particles: number };
-    autoScaling: { enabled: boolean; shadowsEnabled: boolean; maxParticles: number };
+    autoScaling: { enabled: boolean; shadowsEnabled: boolean; maxParticles: number; adaptiveTrailsActive: boolean };
     performance: { averageFrameTime: number; memoryUsage: number; lastScalingEvent: string };
     settings: GameSettings;
   }) => void = () => {};
@@ -360,26 +361,38 @@ export default class Engine {
         if (this.currentFPS < 30) {
           this.shadowsEnabled = false;
           this.dynamicMaxParticles = 150;
+          this.adaptiveTrailsActive = false;
           if (previousShadows || previousMaxParticles !== 150) {
             this.lastScalingEvent = 'low-performance';
             this.scalingEventTime = Date.now();
-            console.log('🔧 Auto-scaling: Low performance mode activated (FPS < 30)');
+            console.log('🔧 Auto-scaling: Low performance mode activated (FPS < 30) - Trails disabled');
           }
         } else if (this.currentFPS < 45) {
           this.shadowsEnabled = true;
           this.dynamicMaxParticles = 225;
+          this.adaptiveTrailsActive = false;
           if (!previousShadows || previousMaxParticles !== 225) {
             this.lastScalingEvent = 'medium-performance';
             this.scalingEventTime = Date.now();
-            console.log('🔧 Auto-scaling: Medium performance mode activated (FPS < 45)');
+            console.log('🔧 Auto-scaling: Medium performance mode activated (FPS < 45) - Trails disabled');
+          }
+        } else if (this.currentFPS >= 55) {
+          this.shadowsEnabled = true;
+          this.dynamicMaxParticles = 300;
+          this.adaptiveTrailsActive = true;
+          if (!previousShadows || previousMaxParticles !== 300) {
+            this.lastScalingEvent = 'high-performance';
+            this.scalingEventTime = Date.now();
+            console.log('🔧 Auto-scaling: High performance mode activated (FPS >= 55) - Trails enabled');
           }
         } else {
           this.shadowsEnabled = true;
           this.dynamicMaxParticles = 300;
+          this.adaptiveTrailsActive = true;
           if (!previousShadows || previousMaxParticles !== 300) {
             this.lastScalingEvent = 'high-performance';
             this.scalingEventTime = Date.now();
-            console.log('🔧 Auto-scaling: High performance mode activated (FPS >= 45)');
+            console.log('🔧 Auto-scaling: High performance mode activated (FPS >= 45) - Trails enabled');
           }
         }
         
@@ -458,11 +471,11 @@ export default class Engine {
       meteor.gradient = this.renderSystem.createMeteorGradient(meteor.x, meteor.y, meteor.radius, meteor.color, meteor.isSuper);
 
       // Update trail with length limit (only if trails are enabled)
-      if (this.gameSettings.showTrails) {
+      if (this.gameSettings.showTrails && this.adaptiveTrailsActive) {
         meteor.trail.unshift({ x: meteor.x, y: meteor.y, alpha: 1 });
-        const maxTrailLength = meteor.isSuper ? 15 : 12;
+        const maxTrailLength = 6; // Reduced from 15/12 to 6 for all meteors
         if (meteor.trail.length > maxTrailLength) meteor.trail.pop();
-        meteor.trail.forEach(point => point.alpha *= meteor.isSuper ? 0.9 : 0.88);
+        meteor.trail.forEach(point => point.alpha *= 0.85); // Unified alpha decay
       } else {
         meteor.trail.length = 0;
       }
@@ -509,7 +522,8 @@ export default class Engine {
           autoScaling: {
             enabled: this.autoScaleEnabled,
             shadowsEnabled: this.shadowsEnabled,
-            maxParticles: this.dynamicMaxParticles
+            maxParticles: this.dynamicMaxParticles,
+            adaptiveTrailsActive: this.adaptiveTrailsActive
           },
           performance: {
             averageFrameTime: this.averageFrameTime,
@@ -547,7 +561,8 @@ export default class Engine {
       autoScaling: {
         enabled: this.autoScaleEnabled,
         shadowsEnabled: this.shadowsEnabled,
-        maxParticles: this.dynamicMaxParticles
+        maxParticles: this.dynamicMaxParticles,
+        adaptiveTrailsActive: this.adaptiveTrailsActive
       },
       performance: {
         averageFrameTime: this.averageFrameTime,
@@ -638,6 +653,7 @@ export default class Engine {
     // Reset auto-scaling to defaults
     this.shadowsEnabled = true;
     this.dynamicMaxParticles = 300;
+    this.adaptiveTrailsActive = true;
     
     // Reset touch tracking
     this.activeTouchId = null;
@@ -668,6 +684,7 @@ export default class Engine {
       // Reset to high quality when disabled
       this.shadowsEnabled = true;
       this.dynamicMaxParticles = 300;
+      this.adaptiveTrailsActive = true;
       this.particleSystem.setMaxParticles(this.dynamicMaxParticles);
       this.renderSystem.setShadowsEnabled(this.shadowsEnabled);
       this.lastScalingEvent = 'auto-scaling-disabled';
@@ -685,6 +702,7 @@ export default class Engine {
     memoryUsage: number;
     shadowsEnabled: boolean;
     maxParticles: number;
+    adaptiveTrailsActive: boolean;
     lastScalingEvent: string;
     scalingEventTime: number;
   } {
@@ -694,6 +712,7 @@ export default class Engine {
       memoryUsage: this.memoryUsageEstimate,
       shadowsEnabled: this.shadowsEnabled,
       maxParticles: this.dynamicMaxParticles,
+      adaptiveTrailsActive: this.adaptiveTrailsActive,
       lastScalingEvent: this.lastScalingEvent,
       scalingEventTime: this.scalingEventTime
     };

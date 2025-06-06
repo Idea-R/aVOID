@@ -13,7 +13,7 @@ interface HUDProps {
   meteors?: number;
   particles?: number;
   poolSizes?: { meteors: number; particles: number };
-  autoScaling?: { enabled: boolean; shadowsEnabled: boolean; maxParticles: number };
+  autoScaling?: { enabled: boolean; shadowsEnabled: boolean; maxParticles: number; adaptiveTrailsActive?: boolean };
   performance?: { averageFrameTime: number; memoryUsage: number; lastScalingEvent: string };
   isGameOver?: boolean;
 }
@@ -81,7 +81,7 @@ export default function HUD({ score, time, fps, meteors = 0, particles = 0, pool
               )}
               {autoScaling && (
                 <div className="text-purple-400">
-                  Quality: {autoScaling.shadowsEnabled ? 'High' : 'Low'}
+                  Quality: {autoScaling.shadowsEnabled ? 'High' : 'Low'} | Trails: {autoScaling.adaptiveTrailsActive ? 'On' : 'Off'}
                 </div>
               )}
               {performance && performance.averageFrameTime > 0 && (

@@ -22,6 +22,7 @@ interface RenderState {
   hasKnockbackPower: boolean;
   playerRingPhase: number;
   screenShake: { x: number; y: number; intensity: number; duration: number };
+  adaptiveTrailsActive: boolean;
   gameSettings: GameSettings;
 }
 
@@ -42,6 +43,7 @@ interface GradientCacheEntry {
 export class RenderSystem {
   private ctx: CanvasRenderingContext2D;
   private canvas: HTMLCanvasElement;
+  private shadowsEnabled: boolean = true;
   private shadowGroups: Map<string, ShadowGroup> = new Map();
   
   // Gradient caching system
@@ -106,7 +108,7 @@ export class RenderSystem {
     }
 
     // Group meteor trails by shadow level (only if trails enabled)
-    if (state.gameSettings.showTrails) {
+    if (state.gameSettings.showTrails && state.adaptiveTrailsActive) {
       const regularTrails: any[] = [];
       const superTrails: any[] = [];
 
@@ -186,20 +188,23 @@ export class RenderSystem {
   }
 
   private renderShadowGroups(): void {
-    // Render groups in optimal order (background to foreground)
-    const renderOrder = [
-      '30:#ffd700',    // Power-ups (background glow)
-      '12:meteor',     // Regular meteor trails
-      '20:meteor',     // Super meteor trails
-      '15:meteor',     // Regular meteors
-      '25:meteor',     // Super meteors
-      '15:#06b6d4',    // Player trail
-      '10:#ffd700',    // Knockback ring
-      '20:#06b6d4',    // Player
-      '8:particle'     // Particles (foreground)
-    ];
+    // Skip shadow rendering if disabled by auto-scaling
+    if (!this.shadowsEnabled) {
+      // Render without shadows
+      for (const groupKey of this.getRenderOrder()) {
+        const group = this.shadowGroups.get(groupKey);
+        if (!group || group.objects.length === 0) continue;
 
-    for (const groupKey of renderOrder) {
+        // Render all objects in this group without shadows
+        for (const obj of group.objects) {
+          this.renderObject(obj);
+        }
+      }
+      return;
+    }
+
+    // Render groups in optimal order (background to foreground)
+    for (const groupKey of this.getRenderOrder()) {
       const group = this.shadowGroups.get(groupKey);
       if (!group || group.objects.length === 0) continue;
 
@@ -211,33 +216,51 @@ export class RenderSystem {
 
       // Render all objects in this shadow group
       for (const obj of group.objects) {
-        switch (obj.type) {
-          case 'powerUp':
-            this.drawPowerUp(obj.data);
-            break;
-          case 'meteorTrail':
-            this.drawMeteorTrail(obj.data.meteor, obj.data.trail);
-            break;
-          case 'meteor':
-            this.drawMeteor(obj.data);
-            break;
-          case 'playerTrail':
-            this.drawPlayerTrail(obj.data);
-            break;
-          case 'knockbackRing':
-            this.drawKnockbackRing(obj.data.x, obj.data.y, obj.data.phase);
-            break;
-          case 'player':
-            this.drawPlayer(obj.data.x, obj.data.y);
-            break;
-          case 'particle':
-            this.drawParticle(obj.data);
-            break;
-        }
+        this.renderObject(obj);
       }
 
       // Reset shadow after each group
       this.ctx.shadowBlur = 0;
+    }
+  }
+
+  private getRenderOrder(): string[] {
+    return [
+      '30:#ffd700',    // Power-ups (background glow)
+      '12:meteor',     // Regular meteor trails
+      '20:meteor',     // Super meteor trails
+      '15:meteor',     // Regular meteors
+      '25:meteor',     // Super meteors
+      '15:#06b6d4',    // Player trail
+      '10:#ffd700',    // Knockback ring
+      '20:#06b6d4',    // Player
+      '8:particle'     // Particles (foreground)
+    ];
+  }
+
+  private renderObject(obj: { type: string; data: any }): void {
+    switch (obj.type) {
+      case 'powerUp':
+        this.drawPowerUp(obj.data);
+        break;
+      case 'meteorTrail':
+        this.drawMeteorTrail(obj.data.meteor, obj.data.trail);
+        break;
+      case 'meteor':
+        this.drawMeteor(obj.data);
+        break;
+      case 'playerTrail':
+        this.drawPlayerTrail(obj.data);
+        break;
+      case 'knockbackRing':
+        this.drawKnockbackRing(obj.data.x, obj.data.y, obj.data.phase);
+        break;
+      case 'player':
+        this.drawPlayer(obj.data.x, obj.data.y);
+        break;
+      case 'particle':
+        this.drawParticle(obj.data);
+        break;
     }
   }
 
@@ -269,17 +292,35 @@ export class RenderSystem {
   }
 
   private drawMeteorTrail(meteor: Meteor, trail: Array<{ x: number; y: number; alpha: number }>): void {
+    const LOD_THRESHOLD_SQUARED = 300 * 300; // Distance threshold for LOD
+    
     trail.forEach((point, index) => {
       const progress = 1 - index / trail.length;
       const trailRadius = meteor.radius * progress * (meteor.isSuper ? 1.8 : 1.3);
       
+      // Calculate distance from player for LOD (assuming player is at center of screen)
+      const playerX = this.canvas.width / 2;
+      const playerY = this.canvas.height / 2;
+      const dx = point.x - playerX;
+      const dy = point.y - playerY;
+      const distanceSquared = dx * dx + dy * dy;
+      
+      // Apply LOD: reduce alpha for distant trails
+      let effectiveAlpha = progress;
+      if (distanceSquared > LOD_THRESHOLD_SQUARED) {
+        effectiveAlpha *= 0.3;
+      }
+      
       this.ctx.beginPath();
       this.ctx.arc(point.x, point.y, trailRadius, 0, Math.PI * 2);
-      const gradient = this.createMeteorGradient(point.x, point.y, trailRadius, meteor.color, meteor.isSuper);
-      this.ctx.fillStyle = gradient;
       
-      // Shadow color is set per meteor color
-      this.ctx.shadowColor = meteor.color;
+      // Use simple alpha-blended solid colors instead of gradients
+      this.ctx.fillStyle = meteor.color.replace(/,\s*[\d.]+\)$/, `, ${effectiveAlpha})`);
+      
+      // Shadow color is set per meteor color (only if shadows enabled)
+      if (this.shadowsEnabled) {
+        this.ctx.shadowColor = meteor.color;
+      }
       this.ctx.fill();
     });
   }
@@ -289,8 +330,10 @@ export class RenderSystem {
     this.ctx.arc(meteor.x, meteor.y, meteor.radius * (meteor.isSuper ? 1.8 : 1.3), 0, Math.PI * 2);
     this.ctx.fillStyle = meteor.gradient || meteor.color;
     
-    // Shadow color is set per meteor color
-    this.ctx.shadowColor = meteor.color;
+    // Shadow color is set per meteor color (only if shadows enabled)
+    if (this.shadowsEnabled) {
+      this.ctx.shadowColor = meteor.color;
+    }
     this.ctx.fill();
   }
 
@@ -325,8 +368,10 @@ export class RenderSystem {
     this.ctx.arc(particle.x, particle.y, particle.radius, 0, Math.PI * 2);
     this.ctx.fillStyle = particle.color.replace(/,\s*[\d.]+\)$/, `, ${particle.alpha})`);
     
-    // Shadow color is set per particle color
-    this.ctx.shadowColor = particle.color;
+    // Shadow color is set per particle color (only if shadows enabled)
+    if (this.shadowsEnabled) {
+      this.ctx.shadowColor = particle.color;
+    }
     this.ctx.fill();
   }
 

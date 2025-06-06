@@ -24,6 +24,7 @@ export default function Game() {
     particles: 0,
     poolSizes: { meteors: 0, particles: 0 },
     autoScaling: { enabled: true, shadowsEnabled: true, maxParticles: 300 },
+    autoScaling: { enabled: true, shadowsEnabled: true, maxParticles: 300, adaptiveTrailsActive: true },
     performance: { averageFrameTime: 0, memoryUsage: 0, lastScalingEvent: 'none' },
     settings: {
       volume: 0.7,
