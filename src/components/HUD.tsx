@@ -20,9 +20,10 @@ interface HUDProps {
   settings?: { performanceMode?: boolean };
   isGameOver?: boolean;
   showIntro?: boolean;
+  isPaused?: boolean;
 }
 
-export default function HUD({ score, time, fps, meteors = 0, particles = 0, poolSizes, autoScaling, performance, settings, isGameOver = false, showIntro = false }: HUDProps) {
+export default function HUD({ score, time, fps, meteors = 0, particles = 0, poolSizes, autoScaling, performance, settings, isGameOver = false, showIntro = false, isPaused = false }: HUDProps) {
   const { user } = useAuthStore();
   const [showAccount, setShowAccount] = useState(false);
   const [showSignup, setShowSignup] = useState(false);
@@ -60,7 +61,7 @@ export default function HUD({ score, time, fps, meteors = 0, particles = 0, pool
   return (
     <>
       {/* Game Stats - Only show during active gameplay */}
-      {!isGameOver && !showIntro && (
+      {!isGameOver && !showIntro && !isPaused && (
         <div className="absolute top-4 left-4 flex flex-col gap-2 text-cyan-500 font-mono text-sm">
           <div className="flex gap-6">
             <div>Score: {score}</div>
@@ -110,7 +111,7 @@ export default function HUD({ score, time, fps, meteors = 0, particles = 0, pool
       )}
 
       {/* Top Right Controls - Hide on mobile during active gameplay, always show on desktop or when game is over */}
-      {(!isMobile || isGameOver) && !showIntro && (
+      {(!isMobile || isGameOver || isPaused) && !showIntro && (
         <div className="absolute top-4 right-4 flex gap-2">
           <button
             onClick={() => setShowHelp(true)}
@@ -160,7 +161,7 @@ export default function HUD({ score, time, fps, meteors = 0, particles = 0, pool
       )}
 
       {/* Mobile-specific notification when buttons are hidden */}
-      {isMobile && !isGameOver && !showIntro && (
+      {isMobile && !isGameOver && !showIntro && !isPaused && (
         <div className="absolute top-4 right-4 bg-black/50 text-cyan-300 px-3 py-1 rounded-lg text-xs border border-cyan-500/30">
           Menu available after game
         </div>

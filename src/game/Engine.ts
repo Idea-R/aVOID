@@ -28,6 +28,9 @@ export default class Engine {
   private gracePeriodActive: boolean = false;
   private gracePeriodDuration: number = 3000; // 3 seconds
   private gracePeriodStartTime: number = 0;
+  private isPaused: boolean = false;
+  private pausedTime: number = 0;
+  private lastPauseTime: number = 0;
   
   // Systems
   private renderSystem: RenderSystem;
@@ -136,6 +139,11 @@ export default class Engine {
     window.addEventListener('touchend', this.handleTouchEnd);
     
     window.addEventListener('gameSettingsChanged', this.handleSettingsChange);
+    
+    // Add focus/blur event listeners for auto-pause
+    window.addEventListener('blur', this.handleWindowBlur);
+    window.addEventListener('focus', this.handleWindowFocus);
+    document.addEventListener('visibilitychange', this.handleVisibilityChange);
   }
 
   private loadSettings() {
@@ -167,6 +175,71 @@ export default class Engine {
     }
   };
   
+  private handleWindowBlur = () => {
+    if (!this.isGameOver && this.started) {
+      this.pauseGame();
+      console.log('🎮 Game paused - window lost focus');
+    }
+  };
+
+  private handleWindowFocus = () => {
+    if (this.isPaused && !this.isGameOver && this.started) {
+      this.resumeGame();
+      console.log('🎮 Game resumed - window gained focus');
+    }
+  };
+
+  private handleVisibilityChange = () => {
+    if (document.hidden) {
+      if (!this.isGameOver && this.started) {
+        this.pauseGame();
+        console.log('🎮 Game paused - tab hidden');
+      }
+    } else {
+      if (this.isPaused && !this.isGameOver && this.started) {
+        this.resumeGame();
+        console.log('🎮 Game resumed - tab visible');
+      }
+    }
+  };
+
+  private pauseGame(): void {
+    if (this.isPaused) return;
+    
+    this.isPaused = true;
+    this.lastPauseTime = performance.now();
+    
+    // Stop the animation frame loop
+    if (this.animationFrame !== null) {
+      cancelAnimationFrame(this.animationFrame);
+      this.animationFrame = null;
+    }
+  }
+
+  private resumeGame(): void {
+    if (!this.isPaused) return;
+    
+    this.isPaused = false;
+    
+    // Calculate how long we were paused and adjust timers
+    const pauseDuration = performance.now() - this.lastPauseTime;
+    this.pausedTime += pauseDuration;
+    
+    // Adjust grace period if it was active
+    if (this.gracePeriodActive) {
+      this.gracePeriodStartTime += pauseDuration;
+    }
+    
+    // Adjust FPS tracking
+    this.fpsLastTime += pauseDuration;
+    
+    // Reset last time to prevent large delta
+    this.lastTime = performance.now();
+    
+    // Resume the game loop
+    this.animationFrame = requestAnimationFrame(this.gameLoop);
+  }
+
   private applyPerformanceMode(enabled: boolean): void {
     this.performanceModeActive = enabled;
     
@@ -495,6 +568,7 @@ export default class Engine {
 
   private update(deltaTime: number) {
     if (this.isGameOver) return;
+    if (this.isPaused) return;
     
     // Handle grace period
     if (this.gracePeriodActive) {
@@ -671,6 +745,12 @@ export default class Engine {
   }
 
   private render() {
+    if (this.isPaused) {
+      // Render pause overlay
+      this.renderPauseOverlay();
+      return;
+    }
+    
     const renderState = {
       mouseX: this.mouseX,
       mouseY: this.mouseY,
@@ -689,7 +769,41 @@ export default class Engine {
     this.renderSystem.render(renderState);
   }
 
+  private renderPauseOverlay(): void {
+    const ctx = this.canvas.getContext('2d');
+    if (!ctx) return;
+    
+    // Semi-transparent overlay
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+    ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+    
+    // Pause text
+    ctx.fillStyle = '#06b6d4';
+    ctx.font = 'bold 48px Arial';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    
+    const centerX = this.canvas.width / 2;
+    const centerY = this.canvas.height / 2;
+    
+    ctx.fillText('GAME PAUSED', centerX, centerY - 30);
+    
+    // Subtitle
+    ctx.fillStyle = '#67e8f9';
+    ctx.font = '24px Arial';
+    ctx.fillText('Click here to resume', centerX, centerY + 30);
+    
+    // Add glow effect
+    ctx.shadowColor = '#06b6d4';
+    ctx.shadowBlur = 20;
+    ctx.fillStyle = '#06b6d4';
+    ctx.fillText('GAME PAUSED', centerX, centerY - 30);
+    
+    ctx.shadowBlur = 0;
+  }
   private gameLoop = (timestamp: number) => {
+    if (this.isPaused) return;
+    
     const deltaTime = timestamp - this.lastTime;
     this.lastTime = timestamp;
 
@@ -732,6 +846,9 @@ export default class Engine {
     window.removeEventListener('touchmove', this.handleTouchMove);
     window.removeEventListener('touchend', this.handleTouchEnd);
     window.removeEventListener('gameSettingsChanged', this.handleSettingsChange);
+    window.removeEventListener('blur', this.handleWindowBlur);
+    window.removeEventListener('focus', this.handleWindowFocus);
+    document.removeEventListener('visibilitychange', this.handleVisibilityChange);
   }
 
   isStarted(): boolean {
@@ -744,6 +861,9 @@ export default class Engine {
 
   resetGame() {
     this.isGameOver = false;
+    this.isPaused = false;
+    this.pausedTime = 0;
+    this.lastPauseTime = 0;
     this.gameTime = 0;
     this.score = 0;
     this.gracePeriodActive = true;
@@ -790,6 +910,19 @@ export default class Engine {
     this.powerUpManager.reset();
     
     console.log('Game reset completed');
+  }
+
+  // Public pause/resume methods
+  pause(): void {
+    this.pauseGame();
+  }
+
+  resume(): void {
+    this.resumeGame();
+  }
+
+  isPausedState(): boolean {
+    return this.isPaused;
   }
 
   getSettings(): GameSettings {

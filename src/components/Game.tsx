@@ -22,6 +22,7 @@ export default function Game({ autoStart = false }: GameProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const engineRef = useRef<Engine | null>(null);
   const [showIntro, setShowIntro] = useState(true);
+  const [isPaused, setIsPaused] = useState(false);
   const [gameState, setGameState] = useState({ 
     score: 0, 
     time: 0, 
@@ -56,6 +57,15 @@ export default function Game({ autoStart = false }: GameProps) {
       setGameState(state);
     };
     
+    // Monitor pause state
+    const checkPauseState = () => {
+      if (engine) {
+        setIsPaused(engine.isPausedState());
+      }
+    };
+    
+    const pauseInterval = setInterval(checkPauseState, 100);
+    
     // Start engine immediately if auto-start is enabled
     if (autoStart) {
       // Show intro sequence first
@@ -88,6 +98,7 @@ export default function Game({ autoStart = false }: GameProps) {
     return () => {
       console.log('Cleaning up game engine...');
       window.removeEventListener('autoPerformanceModeActivated', handleAutoPerformanceMode as EventListener);
+      clearInterval(pauseInterval);
       engine.stop();
     };
   }, []);
@@ -116,6 +127,11 @@ export default function Game({ autoStart = false }: GameProps) {
     }
   }, []); // Memoize to prevent recreation on every render
 
+  const handleCanvasClick = () => {
+    if (isPaused && engineRef.current) {
+      engineRef.current.resume();
+    }
+  };
   console.log('Rendering Game component, isGameOver:', gameState.isGameOver);
 
   return (
@@ -123,7 +139,8 @@ export default function Game({ autoStart = false }: GameProps) {
       <canvas
         ref={canvasRef}
         className="w-full h-full absolute inset-0"
-        style={{ cursor: gameState.isGameOver ? 'default' : 'none' }}
+       style={{ cursor: gameState.isGameOver || isPaused ? 'default' : 'none' }}
+       onClick={handleCanvasClick}
       />
       
       {/* Game Intro Overlay */}
