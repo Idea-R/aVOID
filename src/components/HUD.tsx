@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Trophy, User, UserPlus, Settings, Flame } from 'lucide-react';
+import { Trophy, User, UserPlus, Settings } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import AccountModal from './AccountModal';
 import SignupModal from './SignupModal';
@@ -14,21 +14,9 @@ interface HUDProps {
   particles?: number;
   poolSizes?: { meteors: number; particles: number };
   isGameOver?: boolean;
-  flameActive?: boolean;
-  flameTimeRemaining?: number;
 }
 
-export default function HUD({ 
-  score, 
-  time, 
-  fps, 
-  meteors = 0, 
-  particles = 0, 
-  poolSizes, 
-  isGameOver = false,
-  flameActive = false,
-  flameTimeRemaining = 0
-}: HUDProps) {
+export default function HUD({ score, time, fps, meteors = 0, particles = 0, poolSizes, isGameOver = false }: HUDProps) {
   const { user } = useAuthStore();
   const [showAccount, setShowAccount] = useState(false);
   const [showSignup, setShowSignup] = useState(false);
@@ -81,21 +69,6 @@ export default function HUD({
           
           <div className="text-xs text-yellow-400 opacity-80">
             Double-click to use knockback power when available
-          </div>
-        </div>
-      )}
-
-      {/* Flame Power-up Timer - Only show when active and not game over */}
-      {flameActive && !isGameOver && (
-        <div className="absolute top-4 left-1/2 transform -translate-x-1/2">
-          <div className="bg-red-900/80 border border-red-500 rounded-lg px-4 py-2 flex items-center gap-2">
-            <Flame className="w-5 h-5 text-red-400 animate-pulse" />
-            <div className="text-red-300 font-mono font-bold">
-              FLAME BOOST: {Math.ceil(flameTimeRemaining)}s
-            </div>
-            <div className="text-red-200 text-sm">
-              2x Score • 1.5x Speed
-            </div>
           </div>
         </div>
       )}

@@ -30,9 +30,7 @@ export default function Game() {
       showFPS: true,
       showPerformanceStats: true,
       showTrails: true
-    } as GameSettings,
-    flameActive: false,
-    flameTimeRemaining: 0
+    } as GameSettings
   });
 
   useEffect(() => {
@@ -60,14 +58,7 @@ export default function Game() {
     console.log('Play again clicked');
     if (engineRef.current) {
       engineRef.current.resetGame();
-      setGameState(prev => ({ 
-        ...prev, 
-        isGameOver: false, 
-        score: 0, 
-        time: 0,
-        flameActive: false,
-        flameTimeRemaining: 0
-      }));
+      setGameState(prev => ({ ...prev, isGameOver: false, score: 0, time: 0 }));
     }
   };
 
@@ -89,8 +80,6 @@ export default function Game() {
           particles={gameState.settings.showPerformanceStats ? gameState.particles : 0}
           poolSizes={gameState.settings.showPerformanceStats ? gameState.poolSizes : undefined}
           isGameOver={gameState.isGameOver}
-          flameActive={gameState.flameActive}
-          flameTimeRemaining={gameState.flameTimeRemaining}
         />
       )}
       {gameState.isGameOver && (

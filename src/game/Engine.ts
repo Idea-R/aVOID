@@ -44,13 +44,6 @@ export default class Engine {
   private lastClickTime: number = 0;
   private clickCount: number = 0;
   
-  // Flame power-up state
-  private flameActive: boolean = false;
-  private flameTimeRemaining: number = 0;
-  private flameDuration: number = 10; // 10 seconds
-  private speedMultiplier: number = 1.0;
-  private scoreMultiplier: number = 1.0;
-  
   // FPS tracking
   private frameCount: number = 0;
   private fpsLastTime: number = 0;
@@ -80,8 +73,6 @@ export default class Engine {
     particles: number;
     poolSizes: { meteors: number; particles: number };
     settings: GameSettings;
-    flameActive: boolean;
-    flameTimeRemaining: number;
   }) => void = () => {};
 
   constructor(canvas: HTMLCanvasElement) {
@@ -200,34 +191,7 @@ export default class Engine {
       }
     }
 
-    this.score += destroyedCount * 50 * this.scoreMultiplier;
-  }
-
-  private activateFlame() {
-    this.flameActive = true;
-    this.flameTimeRemaining = this.flameDuration;
-    this.speedMultiplier = 3.0;
-    this.scoreMultiplier = 2.0;
-    
-    // Create minimal flame particles (max 6 for performance)
-    const flameParticles = Math.min(6, this.MAX_PARTICLES - this.activeParticles.length);
-    for (let i = 0; i < flameParticles; i++) {
-      const angle = (Math.PI * 2 * i) / flameParticles;
-      const distance = 20 + Math.random() * 10;
-      
-      const particle = this.particlePool.get();
-      initializeParticle(
-        particle,
-        this.mouseX + Math.cos(angle) * distance,
-        this.mouseY + Math.sin(angle) * distance,
-        Math.cos(angle) * 2,
-        Math.sin(angle) * 2,
-        2 + Math.random(),
-        '#ff4500',
-        30 + Math.random() * 20
-      );
-      this.activeParticles.push(particle);
-    }
+    this.score += destroyedCount * 50;
   }
 
   private createShockwave(x: number, y: number) {
@@ -350,9 +314,6 @@ export default class Engine {
     let speed = baseSpeed + speedIncrease;
     speed *= 0.8 + Math.random() * 0.4;
     if (isSuper) speed *= 2;
-    
-    // Apply speed multiplier from flame power-up
-    speed *= this.speedMultiplier;
 
     const color = isSuper ? '#ff4040' : this.getRandomColor();
     const baseRadius = isSuper ? 12 : 6;
@@ -407,17 +368,6 @@ export default class Engine {
     
     this.gameTime += deltaTime / 1000;
     
-    // Update flame power-up
-    if (this.flameActive) {
-      this.flameTimeRemaining -= deltaTime / 1000;
-      if (this.flameTimeRemaining <= 0) {
-        this.flameActive = false;
-        this.flameTimeRemaining = 0;
-        this.speedMultiplier = 1.0;
-        this.scoreMultiplier = 1.0;
-      }
-    }
-    
     // Clear spatial grid
     this.spatialGrid.clear();
     
@@ -425,13 +375,9 @@ export default class Engine {
     this.powerUpManager.update(this.gameTime, deltaTime);
     
     const collectedPowerUp = this.powerUpManager.checkCollision(this.mouseX, this.mouseY);
-    if (collectedPowerUp) {
-      if (collectedPowerUp.type === 'knockback') {
-        this.hasKnockbackPower = true;
-        this.playerRingPhase = 0;
-      } else if (collectedPowerUp.type === 'flame') {
-        this.activateFlame();
-      }
+    if (collectedPowerUp && collectedPowerUp.type === 'knockback') {
+      this.hasKnockbackPower = true;
+      this.playerRingPhase = 0;
     }
     
     if (this.knockbackCooldown > 0) {
@@ -516,9 +462,7 @@ export default class Engine {
             meteors: this.meteorPool.getPoolSize(),
             particles: this.particlePool.getPoolSize()
           },
-          settings: this.gameSettings,
-          flameActive: this.flameActive,
-          flameTimeRemaining: this.flameTimeRemaining
+          settings: this.gameSettings
         });
         
         console.log('Game over state updated!'); // Debug log
@@ -549,7 +493,7 @@ export default class Engine {
       }
     }
 
-    this.score = Math.floor(this.gameTime * this.scoreMultiplier);
+    this.score = Math.floor(this.gameTime);
     this.meteorCount = this.activeMeteors.length;
     this.particleCount = this.activeParticles.length;
     
@@ -565,9 +509,7 @@ export default class Engine {
         meteors: this.meteorPool.getPoolSize(),
         particles: this.particlePool.getPoolSize()
       },
-      settings: this.gameSettings,
-      flameActive: this.flameActive,
-      flameTimeRemaining: this.flameTimeRemaining
+      settings: this.gameSettings
     });
   }
 
@@ -585,51 +527,24 @@ export default class Engine {
     powerUps.forEach(powerUp => {
       this.ctx.beginPath();
       this.ctx.arc(powerUp.x, powerUp.y, powerUp.radius * 2, 0, Math.PI * 2);
-      
-      if (powerUp.type === 'flame') {
-        // Red flame gradient
-        this.ctx.fillStyle = `rgba(255, 69, 0, ${powerUp.glowIntensity * 0.3})`;
-        this.ctx.shadowBlur = 30;
-        this.ctx.shadowColor = '#ff4500';
-      } else {
-        // Gold knockback gradient
-        this.ctx.fillStyle = `rgba(255, 215, 0, ${powerUp.glowIntensity * 0.3})`;
-        this.ctx.shadowBlur = 30;
-        this.ctx.shadowColor = '#ffd700';
-      }
-      
+      this.ctx.fillStyle = `rgba(255, 215, 0, ${powerUp.glowIntensity * 0.3})`;
+      this.ctx.shadowBlur = 30;
+      this.ctx.shadowColor = '#ffd700';
       this.ctx.fill();
       this.ctx.shadowBlur = 0;
       
       this.ctx.beginPath();
       this.ctx.arc(powerUp.x, powerUp.y, powerUp.radius, 0, Math.PI * 2);
-      
-      if (powerUp.type === 'flame') {
-        // Simple red fire gradient
-        const gradient = this.ctx.createRadialGradient(
-          powerUp.x, powerUp.y, 0,
-          powerUp.x, powerUp.y, powerUp.radius
-        );
-        gradient.addColorStop(0, '#ffff80');
-        gradient.addColorStop(0.3, '#ff6600');
-        gradient.addColorStop(0.7, '#ff4500');
-        gradient.addColorStop(1, '#cc0000');
-        this.ctx.fillStyle = gradient;
-      } else {
-        // Gold knockback gradient
-        const gradient = this.ctx.createRadialGradient(
-          powerUp.x, powerUp.y, 0,
-          powerUp.x, powerUp.y, powerUp.radius
-        );
-        gradient.addColorStop(0, '#ffff80');
-        gradient.addColorStop(0.7, '#ffd700');
-        gradient.addColorStop(1, '#ffb000');
-        this.ctx.fillStyle = gradient;
-      }
-      
+      const gradient = this.ctx.createRadialGradient(
+        powerUp.x, powerUp.y, 0,
+        powerUp.x, powerUp.y, powerUp.radius
+      );
+      gradient.addColorStop(0, '#ffff80');
+      gradient.addColorStop(0.7, '#ffd700');
+      gradient.addColorStop(1, '#ffb000');
+      this.ctx.fillStyle = gradient;
       this.ctx.fill();
       
-      // Simple highlight
       this.ctx.beginPath();
       this.ctx.arc(powerUp.x - 5, powerUp.y - 5, powerUp.radius * 0.3, 0, Math.PI * 2);
       this.ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
@@ -680,17 +595,10 @@ export default class Engine {
       const progress = 1 - index / this.playerTrail.length;
       this.ctx.beginPath();
       this.ctx.arc(point.x, point.y, 8 * progress, 0, Math.PI * 2);
-      
-      // Change trail color when flame is active
-      if (this.flameActive) {
-        this.ctx.fillStyle = `rgba(255, 69, 0, ${point.alpha * 0.7})`;
-        this.ctx.shadowColor = '#ff4500';
-      } else {
-        this.ctx.fillStyle = `rgba(6, 182, 212, ${point.alpha * 0.7})`;
-        this.ctx.shadowColor = '#06b6d4';
-      }
+      this.ctx.fillStyle = `rgba(6, 182, 212, ${point.alpha * 0.7})`;
       
       this.ctx.shadowBlur = 15;
+      this.ctx.shadowColor = '#06b6d4';
       this.ctx.fill();
       this.ctx.shadowBlur = 0;
     });
@@ -708,33 +616,14 @@ export default class Engine {
       this.ctx.shadowBlur = 0;
     }
     
-    // Draw flame power ring
-    if (this.flameActive) {
-      const ringRadius = 18 + Math.sin(this.gameTime * 8) * 2;
-      this.ctx.beginPath();
-      this.ctx.arc(this.mouseX, this.mouseY, ringRadius, 0, Math.PI * 2);
-      this.ctx.strokeStyle = `rgba(255, 69, 0, ${0.6 + Math.sin(this.gameTime * 10) * 0.3})`;
-      this.ctx.lineWidth = 2;
-      this.ctx.shadowBlur = 8;
-      this.ctx.shadowColor = '#ff4500';
-      this.ctx.stroke();
-      this.ctx.shadowBlur = 0;
-    }
-    
     // Draw player
     if (!this.isGameOver) {
       this.ctx.beginPath();
       this.ctx.arc(this.mouseX, this.mouseY, 8, 0, Math.PI * 2);
-      
-      if (this.flameActive) {
-        this.ctx.fillStyle = '#ff4500';
-        this.ctx.shadowColor = '#ff4500';
-      } else {
-        this.ctx.fillStyle = '#06b6d4';
-        this.ctx.shadowColor = '#06b6d4';
-      }
+      this.ctx.fillStyle = '#06b6d4';
       
       this.ctx.shadowBlur = 20;
+      this.ctx.shadowColor = '#06b6d4';
       this.ctx.fill();
       this.ctx.shadowBlur = 0;
     }
@@ -810,12 +699,6 @@ export default class Engine {
     this.knockbackCooldown = 0;
     this.playerRingPhase = 0;
     this.screenShake = { x: 0, y: 0, intensity: 0, duration: 0 };
-    
-    // Reset flame power-up
-    this.flameActive = false;
-    this.flameTimeRemaining = 0;
-    this.speedMultiplier = 1.0;
-    this.scoreMultiplier = 1.0;
     
     // Reset particle limit to default
     this.MAX_PARTICLES = 300;
