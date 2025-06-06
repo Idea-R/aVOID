@@ -189,16 +189,12 @@ export default class Engine {
       const distance = Math.sqrt(dx * dx + dy * dy);
 
       if (distance <= 150) {
-        // Calculate points: 5-20 range based on meteor type and distance
-        let points = meteor.isSuper ? 15 : 10; // Base points (10 for regular, 15 for super)
+        // Calculate points based on meteor type and distance
+        let points = meteor.isSuper ? 100 : 50; // Base points
         
-        // Distance bonus: closer meteors give more points (up to 5-10 additional points)
-        const maxDistanceBonus = meteor.isSuper ? 5 : 5;
-        const distanceBonus = Math.floor((150 - distance) / 150 * maxDistanceBonus);
+        // Distance bonus: closer meteors give more points
+        const distanceBonus = Math.floor((150 - distance) / 150 * 25);
         points += distanceBonus;
-        
-        // Ensure points stay within 5-20 range
-        points = Math.max(5, Math.min(20, points));
         
         totalPoints += points;
         
@@ -219,7 +215,7 @@ export default class Engine {
     
     // Show combo bonus if multiple meteors destroyed
     if (destroyedCount > 1) {
-      const comboBonus = destroyedCount * 5; // 5 points per meteor in combo
+      const comboBonus = destroyedCount * 25;
       this.score += comboBonus;
       this.createScorePopup(this.mouseX, this.mouseY, comboBonus, true);
     }
@@ -728,76 +724,78 @@ export default class Engine {
     });
   }
 
-  public start() {
-    if (this.animationFrame) return;
-    
-    this.lastTime = performance.now();
-    this.fpsLastTime = this.lastTime;
-    this.gameLoop();
-  }
+  private gameLoop = (timestamp: number) => {
+    const deltaTime = timestamp - this.lastTime;
+    this.lastTime = timestamp;
 
-  public stop() {
-    if (this.animationFrame) {
-      cancelAnimationFrame(this.animationFrame);
-      this.animationFrame = null;
-    }
-  }
-
-  public reset() {
-    this.stop();
-    
-    // Reset game state
-    this.gameTime = 0;
-    this.score = 0;
-    this.isGameOver = false;
-    this.hasKnockbackPower = false;
-    this.knockbackCooldown = 0;
-    this.playerRingPhase = 0;
-    this.screenShake = { x: 0, y: 0, intensity: 0, duration: 0 };
-    this.lastClickTime = 0;
-    this.clickCount = 0;
-    
-    // Clear arrays
-    this.activeMeteors.forEach(meteor => this.meteorPool.release(meteor));
-    this.activeMeteors.length = 0;
-    
-    this.activeParticles.forEach(particle => this.particlePool.release(particle));
-    this.activeParticles.length = 0;
-    
-    this.scorePopups.length = 0;
-    this.playerTrail.length = 0;
-    
-    // Reset power-up manager
-    this.powerUpManager = new PowerUpManager();
-    
-    // Reset spatial grid
-    this.spatialGrid.clear();
-    
-    // Reset FPS tracking
-    this.frameCount = 0;
-    this.currentFPS = 0;
-    this.meteorCount = 0;
-    this.particleCount = 0;
-  }
-
-  private gameLoop = () => {
-    const currentTime = performance.now();
-    const deltaTime = currentTime - this.lastTime;
-    this.lastTime = currentTime;
-    
-    this.updateFPS(currentTime);
+    this.updateFPS(timestamp);
     this.update(deltaTime);
     this.render();
-    
+
     this.animationFrame = requestAnimationFrame(this.gameLoop);
   };
 
-  public destroy() {
-    this.stop();
+  start() {
+    if (this.animationFrame === null) {
+      this.lastTime = performance.now();
+      this.fpsLastTime = this.lastTime;
+      this.animationFrame = requestAnimationFrame(this.gameLoop);
+    }
+  }
+
+  stop() {
+    if (this.animationFrame !== null) {
+      cancelAnimationFrame(this.animationFrame);
+      this.animationFrame = null;
+    }
+    
+    // Clean up pools
+    this.meteorPool.clear();
+    this.particlePool.clear();
+    this.activeMeteors.length = 0;
+    this.activeParticles.length = 0;
+    
     window.removeEventListener('resize', this.resizeCanvas);
     window.removeEventListener('mousemove', this.handleMouseMove);
     window.removeEventListener('dblclick', this.handleDoubleClick);
     window.removeEventListener('touchend', this.handleTouchEnd);
     window.removeEventListener('gameSettingsChanged', this.handleSettingsChange);
+  }
+
+  // Public method to get current game over state
+  getGameOverState(): boolean {
+    return this.isGameOver;
+  }
+
+  // Public method to reset game state
+  resetGame() {
+    this.isGameOver = false;
+    this.gameTime = 0;
+    this.score = 0;
+    this.hasKnockbackPower = false;
+    this.knockbackCooldown = 0;
+    this.playerRingPhase = 0;
+    this.screenShake = { x: 0, y: 0, intensity: 0, duration: 0 };
+    
+    // Reset particle limit to default
+    this.MAX_PARTICLES = 300;
+    
+    // Clear all active objects
+    this.activeMeteors.forEach(meteor => this.meteorPool.release(meteor));
+    this.activeParticles.forEach(particle => this.particlePool.release(particle));
+    this.activeMeteors.length = 0;
+    this.activeParticles.length = 0;
+    this.playerTrail.length = 0;
+    this.scorePopups.length = 0;
+    
+    // Reset power-up manager
+    this.powerUpManager.reset();
+    
+    console.log('Game reset completed');
+  }
+
+  // Public method to get current settings
+  getSettings(): GameSettings {
+    return { ...this.gameSettings };
   }
 }
