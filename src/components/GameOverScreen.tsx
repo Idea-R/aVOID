@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Trophy, Star, UserPlus, Eye } from 'lucide-react';
+import { Trophy, Star, UserPlus, Eye, RotateCcw } from 'lucide-react';
 import { LeaderboardAPI } from '../api/leaderboard';
 import { useAuthStore } from '../store/authStore';
 import SignupModal from './SignupModal';
@@ -7,9 +7,10 @@ import LeaderboardModal from './LeaderboardModal';
 
 interface GameOverScreenProps {
   score: number;
+  onPlayAgain?: () => void;
 }
 
-export default function GameOverScreen({ score }: GameOverScreenProps) {
+export default function GameOverScreen({ score, onPlayAgain }: GameOverScreenProps) {
   const [playerName, setPlayerName] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [showSignup, setShowSignup] = useState(false);
@@ -20,8 +21,10 @@ export default function GameOverScreen({ score }: GameOverScreenProps) {
   const { user } = useAuthStore();
 
   useEffect(() => {
+    console.log('GameOverScreen mounted with score:', score);
     const getPlayerRank = async () => {
       const rank = await LeaderboardAPI.getPlayerRank(score);
+      console.log('Player rank calculated:', rank);
       setPlayerRank(rank);
     };
     getPlayerRank();
@@ -53,12 +56,19 @@ export default function GameOverScreen({ score }: GameOverScreenProps) {
   };
 
   const handlePlayAgain = () => {
-    window.location.reload();
+    console.log('Play again button clicked');
+    if (onPlayAgain) {
+      onPlayAgain();
+    } else {
+      window.location.reload();
+    }
   };
+
+  console.log('Rendering GameOverScreen');
 
   return (
     <>
-      <div className="absolute inset-0 bg-black bg-opacity-90 flex items-center justify-center">
+      <div className="absolute inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50">
         <div className="bg-gray-900 p-8 rounded-lg shadow-xl border border-cyan-500 max-w-md w-full mx-4">
           <div className="flex items-center justify-center mb-6">
             <Trophy className="w-12 h-12 text-yellow-500" />
@@ -155,8 +165,9 @@ export default function GameOverScreen({ score }: GameOverScreenProps) {
             
             <button
               onClick={handlePlayAgain}
-              className="w-full bg-transparent border border-cyan-500 text-cyan-500 hover:bg-cyan-500 hover:text-black font-bold py-2 px-4 rounded transition-colors duration-200"
+              className="w-full bg-transparent border border-cyan-500 text-cyan-500 hover:bg-cyan-500 hover:text-black font-bold py-2 px-4 rounded transition-colors duration-200 flex items-center justify-center gap-2"
             >
+              <RotateCcw className="w-4 h-4" />
               Play Again
             </button>
           </div>

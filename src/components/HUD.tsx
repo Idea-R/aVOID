@@ -64,6 +64,37 @@ export default function HUD({ score, time, fps, meteors = 0, particles = 0, pool
         )}
       </div>
 
+      {/* Top Right Controls - Only show during active gameplay */}
+      {!isGameOver && (
+        <div className="absolute top-4 right-4 flex gap-2">
+          <button
+            onClick={() => setShowLeaderboard(true)}
+            className="bg-yellow-600 hover:bg-yellow-700 text-white p-2 rounded-lg transition-colors duration-200 flex items-center gap-2 text-sm font-semibold"
+          >
+            <Trophy className="w-4 h-4" />
+            Leaderboard
+          </button>
+
+          {user ? (
+            <button
+              onClick={() => setShowAccount(true)}
+              className="bg-cyan-600 hover:bg-cyan-700 text-white p-2 rounded-lg transition-colors duration-200 flex items-center gap-2 text-sm font-semibold"
+            >
+              <User className="w-4 h-4" />
+              {user.user_metadata?.display_name || user.email?.split('@')[0] || 'Account'}
+            </button>
+          ) : (
+            <button
+              onClick={() => setShowSignup(true)}
+              className="bg-green-600 hover:bg-green-700 text-white p-2 rounded-lg transition-colors duration-200 flex items-center gap-2 text-sm font-semibold"
+            >
+              <UserPlus className="w-4 h-4" />
+              Sign Up
+            </button>
+          )}
+        </div>
+      )}
+
       <AccountModal
         isOpen={showAccount}
         onClose={() => setShowAccount(false)}

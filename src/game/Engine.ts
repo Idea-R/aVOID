@@ -381,15 +381,32 @@ export default class Engine {
         id: meteor.id
       });
 
-      // Check collision with player
+      // Check collision with player - CRITICAL COLLISION DETECTION
       const dx = meteor.x - this.mouseX;
       const dy = meteor.y - this.mouseY;
       const distance = Math.sqrt(dx * dx + dy * dy);
       
       if (distance < meteor.radius + 6) {
+        console.log('COLLISION DETECTED! Setting game over state...'); // Debug log
         this.createExplosion(this.mouseX, this.mouseY, '#06b6d4');
         this.createExplosion(meteor.x, meteor.y, meteor.color, meteor.isSuper);
         this.isGameOver = true;
+        
+        // Force immediate state update
+        this.onStateUpdate({ 
+          score: this.score, 
+          time: this.gameTime, 
+          isGameOver: true, 
+          fps: this.currentFPS,
+          meteors: this.meteorCount,
+          particles: this.particleCount,
+          poolSizes: {
+            meteors: this.meteorPool.getPoolSize(),
+            particles: this.particlePool.getPoolSize()
+          }
+        });
+        
+        console.log('Game over state updated!'); // Debug log
         return;
       }
 
@@ -421,6 +438,7 @@ export default class Engine {
     this.meteorCount = this.activeMeteors.length;
     this.particleCount = this.activeParticles.length;
     
+    // Always update state, even during normal gameplay
     this.onStateUpdate({ 
       score: this.score, 
       time: this.gameTime, 
@@ -602,5 +620,33 @@ export default class Engine {
     window.removeEventListener('mousemove', this.handleMouseMove);
     window.removeEventListener('dblclick', this.handleDoubleClick);
     window.removeEventListener('touchend', this.handleTouchEnd);
+  }
+
+  // Public method to get current game over state
+  getGameOverState(): boolean {
+    return this.isGameOver;
+  }
+
+  // Public method to reset game state
+  resetGame() {
+    this.isGameOver = false;
+    this.gameTime = 0;
+    this.score = 0;
+    this.hasKnockbackPower = false;
+    this.knockbackCooldown = 0;
+    this.playerRingPhase = 0;
+    this.screenShake = { x: 0, y: 0, intensity: 0, duration: 0 };
+    
+    // Clear all active objects
+    this.activeMeteors.forEach(meteor => this.meteorPool.release(meteor));
+    this.activeParticles.forEach(particle => this.particlePool.release(particle));
+    this.activeMeteors.length = 0;
+    this.activeParticles.length = 0;
+    this.playerTrail.length = 0;
+    
+    // Reset power-up manager
+    this.powerUpManager.reset();
+    
+    console.log('Game reset completed');
   }
 }
