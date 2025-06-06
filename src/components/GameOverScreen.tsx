@@ -24,6 +24,7 @@ export default function GameOverScreen({ score, onPlayAgain }: GameOverScreenPro
   const [verifiedRank, setVerifiedRank] = useState<number | null>(null);
   const [scoreSaved, setScoreSaved] = useState(false);
   const [logoVisible, setLogoVisible] = useState(false);
+  const [logoEnlarged, setLogoEnlarged] = useState(false);
   
   const { user } = useAuthStore();
 
@@ -87,6 +88,10 @@ export default function GameOverScreen({ score, onPlayAgain }: GameOverScreenPro
     }
   };
 
+  const toggleLogoSize = () => {
+    setLogoEnlarged(!logoEnlarged);
+  };
+
   console.log('Rendering GameOverScreen');
 
   return (
@@ -94,20 +99,39 @@ export default function GameOverScreen({ score, onPlayAgain }: GameOverScreenPro
       <div className="absolute inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50">
         {/* Animated Logo */}
         <div 
-          className={`absolute top-8 left-1/2 transform -translate-x-1/2 transition-all duration-1000 ease-out ${
+          onClick={toggleLogoSize}
+          className={`absolute cursor-pointer transition-all duration-700 ease-out ${
+            logoEnlarged 
+              ? 'inset-4 z-[60] flex items-center justify-center' 
+              : 'top-8 left-1/2 transform -translate-x-1/2 z-50'
+          } ${
             logoVisible 
               ? 'opacity-100 translate-y-0 scale-100' 
               : 'opacity-0 -translate-y-8 scale-95'
           }`}
         >
-          <img 
-            src={logoImage} 
-            alt="aVOID Logo" 
-            className="h-48 w-auto object-contain border border-cyan-500 rounded-lg p-2 bg-black/20"
-          />
+          <div className={`${logoEnlarged ? 'bg-black/95 rounded-2xl p-8' : ''} transition-all duration-700`}>
+            <img 
+              src={logoImage} 
+              alt="aVOID Logo" 
+              className={`object-contain border border-cyan-500 rounded-lg p-2 bg-black/20 transition-all duration-700 ${
+                logoEnlarged 
+                  ? 'h-[80vh] w-auto max-w-[90vw] shadow-2xl shadow-cyan-500/50' 
+                  : 'h-48 w-auto'
+              }`}
+            />
+            {logoEnlarged && (
+              <div className="text-center mt-6">
+                <p className="text-cyan-300 text-lg font-semibold mb-2">Click to close</p>
+                <p className="text-cyan-500 text-sm opacity-80">aVOID - Browser Dodge Game</p>
+              </div>
+            )}
+          </div>
         </div>
         
-        <div className="bg-gray-900 p-8 rounded-lg shadow-xl border border-cyan-500 max-w-md w-full mx-4">
+        <div className={`bg-gray-900 p-8 rounded-lg shadow-xl border border-cyan-500 max-w-md w-full mx-4 transition-all duration-700 ${
+          logoEnlarged ? 'opacity-20 pointer-events-none' : 'opacity-100'
+        }`}>
           {/* Header with Action Buttons */}
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-3">
