@@ -16,6 +16,11 @@ export interface UserProfile {
   total_games_played: number;
   total_meteors_destroyed: number;
   total_survival_time: number;
+  total_distance_traveled: number;
+  best_game_score: number;
+  best_game_meteors: number;
+  best_game_time: number;
+  best_game_distance: number;
   created_at: string;
   updated_at: string;
 }
@@ -70,12 +75,22 @@ export class ProfileAPI {
     gamesPlayed?: number;
     meteorsDestroyed?: number;
     survivalTime?: number;
+    distanceTraveled?: number;
+    currentScore?: number;
+    currentMeteors?: number;
+    currentTime?: number;
+    currentDistance?: number;
   }): Promise<boolean> {
-    const { error } = await supabase.rpc('increment_game_stats', {
+    const { error } = await supabase.rpc('update_game_statistics', {
       user_id: userId,
       games_increment: stats.gamesPlayed || 0,
       meteors_increment: stats.meteorsDestroyed || 0,
-      survival_increment: stats.survivalTime || 0
+      survival_increment: stats.survivalTime || 0,
+      distance_increment: stats.distanceTraveled || 0,
+      current_score: stats.currentScore || 0,
+      current_meteors: stats.currentMeteors || 0,
+      current_time: stats.currentTime || 0,
+      current_distance: stats.currentDistance || 0
     });
 
     if (error) {

@@ -86,6 +86,15 @@ export default class Engine {
   // Performance tracking
   private meteorCount: number = 0;
   
+  // Game statistics tracking
+  private gameStats = {
+    meteorsDestroyed: 0,
+    survivalTime: 0,
+    distanceTraveled: 0,
+    lastPlayerX: 0,
+    lastPlayerY: 0
+  };
+  
   // Game settings
   private gameSettings: GameSettings = {
     volume: 0.7,
@@ -418,6 +427,7 @@ export default class Engine {
     for (const meteor of knockbackResult.destroyedMeteors) {
       this.particleSystem.createExplosion(meteor.x, meteor.y, meteor.color, meteor.isSuper);
       this.releaseMeteor(meteor);
+      this.gameStats.meteorsDestroyed++;
     }
 
     // Process pushed meteors
@@ -657,6 +667,19 @@ export default class Engine {
     this.playerTrail.unshift({ x: this.mouseX, y: this.mouseY, alpha: 1 });
     if (this.playerTrail.length > 25) this.playerTrail.pop();
     this.playerTrail.forEach(point => point.alpha *= 0.92);
+    
+    // Track distance traveled
+    if (this.gameStats.lastPlayerX !== 0 || this.gameStats.lastPlayerY !== 0) {
+      const dx = this.mouseX - this.gameStats.lastPlayerX;
+      const dy = this.mouseY - this.gameStats.lastPlayerY;
+      const distance = Math.sqrt(dx * dx + dy * dy);
+      this.gameStats.distanceTraveled += distance;
+    }
+    this.gameStats.lastPlayerX = this.mouseX;
+    this.gameStats.lastPlayerY = this.mouseY;
+    
+    // Update survival time
+    this.gameStats.survivalTime = this.gameTime;
 
     // Spawn meteors with performance consideration
     // Only spawn meteors after grace period
@@ -715,6 +738,9 @@ export default class Engine {
           );
         }
         this.isGameOver = true;
+        
+        // Update user statistics if authenticated
+        this.updateUserStatistics();
         
         // Force immediate state update
         this.onStateUpdate({
@@ -976,6 +1002,15 @@ export default class Engine {
     this.powerUpManager.reset();
     this.scoreSystem.reset();
     
+    // Reset game statistics
+    this.gameStats = {
+      meteorsDestroyed: 0,
+      survivalTime: 0,
+      distanceTraveled: 0,
+      lastPlayerX: 0,
+      lastPlayerY: 0
+    };
+    
     console.log('Game reset completed');
   }
 
@@ -1013,6 +1048,39 @@ export default class Engine {
   
   getAutoPerformanceModeEnabled(): boolean {
     return this.autoPerformanceModeEnabled;
+  }
+  
+  // Update user statistics when game ends
+  private async updateUserStatistics(): Promise<void> {
+    // Import ProfileAPI dynamically to avoid circular dependencies
+    try {
+      const { ProfileAPI } = await import('../api/profiles');
+      const { useAuthStore } = await import('../store/authStore');
+      
+      const authStore = useAuthStore.getState();
+      const user = authStore.user;
+      
+      if (user) {
+        await ProfileAPI.updateGameStats(user.id, {
+          gamesPlayed: 1,
+          meteorsDestroyed: this.gameStats.meteorsDestroyed,
+          survivalTime: this.gameStats.survivalTime,
+          distanceTraveled: Math.floor(this.gameStats.distanceTraveled),
+          currentScore: this.scoreSystem.getTotalScore(),
+          currentMeteors: this.gameStats.meteorsDestroyed,
+          currentTime: this.gameStats.survivalTime,
+          currentDistance: Math.floor(this.gameStats.distanceTraveled)
+        });
+        
+        console.log('📊 User statistics updated:', {
+          meteorsDestroyed: this.gameStats.meteorsDestroyed,
+          survivalTime: this.gameStats.survivalTime.toFixed(1),
+          distanceTraveled: Math.floor(this.gameStats.distanceTraveled)
+        });
+      }
+    } catch (error) {
+      console.warn('Failed to update user statistics:', error);
+    }
   }
   
   // Auto-scaling control methods

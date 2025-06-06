@@ -400,17 +400,48 @@ export default function ProfileModal({ isOpen, onClose, userId }: ProfileModalPr
               <div className="bg-gray-800 rounded-lg p-4">
                 <h3 className="text-lg font-semibold text-cyan-300 mb-4 flex items-center gap-2">
                   <Trophy className="w-5 h-5" />
-                  Game Statistics
+                  Best Game Performance
                 </h3>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <div className="bg-gradient-to-br from-yellow-900/30 to-yellow-800/30 border border-yellow-600/50 rounded-lg p-3">
-                    <div className="flex items-center gap-2 mb-1">
-                      <Trophy className="w-4 h-4 text-yellow-500" />
-                      <span className="text-xs text-yellow-300">Best Score</span>
+                
+                {/* Best Game Stats */}
+                <div className="bg-gradient-to-br from-yellow-900/30 to-orange-900/30 border border-yellow-600/50 rounded-lg p-4 mb-4">
+                  <h4 className="text-yellow-300 font-semibold mb-3 text-center">🏆 Personal Best</h4>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    <div className="text-center">
+                      <div className="flex items-center justify-center gap-1 mb-1">
+                        <Trophy className="w-4 h-4 text-yellow-500" />
+                        <span className="text-xs text-yellow-300">Score</span>
+                      </div>
+                      <p className="text-lg font-bold text-white">{profile.best_game_score.toLocaleString()}</p>
                     </div>
-                    <p className="text-lg font-bold text-white">{bestScore.toLocaleString()}</p>
+                    <div className="text-center">
+                      <div className="flex items-center justify-center gap-1 mb-1">
+                        <Zap className="w-4 h-4 text-red-500" />
+                        <span className="text-xs text-red-300">Meteors</span>
+                      </div>
+                      <p className="text-lg font-bold text-white">{profile.best_game_meteors}</p>
+                    </div>
+                    <div className="text-center">
+                      <div className="flex items-center justify-center gap-1 mb-1">
+                        <Clock className="w-4 h-4 text-green-500" />
+                        <span className="text-xs text-green-300">Time</span>
+                      </div>
+                      <p className="text-lg font-bold text-white">{Math.floor(profile.best_game_time)}s</p>
+                    </div>
+                    <div className="text-center">
+                      <div className="flex items-center justify-center gap-1 mb-1">
+                        <Target className="w-4 h-4 text-blue-500" />
+                        <span className="text-xs text-blue-300">Distance</span>
+                      </div>
+                      <p className="text-lg font-bold text-white">{Math.floor(profile.best_game_distance)}px</p>
+                    </div>
                   </div>
-                  <div className="bg-gradient-to-br from-blue-900/30 to-blue-800/30 border border-blue-600/50 rounded-lg p-3">
+                </div>
+                
+                {/* Overall Statistics */}
+                <h4 className="text-cyan-300 font-semibold mb-3">📊 Overall Statistics</h4>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  <div className="bg-gradient-to-br from-yellow-900/30 to-yellow-800/30 border border-yellow-600/50 rounded-lg p-3">
                     <div className="flex items-center gap-2 mb-1">
                       <Target className="w-4 h-4 text-blue-500" />
                       <span className="text-xs text-blue-300">Games Played</span>
@@ -420,21 +451,28 @@ export default function ProfileModal({ isOpen, onClose, userId }: ProfileModalPr
                   <div className="bg-gradient-to-br from-red-900/30 to-red-800/30 border border-red-600/50 rounded-lg p-3">
                     <div className="flex items-center gap-2 mb-1">
                       <Zap className="w-4 h-4 text-red-500" />
-                      <span className="text-xs text-red-300">Meteors Destroyed</span>
+                      <span className="text-xs text-red-300">Total Meteors</span>
                     </div>
                     <p className="text-lg font-bold text-white">{profile.total_meteors_destroyed}</p>
                   </div>
                   <div className="bg-gradient-to-br from-green-900/30 to-green-800/30 border border-green-600/50 rounded-lg p-3">
                     <div className="flex items-center gap-2 mb-1">
                       <Clock className="w-4 h-4 text-green-500" />
-                      <span className="text-xs text-green-300">Survival Time</span>
+                      <span className="text-xs text-green-300">Time Played</span>
                     </div>
                     <p className="text-lg font-bold text-white">{Math.floor(profile.total_survival_time)}s</p>
+                  </div>
+                  <div className="bg-gradient-to-br from-purple-900/30 to-purple-800/30 border border-purple-600/50 rounded-lg p-3">
+                    <div className="flex items-center gap-2 mb-1">
+                      <Target className="w-4 h-4 text-purple-500" />
+                      <span className="text-xs text-purple-300">Distance</span>
+                    </div>
+                    <p className="text-lg font-bold text-white">{Math.floor(profile.total_distance_traveled)}px</p>
                   </div>
                 </div>
                 {profile.total_games_played > 0 && (
                   <div className="mt-4 pt-4 border-t border-gray-700">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
                       <div>
                         <span className="text-gray-400">Average Survival:</span>
                         <span className="text-white ml-2">
@@ -445,6 +483,12 @@ export default function ProfileModal({ isOpen, onClose, userId }: ProfileModalPr
                         <span className="text-gray-400">Meteors per Game:</span>
                         <span className="text-white ml-2">
                           {(profile.total_meteors_destroyed / profile.total_games_played).toFixed(1)}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-gray-400">Avg Distance:</span>
+                        <span className="text-white ml-2">
+                          {Math.floor(profile.total_distance_traveled / profile.total_games_played)}px
                         </span>
                       </div>
                     </div>
