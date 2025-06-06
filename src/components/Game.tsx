@@ -39,6 +39,7 @@ export default function Game() {
         meteors={gameState.meteors}
         particles={gameState.particles}
         poolSizes={gameState.poolSizes}
+        isGameOver={gameState.isGameOver}
       />
       {gameState.isGameOver && (
         <GameOverScreen score={gameState.score} />
