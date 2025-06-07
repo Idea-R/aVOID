@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Trophy, User, UserPlus, Settings, UserCircle, HelpCircle, Star } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import { ComboInfo } from '../game/systems/ScoreSystem';
+import CyberpunkScoreDisplay from './CyberpunkScoreDisplay';
 import AccountModal from './AccountModal';
 import SignupModal from './SignupModal';
 import LeaderboardModal from './LeaderboardModal';
@@ -64,12 +65,17 @@ export default function HUD({ score, comboInfo, powerUpCharges = 0, maxPowerUpCh
 
   return (
     <>
+      {/* Cyberpunk Score Display - Top Center */}
+      {!isGameOver && !showIntro && !isPaused && (
+        <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-30">
+          <CyberpunkScoreDisplay score={score} />
+        </div>
+      )}
+
       {/* Game Stats - Only show during active gameplay */}
       {!isGameOver && !showIntro && !isPaused && (
         <div className="absolute top-4 left-4 flex flex-col gap-2 text-cyan-500 font-mono text-sm">
           <div className="flex gap-6 items-center">
-            <div className="text-lg font-semibold">Score: {score.toLocaleString()}</div>
-            
             {/* Power-up Charges Display */}
             {maxPowerUpCharges > 0 && (
               <div className="flex items-center gap-2 bg-yellow-900/30 border border-yellow-500/50 rounded-lg px-3 py-1">
