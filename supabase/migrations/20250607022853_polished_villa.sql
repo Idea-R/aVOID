@@ -19,7 +19,7 @@ DO $$
 BEGIN
   IF EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'user_profiles' AND column_name = 'current_time'
+    WHERE table_name = 'user_profiles' AND column_name = 'current_survival_time'
   ) THEN
     ALTER TABLE user_profiles RENAME COLUMN current_time TO current_survival_time;
   END IF;
