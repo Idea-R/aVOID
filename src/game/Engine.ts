@@ -1146,7 +1146,7 @@ export default class Engine {
           distanceTraveled: Math.floor(this.gameStats.distanceTraveled),
           currentScore: this.scoreSystem.getTotalScore(),
           currentMeteors: this.gameStats.meteorsDestroyed,
-          currentTime: this.gameStats.survivalTime,
+          currentSurvivalTime: this.gameStats.survivalTime,
           currentDistance: Math.floor(this.gameStats.distanceTraveled)
         });
         
