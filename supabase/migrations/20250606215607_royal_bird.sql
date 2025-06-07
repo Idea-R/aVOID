@@ -59,7 +59,7 @@ BEGIN
       END,
       best_game_time = CASE 
         WHEN current_score > best_game_score THEN current_time 
-        ELSE GREATEST(best_game_time, current_time)
+        ELSE GREATEST(best_game_time, curren_survival_time)
       END,
       best_game_distance = CASE 
         WHEN current_score > best_game_score THEN current_distance 
