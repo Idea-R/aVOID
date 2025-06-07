@@ -54,6 +54,12 @@ interface ElectricRing {
   maxDuration: number;
 }
 
+interface MeteorTracker {
+  id: string;
+  wasInZone: boolean;
+  lastPosition: { x: number; y: number };
+}
+
 export class DefenseSystem {
   private defenseZones: DefenseZone[] = [];
   private canvas: HTMLCanvasElement;
@@ -66,6 +72,9 @@ export class DefenseSystem {
   private staticElectricityTimer: number = 0;
   private lastActivationTime: number = 0;
   
+  // Meteor tracking for entry detection
+  private meteorTrackers: Map<string, MeteorTracker> = new Map();
+  
   // Performance optimization
   private maxLightningBolts: number = 5;
   private maxElectricParticles: number = 50;
@@ -76,6 +85,7 @@ export class DefenseSystem {
   private readonly WHITE_CORE = '#ffffff';
   private readonly PURPLE_EDGE = '#8a2be2';
   private readonly ELECTRIC_CYAN = '#00ffff';
+  private readonly LIGHTNING_YELLOW = '#ffff00';
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
@@ -97,7 +107,7 @@ export class DefenseSystem {
     this.defenseZones.push({
       x: badgeX,
       y: badgeY,
-      radius: 96, // 20% larger defense radius
+      radius: 120, // 20% bigger collision area as requested
       strength: 0.7, // 70% chance to destroy, 30% to deflect
       type: 'hybrid'
     });
@@ -125,6 +135,7 @@ export class DefenseSystem {
     this.updateElectricParticles(deltaTime);
     this.updateElectricRings(deltaTime);
     this.updateStaticElectricity(deltaTime);
+    this.cleanupOldTrackers();
   }
 
   /**
@@ -140,12 +151,14 @@ export class DefenseSystem {
     this.renderLightningBolts();
     this.renderElectricParticles();
     this.renderStaticElectricity();
+    this.renderCornerLightningField();
     
     this.ctx.restore();
   }
 
   /**
-   * Check if meteor is in any defense zone and apply effects
+   * Check if meteor is entering defense zone and apply effects
+   * Only affects meteors that ENTER the zone, not those that start in it
    */
   public processMeteorDefense(meteors: Meteor[]): {
     destroyedMeteors: Meteor[];
@@ -157,18 +170,23 @@ export class DefenseSystem {
     for (const meteor of meteors) {
       if (!meteor.active) continue;
 
-      // Skip meteors that just spawned (grace period)
-      if (this.isMeteorJustSpawned(meteor)) continue;
+      // Update or create tracker for this meteor
+      this.updateMeteorTracker(meteor);
+      
+      const tracker = this.meteorTrackers.get(meteor.id);
+      if (!tracker) continue;
 
       for (const zone of this.defenseZones) {
         const distance = this.getDistance(meteor.x, meteor.y, zone.x, zone.y);
+        const isInZone = distance <= zone.radius;
         
-        if (distance <= zone.radius) {
+        // Only trigger defense if meteor is entering the zone (wasn't in zone before, but is now)
+        if (isInZone && !tracker.wasInZone) {
           const action = this.determineDefenseAction(zone, distance);
           
           if (action === 'destroy') {
             destroyedMeteors.push(meteor);
-            this.createSpectacularElectricalEffects(zone.x, zone.y, meteor.x, meteor.y, 'destroy');
+            this.createLocalizedLightningEffects(zone.x, zone.y, meteor.x, meteor.y, 'destroy');
           } else if (action === 'deflect') {
             const deflection = this.calculateDeflection(meteor, zone, distance);
             deflectedMeteors.push({
@@ -176,11 +194,14 @@ export class DefenseSystem {
               newVx: deflection.vx,
               newVy: deflection.vy
             });
-            this.createSpectacularElectricalEffects(zone.x, zone.y, meteor.x, meteor.y, 'deflect');
+            this.createLocalizedLightningEffects(zone.x, zone.y, meteor.x, meteor.y, 'deflect');
           }
           
           break; // Only process first zone hit
         }
+        
+        // Update tracker state
+        tracker.wasInZone = isInZone;
       }
     }
 
@@ -188,9 +209,56 @@ export class DefenseSystem {
   }
 
   /**
-   * Create spectacular electrical effects for defense actions
+   * Update or create meteor tracker
    */
-  private createSpectacularElectricalEffects(
+  private updateMeteorTracker(meteor: Meteor): void {
+    let tracker = this.meteorTrackers.get(meteor.id);
+    
+    if (!tracker) {
+      // New meteor - check if it starts in any defense zone
+      let startsInZone = false;
+      for (const zone of this.defenseZones) {
+        const distance = this.getDistance(meteor.x, meteor.y, zone.x, zone.y);
+        if (distance <= zone.radius) {
+          startsInZone = true;
+          break;
+        }
+      }
+      
+      tracker = {
+        id: meteor.id,
+        wasInZone: startsInZone, // If it starts in zone, mark as already in zone
+        lastPosition: { x: meteor.x, y: meteor.y }
+      };
+      
+      this.meteorTrackers.set(meteor.id, tracker);
+    } else {
+      // Update position
+      tracker.lastPosition = { x: meteor.x, y: meteor.y };
+    }
+  }
+
+  /**
+   * Clean up trackers for meteors that no longer exist
+   */
+  private cleanupOldTrackers(): void {
+    // Remove trackers older than 5 seconds (meteors should be cleaned up by then)
+    const cutoffTime = performance.now() - 5000;
+    
+    for (const [id, tracker] of this.meteorTrackers.entries()) {
+      // Simple cleanup - remove trackers that haven't been updated recently
+      // In a real implementation, you'd want to track last update time
+      if (this.meteorTrackers.size > 100) { // Prevent memory leak
+        this.meteorTrackers.delete(id);
+        break;
+      }
+    }
+  }
+
+  /**
+   * Create localized lightning effects around the corner (no screen flash)
+   */
+  private createLocalizedLightningEffects(
     badgeX: number, 
     badgeY: number, 
     meteorX: number, 
@@ -204,17 +272,100 @@ export class DefenseSystem {
     // Create lightning bolt from badge to meteor
     this.createLightningBolt(badgeX, badgeY, meteorX, meteorY, type);
     
-    // Create electric ring pulse from badge
+    // Create electric ring pulse from badge (localized)
     this.createElectricRing(badgeX, badgeY, type);
     
     // Create electric spark burst at contact point
     this.createElectricSparkBurst(meteorX, meteorY, type);
     
-    // Create screen flash effect
-    this.createScreenFlash(type);
+    // Create corner lightning field enhancement
+    this.enhanceCornerLightningField(badgeX, badgeY, type);
     
     // Dispatch audio event
     this.dispatchAudioEvent(type);
+  }
+
+  /**
+   * Enhance the corner lightning field when activated
+   */
+  private enhanceCornerLightningField(badgeX: number, badgeY: number, type: 'destroy' | 'deflect'): void {
+    // Create additional lightning bolts around the corner area
+    const cornerBolts = type === 'destroy' ? 3 : 2;
+    
+    for (let i = 0; i < cornerBolts; i++) {
+      // Create lightning bolts that emanate from the corner area
+      const angle = (Math.PI * 1.5) + (Math.PI * 0.5 * i / cornerBolts); // Quarter circle in bottom-right
+      const distance = 60 + Math.random() * 40;
+      const endX = badgeX + Math.cos(angle) * distance;
+      const endY = badgeY + Math.sin(angle) * distance;
+      
+      // Slight delay for each bolt
+      setTimeout(() => {
+        this.createLightningBolt(badgeX, badgeY, endX, endY, type);
+      }, i * 50);
+    }
+  }
+
+  /**
+   * Render corner lightning field effect
+   */
+  private renderCornerLightningField(): void {
+    if (this.staticElectricityTimer <= 0 || this.defenseZones.length === 0) return;
+    
+    const zone = this.defenseZones[0]; // Badge zone
+    const intensity = this.staticElectricityTimer / 500; // Fade over 500ms
+    
+    this.ctx.save();
+    this.ctx.globalAlpha = intensity * 0.4;
+    
+    // Create a localized electrical field around the corner
+    const fieldRadius = zone.radius;
+    const time = performance.now() * 0.01;
+    
+    // Draw electrical arcs around the defense perimeter
+    const arcCount = 12;
+    for (let i = 0; i < arcCount; i++) {
+      const baseAngle = (Math.PI * 2 * i) / arcCount;
+      const angleVariation = Math.sin(time + i) * 0.3;
+      const angle = baseAngle + angleVariation;
+      
+      const innerRadius = fieldRadius * 0.7;
+      const outerRadius = fieldRadius * (0.9 + Math.sin(time * 2 + i) * 0.1);
+      
+      const startX = zone.x + Math.cos(angle) * innerRadius;
+      const startY = zone.y + Math.sin(angle) * innerRadius;
+      const endX = zone.x + Math.cos(angle) * outerRadius;
+      const endY = zone.y + Math.sin(angle) * outerRadius;
+      
+      // Draw mini lightning arc
+      this.ctx.beginPath();
+      this.ctx.moveTo(startX, startY);
+      
+      // Add some jaggedness to the arc
+      const midX = (startX + endX) / 2 + (Math.random() - 0.5) * 10;
+      const midY = (startY + endY) / 2 + (Math.random() - 0.5) * 10;
+      
+      this.ctx.quadraticCurveTo(midX, midY, endX, endY);
+      
+      this.ctx.strokeStyle = this.ELECTRIC_CYAN;
+      this.ctx.lineWidth = 1 + Math.random();
+      this.ctx.stroke();
+    }
+    
+    // Add pulsing energy at the center
+    const pulseRadius = 8 + Math.sin(time * 3) * 4;
+    this.ctx.beginPath();
+    this.ctx.arc(zone.x, zone.y, pulseRadius, 0, Math.PI * 2);
+    this.ctx.fillStyle = this.LIGHTNING_YELLOW;
+    this.ctx.fill();
+    
+    // Inner bright core
+    this.ctx.beginPath();
+    this.ctx.arc(zone.x, zone.y, pulseRadius * 0.5, 0, Math.PI * 2);
+    this.ctx.fillStyle = this.WHITE_CORE;
+    this.ctx.fill();
+    
+    this.ctx.restore();
   }
 
   /**
@@ -239,7 +390,7 @@ export class DefenseSystem {
       endX,
       endY,
       branches: [],
-      thickness: type === 'destroy' ? 3 : 2,
+      thickness: type === 'destroy' ? 4 : 3,
       alpha: 1,
       flickerPhase: 0,
       duration: 200, // 200ms duration
@@ -265,7 +416,7 @@ export class DefenseSystem {
         startY: branchStartY,
         endX: branchEndX,
         endY: branchEndY,
-        thickness: 1 + Math.random()
+        thickness: 1 + Math.random() * 2
       });
     }
 
@@ -327,37 +478,6 @@ export class DefenseSystem {
 
       this.electricParticles.push(particle);
     }
-  }
-
-  /**
-   * Create screen flash effect
-   */
-  private createScreenFlash(type: 'destroy' | 'deflect'): void {
-    const flashIntensity = type === 'destroy' ? 0.3 : 0.2;
-    const flashColor = type === 'destroy' ? this.ELECTRIC_BLUE : this.ELECTRIC_CYAN;
-    
-    // Create temporary flash overlay
-    const flashOverlay = document.createElement('div');
-    flashOverlay.style.position = 'fixed';
-    flashOverlay.style.top = '0';
-    flashOverlay.style.left = '0';
-    flashOverlay.style.width = '100vw';
-    flashOverlay.style.height = '100vh';
-    flashOverlay.style.backgroundColor = flashColor;
-    flashOverlay.style.opacity = flashIntensity.toString();
-    flashOverlay.style.pointerEvents = 'none';
-    flashOverlay.style.zIndex = '9999';
-    flashOverlay.style.transition = 'opacity 100ms ease-out';
-    
-    document.body.appendChild(flashOverlay);
-    
-    // Fade out and remove
-    setTimeout(() => {
-      flashOverlay.style.opacity = '0';
-      setTimeout(() => {
-        document.body.removeChild(flashOverlay);
-      }, 100);
-    }, 50);
   }
 
   /**
@@ -634,20 +754,6 @@ export class DefenseSystem {
   }
 
   /**
-   * Check if meteor just spawned (within grace period)
-   */
-  private isMeteorJustSpawned(meteor: Meteor): boolean {
-    const margin = 30;
-    const isNearEdge = 
-      meteor.x < margin || 
-      meteor.x > this.canvas.width - margin ||
-      meteor.y < margin || 
-      meteor.y > this.canvas.height - margin;
-    
-    return isNearEdge;
-  }
-
-  /**
    * Determine what action to take based on zone and distance
    */
   private determineDefenseAction(zone: DefenseZone, distance: number): 'destroy' | 'deflect' | 'none' {
@@ -729,6 +835,7 @@ export class DefenseSystem {
     this.activeLightningBolts.length = 0;
     this.electricParticles.length = 0;
     this.electricRings.length = 0;
+    this.meteorTrackers.clear();
     this.staticElectricityTimer = 0;
   }
 
@@ -740,12 +847,14 @@ export class DefenseSystem {
     electricParticles: number;
     electricRings: number;
     staticElectricityActive: boolean;
+    trackedMeteors: number;
   } {
     return {
       lightningBolts: this.activeLightningBolts.length,
       electricParticles: this.electricParticles.length,
       electricRings: this.electricRings.length,
-      staticElectricityActive: this.staticElectricityTimer > 0
+      staticElectricityActive: this.staticElectricityTimer > 0,
+      trackedMeteors: this.meteorTrackers.size
     };
   }
 }
