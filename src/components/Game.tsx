@@ -3,6 +3,7 @@ import Engine from '../game/Engine';
 import HUD from './HUD';
 import GameOverScreen from './GameOverScreen';
 import GameIntro from './GameIntro';
+import { useAuthStore } from '../store/authStore';
 import { ScoreBreakdown, ComboInfo } from '../game/systems/ScoreSystem';
 
 interface GameSettings {
@@ -22,6 +23,7 @@ interface GameProps {
 export default function Game({ autoStart = false }: GameProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const engineRef = useRef<Engine | null>(null);
+  const { user } = useAuthStore();
   const [showIntro, setShowIntro] = useState(true);
   const [isPaused, setIsPaused] = useState(false);
   const [engineInitialized, setEngineInitialized] = useState(false);
@@ -56,6 +58,11 @@ export default function Game({ autoStart = false }: GameProps) {
     const engine = new Engine(canvasRef.current);
     engineRef.current = engine;
     setEngineInitialized(true);
+    
+    // Set user ID if available
+    if (user?.id) {
+      engine.setUserId(user.id);
+    }
     
     engine.onStateUpdate = (state) => {
       console.log('State update received:', state);
@@ -104,7 +111,14 @@ export default function Game({ autoStart = false }: GameProps) {
       clearInterval(pauseInterval);
       engine.stop();
     };
-  }, []);
+  }, [user?.id]);
+
+  // Update user ID when user changes
+  useEffect(() => {
+    if (engineRef.current && user?.id) {
+      engineRef.current.setUserId(user.id);
+    }
+  }, [user?.id]);
 
   useEffect(() => {
     if (autoStart && engineRef.current && !engineRef.current.isStarted()) {
