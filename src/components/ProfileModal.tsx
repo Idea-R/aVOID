@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { X, User, Trophy, Star, Settings, Eye, EyeOff, Save, Twitter, Instagram, Youtube, Twitch, Github, ExternalLink, Calendar, Target, Clock, Zap } from 'lucide-react';
+import { X, User, Trophy, Star, Save, Twitter, Instagram, Youtube, Twitch, Github, ExternalLink, Target, Eye } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
-import { ProfileAPI, UserProfile } from '../api/profiles';
-import { LeaderboardAPI } from '../api/leaderboard';
+import { UserProfile } from '../api/profiles';
+import { ProfileDataManager } from './ProfileData';
+import { ProfileInfo, CursorCustomization, SocialLinks, PrivacySettings } from './ProfileTabs';
 
 interface ProfileModalProps {
   isOpen: boolean;
@@ -19,13 +20,7 @@ export default function ProfileModal({ isOpen, onClose, userId }: ProfileModalPr
   const [activeTab, setActiveTab] = useState<'info' | 'stats' | 'customization' | 'social' | 'privacy'>('info');
   const [showColorWheel, setShowColorWheel] = useState(false);
   const [previewColor, setPreviewColor] = useState<string | null>(null);
-  const [socialLinks, setSocialLinks] = useState({
-    twitter: '',
-    instagram: '',
-    youtube: '',
-    twitch: '',
-    github: ''
-  });
+  const [socialLinks, setSocialLinks] = useState(ProfileDataManager.getDefaultSocialLinks());
   const [socialErrors, setSocialErrors] = useState<Record<string, string>>({});
 
   const isOwnProfile = !userId || userId === user?.id;
@@ -38,17 +33,14 @@ export default function ProfileModal({ isOpen, onClose, userId }: ProfileModalPr
       setLoading(true);
       
       try {
-        // Load profile data
-        const profileData = isOwnProfile 
-          ? await ProfileAPI.getUserProfile(targetUserId)
-          : await ProfileAPI.getPublicProfile(targetUserId);
+        const { profile: profileData, bestScore: userBest } = await ProfileDataManager.loadProfile(
+          targetUserId,
+          isOwnProfile
+        );
         
         if (profileData) {
           setProfile(profileData);
-          setSocialLinks(profileData.social_links || {});
-          
-          // Load best score
-          const userBest = await LeaderboardAPI.getUserBestScore(targetUserId);
+          setSocialLinks(profileData.social_links || ProfileDataManager.getDefaultSocialLinks());
           setBestScore(userBest);
         }
       } catch (error) {
@@ -155,17 +147,7 @@ export default function ProfileModal({ isOpen, onClose, userId }: ProfileModalPr
     }
   }, [showColorWheel]);
 
-  // Preset colors
-  const presetColors = [
-    { name: 'Cyan', color: '#06b6d4' },
-    { name: 'Purple', color: '#8b5cf6' },
-    { name: 'Green', color: '#10b981' },
-    { name: 'Orange', color: '#f59e0b' },
-    { name: 'Pink', color: '#ec4899' },
-    { name: 'Red', color: '#ef4444' },
-    { name: 'Blue', color: '#3b82f6' },
-    { name: 'Yellow', color: '#eab308' }
-  ];
+  const presetColors = ProfileDataManager.getPresetColors();
 
   // Social link handlers
   const handleSocialLinkChange = (platform: string, value: string) => {
@@ -176,7 +158,7 @@ export default function ProfileModal({ isOpen, onClose, userId }: ProfileModalPr
     
     // Validate if not empty
     if (value.trim()) {
-      const validation = ProfileAPI.validateSocialLink(platform, value);
+      const validation = ProfileDataManager.validateSocialLink(platform, value);
       if (!validation.isValid) {
         setSocialErrors(prev => ({ ...prev, [platform]: validation.error || 'Invalid handle' }));
       }
@@ -194,12 +176,6 @@ export default function ProfileModal({ isOpen, onClose, userId }: ProfileModalPr
     return icons[platform as keyof typeof icons] || ExternalLink;
   };
 
-  const getSocialUrl = (platform: string, handle: string) => {
-    if (!handle) return '';
-    const validation = ProfileAPI.validateSocialLink(platform, handle);
-    return validation.url || '';
-  };
-
   // Save profile
   const handleSave = async () => {
     if (!profile || !isOwnProfile) return;
@@ -207,45 +183,12 @@ export default function ProfileModal({ isOpen, onClose, userId }: ProfileModalPr
     setSaving(true);
     
     try {
-      // Validate social links
-      const validatedSocialLinks: Record<string, string> = {};
-      let hasErrors = false;
+      const result = await ProfileDataManager.saveProfile(profile, socialLinks);
       
-      for (const [platform, handle] of Object.entries(socialLinks)) {
-        if (handle.trim()) {
-          const validation = ProfileAPI.validateSocialLink(platform, handle);
-          if (validation.isValid) {
-            validatedSocialLinks[platform] = handle.replace(/^@/, '');
-          } else {
-            setSocialErrors(prev => ({ ...prev, [platform]: validation.error || 'Invalid handle' }));
-            hasErrors = true;
-          }
-        }
-      }
-      
-      if (hasErrors) {
-        setSaving(false);
-        return;
-      }
-      
-      const success = await ProfileAPI.updateProfile(profile.id, {
-        username: profile.username,
-        bio: profile.bio,
-        cursor_color: profile.cursor_color,
-        social_links: validatedSocialLinks,
-        is_public: profile.is_public
-      });
-      
-      if (success) {
-        // Update game settings with new cursor color
-        const currentSettings = JSON.parse(localStorage.getItem('avoidGameSettings') || '{}');
-        const newSettings = { ...currentSettings, cursorColor: profile.cursor_color };
-        localStorage.setItem('avoidGameSettings', JSON.stringify(newSettings));
-        
-        // Dispatch event to update game
-        window.dispatchEvent(new CustomEvent('gameSettingsChanged', { detail: newSettings }));
-        
+      if (result.success) {
         onClose();
+      } else if (result.errors) {
+        setSocialErrors(result.errors);
       }
     } catch (error) {
       console.error('Error saving profile:', error);
@@ -291,6 +234,9 @@ export default function ProfileModal({ isOpen, onClose, userId }: ProfileModalPr
     );
   }
 
+  const avgStats = ProfileDataManager.calculateAverageStats(profile);
+  const tabConfig = ProfileDataManager.getTabConfig();
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-50 p-4">
       <div className="bg-gray-900 rounded-lg shadow-2xl border border-cyan-500 max-w-4xl w-full max-h-[90vh] overflow-hidden">
@@ -327,405 +273,72 @@ export default function ProfileModal({ isOpen, onClose, userId }: ProfileModalPr
           {/* Tab Navigation - Only show for own profile */}
           {isOwnProfile && (
             <div className="mt-4 flex gap-2 flex-wrap">
-              {[
-                { id: 'info', label: 'Info', icon: User },
-                { id: 'stats', label: 'Stats', icon: Trophy },
-                { id: 'customization', label: 'Cursor', icon: Target },
-                { id: 'social', label: 'Social', icon: ExternalLink },
-                { id: 'privacy', label: 'Privacy', icon: Eye }
-              ].map(({ id, label, icon: Icon }) => (
-                <button
-                  key={id}
-                  onClick={() => setActiveTab(id as any)}
-                  className={`px-3 py-2 rounded-lg font-semibold transition-all duration-200 flex items-center gap-2 ${
-                    activeTab === id
-                      ? 'bg-white text-cyan-600'
-                      : 'bg-cyan-700 text-white hover:bg-cyan-600'
-                  }`}
-                >
-                  <Icon className="w-4 h-4" />
-                  <span className="hidden sm:inline">{label}</span>
-                </button>
-              ))}
+              {tabConfig.map(({ id, label, icon }) => {
+                const IconComponent = {
+                  User, Trophy, Target, ExternalLink, Eye
+                }[icon as keyof typeof { User, Trophy, Target, ExternalLink, Eye }] || User;
+                
+                return (
+                  <button
+                    key={id}
+                    onClick={() => setActiveTab(id)}
+                    className={`px-3 py-2 rounded-lg font-semibold transition-all duration-200 flex items-center gap-2 ${
+                      activeTab === id
+                        ? 'bg-white text-cyan-600'
+                        : 'bg-cyan-700 text-white hover:bg-cyan-600'
+                    }`}
+                  >
+                    <IconComponent className="w-4 h-4" />
+                    <span className="hidden sm:inline">{label}</span>
+                  </button>
+                );
+              })}
             </div>
           )}
         </div>
 
         {/* Content */}
         <div className="p-6 max-h-96 overflow-y-auto">
-          {!isOwnProfile || activeTab === 'info' ? (
-            /* Profile Info */
-            <div className="space-y-6">
-              {/* Basic Info */}
-              <div className="bg-gray-800 rounded-lg p-4">
-                <h3 className="text-lg font-semibold text-cyan-300 mb-4">Profile Information</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {isOwnProfile ? (
-                    <>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-300 mb-2">Username</label>
-                        <input
-                          type="text"
-                          value={profile.username || ''}
-                          onChange={(e) => setProfile(prev => prev ? { ...prev, username: e.target.value } : null)}
-                          className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500"
-                          maxLength={30}
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-300 mb-2">Bio (Optional)</label>
-                        <input
-                          type="text"
-                          value={profile.bio || ''}
-                          onChange={(e) => setProfile(prev => prev ? { ...prev, bio: e.target.value } : null)}
-                          className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500"
-                          placeholder="Tell others about yourself..."
-                          maxLength={100}
-                        />
-                      </div>
-                    </>
-                  ) : (
-                    <div className="col-span-2">
-                      <div className="flex items-center gap-2 mb-2">
-                        <Calendar className="w-4 h-4 text-gray-400" />
-                        <span className="text-sm text-gray-400">Member since</span>
-                      </div>
-                      <p className="text-white">{new Date(profile.created_at).toLocaleDateString()}</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Game Stats */}
-              <div className="bg-gray-800 rounded-lg p-4">
-                <h3 className="text-lg font-semibold text-cyan-300 mb-4 flex items-center gap-2">
-                  <Trophy className="w-5 h-5" />
-                  Best Game Performance
-                </h3>
-                
-                {/* Best Game Stats */}
-                <div className="bg-gradient-to-br from-yellow-900/30 to-orange-900/30 border border-yellow-600/50 rounded-lg p-4 mb-4">
-                  <h4 className="text-yellow-300 font-semibold mb-3 text-center">🏆 Personal Best</h4>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                    <div className="text-center">
-                      <div className="flex items-center justify-center gap-1 mb-1">
-                        <Trophy className="w-4 h-4 text-yellow-500" />
-                        <span className="text-xs text-yellow-300">Score</span>
-                      </div>
-                      <p className="text-lg font-bold text-white">{profile.best_game_score.toLocaleString()}</p>
-                    </div>
-                    <div className="text-center">
-                      <div className="flex items-center justify-center gap-1 mb-1">
-                        <Zap className="w-4 h-4 text-red-500" />
-                        <span className="text-xs text-red-300">Meteors</span>
-                      </div>
-                      <p className="text-lg font-bold text-white">{profile.best_game_meteors}</p>
-                    </div>
-                    <div className="text-center">
-                      <div className="flex items-center justify-center gap-1 mb-1">
-                        <Clock className="w-4 h-4 text-green-500" />
-                        <span className="text-xs text-green-300">Time</span>
-                      </div>
-                      <p className="text-lg font-bold text-white">{Math.floor(profile.best_game_time)}s</p>
-                    </div>
-                    <div className="text-center">
-                      <div className="flex items-center justify-center gap-1 mb-1">
-                        <Target className="w-4 h-4 text-blue-500" />
-                        <span className="text-xs text-blue-300">Distance</span>
-                      </div>
-                      <p className="text-lg font-bold text-white">{Math.floor(profile.best_game_distance)}px</p>
-                    </div>
-                  </div>
-                </div>
-                
-                {/* Overall Statistics */}
-                <h4 className="text-cyan-300 font-semibold mb-3">📊 Overall Statistics</h4>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                  <div className="bg-gradient-to-br from-yellow-900/30 to-yellow-800/30 border border-yellow-600/50 rounded-lg p-3">
-                    <div className="flex items-center gap-2 mb-1">
-                      <Target className="w-4 h-4 text-blue-500" />
-                      <span className="text-xs text-blue-300">Games Played</span>
-                    </div>
-                    <p className="text-lg font-bold text-white">{profile.total_games_played}</p>
-                  </div>
-                  <div className="bg-gradient-to-br from-red-900/30 to-red-800/30 border border-red-600/50 rounded-lg p-3">
-                    <div className="flex items-center gap-2 mb-1">
-                      <Zap className="w-4 h-4 text-red-500" />
-                      <span className="text-xs text-red-300">Total Meteors</span>
-                    </div>
-                    <p className="text-lg font-bold text-white">{profile.total_meteors_destroyed}</p>
-                  </div>
-                  <div className="bg-gradient-to-br from-green-900/30 to-green-800/30 border border-green-600/50 rounded-lg p-3">
-                    <div className="flex items-center gap-2 mb-1">
-                      <Clock className="w-4 h-4 text-green-500" />
-                      <span className="text-xs text-green-300">Time Played</span>
-                    </div>
-                    <p className="text-lg font-bold text-white">{Math.floor(profile.total_survival_time)}s</p>
-                  </div>
-                  <div className="bg-gradient-to-br from-purple-900/30 to-purple-800/30 border border-purple-600/50 rounded-lg p-3">
-                    <div className="flex items-center gap-2 mb-1">
-                      <Target className="w-4 h-4 text-purple-500" />
-                      <span className="text-xs text-purple-300">Distance</span>
-                    </div>
-                    <p className="text-lg font-bold text-white">{Math.floor(profile.total_distance_traveled)}px</p>
-                  </div>
-                </div>
-                {profile.total_games_played > 0 && (
-                  <div className="mt-4 pt-4 border-t border-gray-700">
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-                      <div>
-                        <span className="text-gray-400">Average Survival:</span>
-                        <span className="text-white ml-2">
-                          {(profile.total_survival_time / profile.total_games_played).toFixed(1)}s
-                        </span>
-                      </div>
-                      <div>
-                        <span className="text-gray-400">Meteors per Game:</span>
-                        <span className="text-white ml-2">
-                          {(profile.total_meteors_destroyed / profile.total_games_played).toFixed(1)}
-                        </span>
-                      </div>
-                      <div>
-                        <span className="text-gray-400">Avg Distance:</span>
-                        <span className="text-white ml-2">
-                          {Math.floor(profile.total_distance_traveled / profile.total_games_played)}px
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Social Links Display */}
-              {Object.values(profile.social_links || {}).some(link => link) && (
-                <div className="bg-gray-800 rounded-lg p-4">
-                  <h3 className="text-lg font-semibold text-cyan-300 mb-4 flex items-center gap-2">
-                    <ExternalLink className="w-5 h-5" />
-                    Social Links
-                  </h3>
-                  <div className="flex flex-wrap gap-3">
-                    {Object.entries(profile.social_links || {}).map(([platform, handle]) => {
-                      if (!handle) return null;
-                      const Icon = getSocialIcon(platform);
-                      const url = getSocialUrl(platform, handle);
-                      
-                      return (
-                        <a
-                          key={platform}
-                          href={url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex items-center gap-2 bg-gray-700 hover:bg-gray-600 px-3 py-2 rounded-lg transition-colors duration-200"
-                        >
-                          <Icon className="w-4 h-4" />
-                          <span className="text-sm">@{handle}</span>
-                          <ExternalLink className="w-3 h-3 opacity-60" />
-                        </a>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-            </div>
-          ) : activeTab === 'stats' ? (
-            /* Detailed Stats */
-            <div className="space-y-6">
-              <div className="bg-gray-800 rounded-lg p-4">
-                <h3 className="text-lg font-semibold text-cyan-300 mb-4">Detailed Statistics</h3>
-                <p className="text-gray-400 text-sm">
-                  Game statistics are automatically tracked and updated after each game session.
-                </p>
-                {/* Stats content same as above but with more detail */}
-              </div>
-            </div>
-          ) : activeTab === 'customization' ? (
-            /* Cursor Customization */
-            <div className="space-y-6">
-              <div className="bg-gray-800 rounded-lg p-4">
-                <h3 className="text-lg font-semibold text-cyan-300 mb-4 flex items-center gap-2">
-                  <div 
-                    className="w-5 h-5 rounded-full border-2 border-white shadow-lg"
-                    style={{ backgroundColor: previewColor || profile.cursor_color }}
-                  />
-                  Cursor Color
-                </h3>
-                
-                <div className="space-y-4">
-                  {/* Current Color Display */}
-                  <div className="flex items-center justify-between">
-                    <span className="text-gray-300">Current Color:</span>
-                    <div className="flex items-center gap-3">
-                      <div 
-                        className="w-8 h-8 rounded-full border-2 border-white shadow-lg cursor-pointer transition-transform hover:scale-110"
-                        style={{ backgroundColor: previewColor || profile.cursor_color }}
-                        onClick={() => setShowColorWheel(!showColorWheel)}
-                      />
-                      <span className="text-sm text-gray-400 font-mono">
-                        {previewColor || profile.cursor_color}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Preset Colors */}
-                  <div>
-                    <label className="text-gray-300 block mb-2">Preset Colors:</label>
-                    <div className="grid grid-cols-4 gap-2">
-                      {presetColors.map((preset) => (
-                        <button
-                          key={preset.name}
-                          onClick={() => setProfile(prev => prev ? { ...prev, cursor_color: preset.color } : null)}
-                          className={`w-12 h-12 rounded-full border-2 transition-all duration-200 hover:scale-110 hover:shadow-lg ${
-                            profile.cursor_color === preset.color 
-                              ? 'border-white shadow-lg ring-2 ring-cyan-500' 
-                              : 'border-gray-600 hover:border-white'
-                          }`}
-                          style={{ backgroundColor: preset.color }}
-                          title={preset.name}
-                        />
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Color Wheel Toggle */}
-                  <div className="flex items-center justify-between">
-                    <span className="text-gray-300">Custom Color Wheel:</span>
-                    <button
-                      onClick={() => setShowColorWheel(!showColorWheel)}
-                      className={`px-4 py-2 rounded-lg font-semibold transition-colors duration-200 ${
-                        showColorWheel 
-                          ? 'bg-cyan-600 text-white' 
-                          : 'bg-gray-600 text-gray-300 hover:bg-gray-500'
-                      }`}
-                    >
-                      {showColorWheel ? 'Hide Wheel' : 'Show Wheel'}
-                    </button>
-                  </div>
-
-                  {/* Color Wheel */}
-                  {showColorWheel && (
-                    <div className="flex flex-col items-center space-y-3">
-                      <canvas
-                        ref={colorWheelRef}
-                        width={200}
-                        height={200}
-                        className="cursor-crosshair rounded-full shadow-lg border-2 border-gray-600"
-                        onClick={handleColorWheelClick}
-                        onMouseMove={handleColorWheelMouseMove}
-                        onMouseLeave={() => setPreviewColor(null)}
-                      />
-                      <p className="text-xs text-gray-400 text-center">
-                        Click anywhere on the wheel to select a color
-                      </p>
-                      {previewColor && (
-                        <div className="bg-gray-700 rounded-lg p-3 border border-gray-600">
-                          <p className="text-sm text-gray-300">
-                            Preview: <span className="font-mono text-cyan-300">{previewColor}</span>
-                          </p>
-                          <div 
-                            className="w-full h-4 rounded mt-2 border border-gray-500"
-                            style={{ backgroundColor: previewColor }}
-                          />
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          ) : activeTab === 'social' ? (
-            /* Social Links */
-            <div className="space-y-6">
-              <div className="bg-gray-800 rounded-lg p-4">
-                <h3 className="text-lg font-semibold text-cyan-300 mb-4">Social Media Links</h3>
-                <p className="text-gray-400 text-sm mb-4">
-                  Add your social media handles to let other players connect with you.
-                </p>
-                
-                <div className="space-y-4">
-                  {Object.entries(socialLinks).map(([platform, handle]) => {
-                    const Icon = getSocialIcon(platform);
-                    const error = socialErrors[platform];
-                    
-                    return (
-                      <div key={platform}>
-                        <label className="block text-sm font-medium text-gray-300 mb-2 capitalize flex items-center gap-2">
-                          <Icon className="w-4 h-4" />
-                          {platform}
-                        </label>
-                        <div className="relative">
-                          <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">@</span>
-                          <input
-                            type="text"
-                            value={handle}
-                            onChange={(e) => handleSocialLinkChange(platform, e.target.value)}
-                            className={`w-full pl-8 pr-4 py-2 bg-gray-700 border rounded text-white placeholder-gray-400 focus:outline-none focus:ring-2 ${
-                              error ? 'border-red-500 focus:ring-red-500' : 'border-gray-600 focus:ring-cyan-500'
-                            }`}
-                            placeholder={`your${platform}handle`}
-                          />
-                        </div>
-                        {error && (
-                          <p className="text-red-400 text-xs mt-1">{error}</p>
-                        )}
-                        {handle && !error && (
-                          <p className="text-green-400 text-xs mt-1">
-                            Will link to: {getSocialUrl(platform, handle)}
-                          </p>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
-          ) : activeTab === 'privacy' ? (
-            /* Privacy Settings */
-            <div className="space-y-6">
-              <div className="bg-gray-800 rounded-lg p-4">
-                <h3 className="text-lg font-semibold text-cyan-300 mb-4">Privacy Settings</h3>
-                
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <label className="text-gray-300 font-medium">Public Profile</label>
-                      <p className="text-gray-400 text-sm">
-                        Allow other players to view your profile and stats
-                      </p>
-                    </div>
-                    <button
-                      onClick={() => setProfile(prev => prev ? { ...prev, is_public: !prev.is_public } : null)}
-                      className={`w-12 h-6 rounded-full transition-colors duration-200 relative ${
-                        profile.is_public ? 'bg-cyan-500' : 'bg-gray-600'
-                      }`}
-                    >
-                      <div className={`w-5 h-5 bg-white rounded-full absolute top-0.5 transition-transform duration-200 ${
-                        profile.is_public ? 'translate-x-6' : 'translate-x-0.5'
-                      }`} />
-                    </button>
-                  </div>
-                  
-                  <div className="bg-gray-700 rounded-lg p-3">
-                    <div className="flex items-center gap-2 mb-2">
-                      {profile.is_public ? (
-                        <Eye className="w-4 h-4 text-green-500" />
-                      ) : (
-                        <EyeOff className="w-4 h-4 text-red-500" />
-                      )}
-                      <span className="text-sm font-medium text-gray-300">
-                        {profile.is_public ? 'Profile is Public' : 'Profile is Private'}
-                      </span>
-                    </div>
-                    <p className="text-xs text-gray-400">
-                      {profile.is_public 
-                        ? 'Other players can view your profile, stats, and social links'
-                        : 'Only you can view your profile information'
-                      }
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          ) : null}
+          {(!isOwnProfile || activeTab === 'info') && (
+            <ProfileInfo 
+              profile={profile}
+              isOwnProfile={isOwnProfile}
+              setProfile={setProfile}
+              avgStats={avgStats}
+              getSocialIcon={getSocialIcon}
+            />
+          )}
+          
+          {isOwnProfile && activeTab === 'customization' && (
+            <CursorCustomization
+              profile={profile}
+              previewColor={previewColor}
+              setProfile={setProfile}
+              presetColors={presetColors}
+              showColorWheel={showColorWheel}
+              setShowColorWheel={setShowColorWheel}
+              colorWheelRef={colorWheelRef}
+              handleColorWheelClick={handleColorWheelClick}
+              handleColorWheelMouseMove={handleColorWheelMouseMove}
+              setPreviewColor={setPreviewColor}
+            />
+          )}
+          
+          {isOwnProfile && activeTab === 'social' && (
+            <SocialLinks
+              socialLinks={socialLinks}
+              socialErrors={socialErrors}
+              handleSocialLinkChange={handleSocialLinkChange}
+              getSocialIcon={getSocialIcon}
+            />
+          )}
+          
+          {isOwnProfile && activeTab === 'privacy' && (
+            <PrivacySettings
+              profile={profile}
+              setProfile={setProfile}
+            />
+          )}
         </div>
 
         {/* Footer - Only show save button for own profile */}
