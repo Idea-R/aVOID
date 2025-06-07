@@ -485,33 +485,57 @@ export default class Engine {
   private handleChainDetonationComplete = (event: CustomEvent) => {
     console.log('🔗💥 Chain Detonation Complete - Processing screen clear');
     
+    // Safety check for event detail
+    if (!event.detail) {
+      console.warn('Chain detonation event missing detail');
+      return;
+    }
+    
     // Count meteors for scoring
     const meteorsDestroyed = this.activeMeteors.length;
     let totalPoints = 0;
     
-    // Destroy all meteors and calculate points
-    this.activeMeteors.forEach(meteor => {
-      // Create explosion effect for each meteor
-      this.particleSystem.createExplosion(meteor.x, meteor.y, meteor.color, meteor.isSuper);
+    // Safely destroy all meteors and calculate points
+    try {
+      // Create explosion effects for each meteor
+      this.activeMeteors.forEach(meteor => {
+        if (meteor && meteor.active) {
+          this.particleSystem.createExplosion(meteor.x, meteor.y, meteor.color, meteor.isSuper);
+          totalPoints += 25;
+          this.gameStats.meteorsDestroyed++;
+        }
+      });
       
-      // Add points per meteor
-      totalPoints += 25;
-      this.gameStats.meteorsDestroyed++;
-    });
-    
-    // Clear all meteors
-    this.activeMeteors.forEach(meteor => this.meteorPool.release(meteor));
-    this.activeMeteors.length = 0;
+      // Clear all meteors safely
+      this.activeMeteors.forEach(meteor => {
+        if (meteor) {
+          this.meteorPool.release(meteor);
+        }
+      });
+      this.activeMeteors.length = 0;
+    } catch (error) {
+      console.error('Error processing meteor destruction:', error);
+      // Fallback: just clear the array
+      this.activeMeteors.length = 0;
+    }
     
     // Add completion bonus
     const completionBonus = 100;
     totalPoints += completionBonus;
     
-    // Add to score system
-    this.scoreSystem.addChainDetonationScore(totalPoints, meteorsDestroyed, event.detail.centerX, event.detail.centerY);
+    // Add to score system with error handling
+    try {
+      this.scoreSystem.addChainDetonationScore(totalPoints, meteorsDestroyed, event.detail.centerX || this.canvas.width / 2, event.detail.centerY || this.canvas.height / 2);
+    } catch (error) {
+      console.error('Error adding chain detonation score:', error);
+    }
     
-    // Create massive particle explosion at center
-    this.particleSystem.createChainDetonationExplosion(event.detail.centerX, event.detail.centerY);
+    // Create massive particle explosion at center with error handling
+    try {
+      this.particleSystem.createChainDetonationExplosion(event.detail.centerX || this.canvas.width / 2, event.detail.centerY || this.canvas.height / 2);
+    } catch (error) {
+      console.error('Error creating chain detonation explosion:', error);
+    }
     
     // Screen shake
     this.screenShake = { x: 0, y: 0, intensity: 25, duration: 1000 };

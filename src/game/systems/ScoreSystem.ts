@@ -240,6 +240,25 @@ export class ScoreSystem {
     return this.scoreTextPool.getPoolSize();
   }
 
+  // Add chain detonation scoring methods
+  addChainFragmentScore(x: number, y: number): number {
+    const points = 10;
+    this.meteorScore += points;
+    
+    // Create floating score text
+    this.createScoreText(x, y, `+${points}`, '#9d4edd', 16, 'regular');
+    
+    return points;
+  }
+
+  addChainDetonationScore(totalPoints: number, meteorsDestroyed: number, centerX: number, centerY: number): number {
+    this.meteorScore += totalPoints;
+    
+    // Create dramatic score text
+    this.createScoreText(centerX, centerY, `CHAIN DETONATION +${totalPoints}`, '#9d4edd', 28, 'combo');
+    
+    return totalPoints;
+  }
   clear(): void {
     this.reset();
     this.scoreTextPool.clear();

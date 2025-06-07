@@ -233,6 +233,50 @@ export class ParticleSystem {
     return this.maxParticles;
   }
 
+  createChainDetonationExplosion(x: number, y: number): void {
+    // Create massive explosion effect for chain detonation
+    const particleCount = this.isMobile ? 60 : 100;
+    const particles = Math.min(particleCount, this.maxParticles - this.activeParticles.length);
+    
+    for (let i = 0; i < particles; i++) {
+      const angle = (Math.PI * 2 * i) / particles;
+      const velocity = 5 + Math.random() * 8; // Faster particles
+      const life = 80 + Math.random() * 60; // Longer lasting
+      
+      const particle = this.particlePool.get();
+      initializeParticle(
+        particle,
+        x,
+        y,
+        Math.cos(angle) * velocity,
+        Math.sin(angle) * velocity,
+        4 + Math.random() * 4, // Larger particles
+        '#9d4edd', // Purple color
+        life
+      );
+      this.activeParticles.push(particle);
+    }
+    
+    // Add some white core particles
+    const coreParticles = Math.min(20, this.maxParticles - this.activeParticles.length);
+    for (let i = 0; i < coreParticles; i++) {
+      const angle = Math.random() * Math.PI * 2;
+      const velocity = 3 + Math.random() * 5;
+      
+      const particle = this.particlePool.get();
+      initializeParticle(
+        particle,
+        x + (Math.random() - 0.5) * 20,
+        y + (Math.random() - 0.5) * 20,
+        Math.cos(angle) * velocity,
+        Math.sin(angle) * velocity,
+        6 + Math.random() * 3,
+        '#ffffff', // White core
+        60 + Math.random() * 40
+      );
+      this.activeParticles.push(particle);
+    }
+  }
   clear(): void {
     this.activeParticles.forEach(particle => this.particlePool.release(particle));
     this.activeParticles.length = 0;

@@ -241,6 +241,11 @@ export class ChainDetonationManager {
   checkCollision(playerX: number, playerY: number): { collected: boolean; fragment?: ChainFragment; completed?: boolean } {
     if (!this.activeChain) return { collected: false };
 
+    // Safety check to ensure activeChain is still valid
+    if (!this.activeChain.active || !this.activeChain.fragments) {
+      return { collected: false };
+    }
+
     for (const fragment of this.activeChain.fragments) {
       if (fragment.collected) continue;
 
@@ -253,13 +258,24 @@ export class ChainDetonationManager {
         this.activeChain.collectedCount++;
 
         // Create collection effect
-        this.createCollectionEffect(fragment);
+        try {
+          this.createCollectionEffect(fragment);
+        } catch (error) {
+          console.warn('Error creating collection effect:', error);
+        }
 
         console.log(`🔗 Fragment collected! ${this.activeChain.collectedCount}/${this.activeChain.totalFragments}`);
 
         // Check for completion
         if (this.activeChain.collectedCount >= this.activeChain.totalFragments) {
-          this.triggerCompletion();
+          try {
+            this.triggerCompletion();
+          } catch (error) {
+            console.error('Error triggering completion:', error);
+            // Fallback: just clear the chain
+            this.activeChain = null;
+            return { collected: true, fragment };
+          }
           return { collected: true, fragment, completed: true };
         }
 
@@ -271,41 +287,69 @@ export class ChainDetonationManager {
   }
 
   private createCollectionEffect(fragment: ChainFragment): void {
+    // Safety checks
+    if (!fragment || !fragment.collectionEffect) {
+      console.warn('Invalid fragment for collection effect');
+      return;
+    }
+
     fragment.collectionEffect.active = true;
-    fragment.collectionEffect.particles = [];
+    
+    // Ensure particles array exists and is empty
+    if (!Array.isArray(fragment.collectionEffect.particles)) {
+      fragment.collectionEffect.particles = [];
+    } else {
+      fragment.collectionEffect.particles.length = 0;
+    }
 
     // Create burst of purple particles
     for (let i = 0; i < 20; i++) {
       const angle = (Math.PI * 2 * i) / 20;
       const speed = 3 + Math.random() * 4;
       
-      fragment.collectionEffect.particles.push({
-        x: fragment.x,
-        y: fragment.y,
-        vx: Math.cos(angle) * speed,
-        vy: Math.sin(angle) * speed,
-        alpha: 1,
-        life: 30 + Math.random() * 20
-      });
+      try {
+        fragment.collectionEffect.particles.push({
+          x: fragment.x || 0,
+          y: fragment.y || 0,
+          vx: Math.cos(angle) * speed,
+          vy: Math.sin(angle) * speed,
+          alpha: 1,
+          life: 30 + Math.random() * 20
+        });
+      } catch (error) {
+        console.warn('Error adding particle:', error);
+        break; // Stop adding particles if there's an error
+      }
     }
   }
 
   private triggerCompletion(): void {
     if (!this.activeChain) return;
 
+    // Safety check
+    if (!this.activeChain.completionEffect) {
+      console.warn('Invalid completion effect structure');
+      this.activeChain = null;
+      return;
+    }
+
     this.activeChain.completionEffect.active = true;
     this.activeChain.completionEffect.duration = 0;
     
     console.log('🔗💥 CHAIN DETONATION COMPLETE! Screen clearing explosion triggered!');
 
-    // Dispatch completion event for game engine
-    window.dispatchEvent(new CustomEvent('chainDetonationComplete', {
-      detail: {
-        centerX: this.canvasWidth / 2,
-        centerY: this.canvasHeight / 2,
-        timestamp: performance.now()
-      }
-    }));
+    // Dispatch completion event for game engine with error handling
+    try {
+      window.dispatchEvent(new CustomEvent('chainDetonationComplete', {
+        detail: {
+          centerX: this.canvasWidth / 2,
+          centerY: this.canvasHeight / 2,
+          timestamp: performance.now()
+        }
+      }));
+    } catch (error) {
+      console.error('Error dispatching chain detonation event:', error);
+    }
   }
 
   private expireChain(): void {
