@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Trophy, Star, UserPlus, Eye, RotateCcw, Settings, UserCircle, Target, Zap } from 'lucide-react';
+import { Trophy, Star, UserPlus, Eye, RotateCcw, Settings, UserCircle, Target, Zap, HelpCircle } from 'lucide-react';
 import { LeaderboardAPI } from '../api/leaderboard';
 import { useAuthStore } from '../store/authStore';
 import { ScoreBreakdown, ComboInfo } from '../game/systems/ScoreSystem';
@@ -8,6 +8,7 @@ import LeaderboardModal from './LeaderboardModal';
 import AccountModal from './AccountModal';
 import SettingsModal from './SettingsModal';
 import ProfileModal from './ProfileModal';
+import HelpModal from './HelpModal';
 import logoImage from '../assets/Futuristic aVOID with Fiery Meteors.png';
 
 interface GameOverScreenProps {
@@ -30,6 +31,7 @@ export default function GameOverScreen({ score, scoreBreakdown, comboInfo, onPla
   const [scoreSaved, setScoreSaved] = useState(false);
   const [logoVisible, setLogoVisible] = useState(false);
   const [logoEnlarged, setLogoEnlarged] = useState(false);
+  const [showHelp, setShowHelp] = useState(false);
   
   const { user } = useAuthStore();
 
@@ -128,7 +130,42 @@ export default function GameOverScreen({ score, scoreBreakdown, comboInfo, onPla
             {logoEnlarged && (
               <div className="text-center mt-6">
                 <p className="text-cyan-300 text-sm sm:text-base md:text-lg font-semibold mb-2">Click to close</p>
-                <p className="text-cyan-500 text-xs sm:text-sm opacity-80">aVOID - Browser Dodge Game</p>
+                <p className="text-cyan-500 text-xs sm:text-sm opacity-80 mb-4">aVOID - Browser Dodge Game</p>
+                
+                {/* Developer Social Media */}
+                <div className="border-t border-cyan-500/30 pt-4 mt-4">
+                  <p className="text-cyan-400 text-sm font-medium mb-3">Follow the Developer</p>
+                  <div className="flex justify-center gap-4 flex-wrap">
+                    <a
+                      href="https://twitter.com/Xentrilo"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-2 bg-blue-600/20 hover:bg-blue-600/40 text-blue-400 hover:text-blue-300 px-3 py-2 rounded-lg transition-all duration-200 text-sm"
+                    >
+                      <span>🐦</span>
+                      <span>@Xentrilo</span>
+                    </a>
+                    <a
+                      href="https://twitch.tv/MadXent"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-2 bg-purple-600/20 hover:bg-purple-600/40 text-purple-400 hover:text-purple-300 px-3 py-2 rounded-lg transition-all duration-200 text-sm"
+                    >
+                      <span>📺</span>
+                      <span>MadXent</span>
+                    </a>
+                    <a
+                      href="https://github.com/Idea-R"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-2 bg-gray-600/20 hover:bg-gray-600/40 text-gray-400 hover:text-gray-300 px-3 py-2 rounded-lg transition-all duration-200 text-sm"
+                    >
+                      <span>💻</span>
+                      <span>Idea-R</span>
+                    </a>
+                  </div>
+                  <p className="text-cyan-500/60 text-xs mt-3">Made with ❤️ by MadXent</p>
+                </div>
               </div>
             )}
           </div>
@@ -146,6 +183,14 @@ export default function GameOverScreen({ score, scoreBreakdown, comboInfo, onPla
             
             {/* Quick Action Buttons */}
             <div className="flex gap-2">
+              <button
+                onClick={() => setShowHelp(true)}
+                className="bg-blue-600 hover:bg-blue-700 text-white p-2 rounded-lg transition-colors duration-200"
+                title="Help & Instructions"
+              >
+                <HelpCircle className="w-4 h-4" />
+              </button>
+
               <button
                 onClick={() => setShowSettings(true)}
                 className="bg-gray-600 hover:bg-gray-700 text-white p-2 rounded-lg transition-colors duration-200"
@@ -268,14 +313,6 @@ export default function GameOverScreen({ score, scoreBreakdown, comboInfo, onPla
               ) : (
                 // Guest user flow
                 <>
-                  <div className="bg-yellow-900/30 border border-yellow-500/50 rounded-lg p-4 mb-4">
-                    <p className="text-yellow-300 text-sm text-center">
-                      <strong>Note:</strong> Guest scores are saved but don't appear on the public leaderboard.
-                      <br />
-                      Sign up to compete with verified players!
-                    </p>
-                  </div>
-
                   <input
                     type="text"
                     placeholder="Enter your name"
@@ -373,6 +410,11 @@ export default function GameOverScreen({ score, scoreBreakdown, comboInfo, onPla
       <ProfileModal
         isOpen={showProfile}
         onClose={() => setShowProfile(false)}
+      />
+
+      <HelpModal
+        isOpen={showHelp}
+        onClose={() => setShowHelp(false)}
       />
     </>
   );

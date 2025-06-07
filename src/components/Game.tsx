@@ -166,9 +166,10 @@ export default function Game({ autoStart = false }: GameProps) {
           poolSizes={gameState.settings.showPerformanceStats ? gameState.poolSizes : undefined}
           autoScaling={gameState.autoScaling}
           performance={gameState.performance}
-         settings={gameState.settings}
+          settings={gameState.settings}
           isGameOver={gameState.isGameOver}
           showIntro={showIntro}
+          isPaused={isPaused}
         />
       )}
       {gameState.isGameOver && (

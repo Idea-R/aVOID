@@ -408,6 +408,22 @@ export class GameLogic {
     console.log('GameLogic reset completed');
   }
 
+  clearAllMeteors(): number {
+    const meteorCount = this.activeMeteors.length;
+    
+    // Properly release all meteors back to the pool
+    this.activeMeteors.forEach(meteor => {
+      this.meteorPool.release(meteor);
+      this.gameStats.meteorsDestroyed++;
+    });
+    
+    // Clear the active meteors array
+    this.activeMeteors.length = 0;
+    
+    console.log(`🔗 Cleared ${meteorCount} meteors from screen`);
+    return meteorCount;
+  }
+
   updateSpatialGrid(width: number, height: number): void {
     this.spatialGrid.resize(width, height);
     this.systems.collisionSystem.updateSpatialGrid(this.spatialGrid);

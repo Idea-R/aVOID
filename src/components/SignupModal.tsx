@@ -12,6 +12,7 @@ interface SignupModalProps {
 
 export default function SignupModal({ isOpen, onClose, playerScore, playerName }: SignupModalProps) {
   const [isLogin, setIsLogin] = useState(false);
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -20,6 +21,7 @@ export default function SignupModal({ isOpen, onClose, playerScore, playerName }
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
+  const [resetEmailSent, setResetEmailSent] = useState(false);
 
   const { signUp, signIn } = useAuthStore();
 
@@ -68,6 +70,32 @@ export default function SignupModal({ isOpen, onClose, playerScore, playerName }
     window.open('https://paypal.me/Xentrilo', '_blank');
   };
 
+  const handleForgotPassword = async () => {
+    if (!formData.email.trim()) {
+      setError('Please enter your email address');
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+
+    try {
+      const { resetPassword } = useAuthStore.getState();
+      const result = await resetPassword(formData.email);
+      
+      if (result.success) {
+        setResetEmailSent(true);
+        setShowForgotPassword(false);
+      } else {
+        setError(result.error || 'Failed to send reset email');
+      }
+    } catch (err) {
+      setError('An unexpected error occurred');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   if (!isOpen) return null;
 
   if (success) {
@@ -85,6 +113,69 @@ export default function SignupModal({ isOpen, onClose, playerScore, playerName }
             </p>
           )}
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-500 mx-auto"></div>
+        </div>
+      </div>
+    );
+  }
+
+  // Forgot Password Modal
+  if (showForgotPassword) {
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-50 p-4">
+        <div className="bg-gray-900 rounded-lg shadow-2xl border border-cyan-500 max-w-md w-full">
+          <div className="bg-gradient-to-r from-cyan-600 to-blue-600 p-6 relative">
+            <button
+              onClick={() => setShowForgotPassword(false)}
+              className="absolute top-4 right-4 text-white hover:text-gray-300 transition-colors"
+            >
+              <X className="w-6 h-6" />
+            </button>
+            
+            <h2 className="text-2xl font-bold text-white mb-2">Reset Password</h2>
+            <p className="text-cyan-100">Enter your email to receive a password reset link</p>
+          </div>
+
+          <div className="p-6">
+            {error && (
+              <div className="bg-red-900/50 border border-red-500 text-red-300 px-4 py-3 rounded mb-4">
+                {error}
+              </div>
+            )}
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Email Address
+                </label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                  <input
+                    type="email"
+                    value={formData.email}
+                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                    className="w-full pl-10 pr-4 py-2 bg-gray-800 border border-gray-600 rounded text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                    placeholder="your@email.com"
+                    required
+                  />
+                </div>
+              </div>
+
+              <button
+                onClick={handleForgotPassword}
+                disabled={loading || !formData.email.trim()}
+                className="w-full bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 text-white font-bold py-3 px-4 rounded disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+              >
+                {loading ? 'Sending...' : 'Send Reset Link'}
+              </button>
+
+              <button
+                onClick={() => setShowForgotPassword(false)}
+                className="w-full text-gray-400 hover:text-gray-300 py-2 transition-colors duration-200"
+              >
+                Back to Sign In
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -231,7 +322,24 @@ export default function SignupModal({ isOpen, onClose, playerScore, playerName }
                   minLength={6}
                 />
               </div>
+              {isLogin && (
+                <div className="mt-2 text-right">
+                  <button
+                    type="button"
+                    onClick={() => setShowForgotPassword(true)}
+                    className="text-cyan-400 hover:text-cyan-300 text-sm transition-colors duration-200"
+                  >
+                    Forgot password?
+                  </button>
+                </div>
+              )}
             </div>
+
+            {resetEmailSent && (
+              <div className="bg-green-900/50 border border-green-500 text-green-300 px-4 py-3 rounded">
+                Password reset email sent! Check your inbox and follow the instructions to reset your password.
+              </div>
+            )}
 
             <button
               type="submit"

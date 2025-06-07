@@ -274,7 +274,13 @@ export default function ProfileModal({ isOpen, onClose, userId }: ProfileModalPr
           {isOwnProfile && (
             <div className="mt-4 flex gap-2 flex-wrap">
               {tabConfig.map(({ id, label, icon }) => {
-                const iconMap = { User, Trophy, Target, ExternalLink, Eye };
+                const iconMap = {
+                  User: User,
+                  Trophy: Trophy,
+                  Target: Target,
+                  ExternalLink: ExternalLink,
+                  Eye: Eye
+                };
                 const IconComponent = iconMap[icon as keyof typeof iconMap] || User;
                 
                 return (
