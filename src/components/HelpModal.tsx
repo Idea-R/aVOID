@@ -115,13 +115,13 @@ export default function HelpModal({ isOpen, onClose }: HelpModalProps) {
                     <Star className="w-5 h-5 text-white" />
                   </div>
                   <div>
-                    <p className="text-yellow-300 font-semibold">Atomic Detonator</p>
-                    <p className="text-yellow-200 text-sm">Appears every 5-20 seconds - collect up to 3 charges!</p>
+                    <p className="text-yellow-300 font-semibold">Atomic Detonator & Chain Detonation</p>
+                    <p className="text-yellow-200 text-sm">Regular power-ups appear every 5-20s. Rare chain detonations spawn 4 purple fragments!</p>
                   </div>
                 </div>
 
                 <div className="bg-gray-700 rounded-lg p-3">
-                  <p className="text-white font-semibold mb-2">Stockpiling System:</p>
+                  <p className="text-white font-semibold mb-2">Regular Power-ups:</p>
                   <p className="text-gray-300 text-sm mb-2">
                     • Hold up to 3 detonator charges simultaneously
                   </p>
@@ -135,7 +135,7 @@ export default function HelpModal({ isOpen, onClose }: HelpModalProps) {
                     • Power-ups are magnetically attracted when you get close
                   </p>
                   
-                  <p className="text-white font-semibold mb-2">How to Activate:</p>
+                  <p className="text-white font-semibold mb-2">Regular Detonator Activation:</p>
                   <p className="text-gray-300 text-sm mb-2">
                     {isMobile 
                       ? '• Double-tap anywhere on screen to activate knockback'
@@ -148,8 +148,22 @@ export default function HelpModal({ isOpen, onClose }: HelpModalProps) {
                   <p className="text-gray-300 text-sm">
                     • Pushes away meteors in medium range
                   </p>
-                  <p className="text-gray-300 text-sm">
-                    • Collecting power-ups creates mild knockback effect
+                  
+                  <p className="text-white font-semibold mb-2 mt-4">🔗 Chain Detonation (RARE):</p>
+                  <p className="text-purple-300 text-sm mb-2">
+                    • 4 purple crystal fragments spawn randomly (15% chance every 2s)
+                  </p>
+                  <p className="text-purple-300 text-sm mb-2">
+                    • Collect ALL 4 fragments within 5 seconds
+                  </p>
+                  <p className="text-purple-300 text-sm mb-2">
+                    • Success = MASSIVE screen-clearing explosion
+                  </p>
+                  <p className="text-purple-300 text-sm mb-2">
+                    • 25 points per meteor destroyed + 100 completion bonus
+                  </p>
+                  <p className="text-purple-300 text-sm">
+                    • High risk, extremely high reward!
                   </p>
                 </div>
               </div>

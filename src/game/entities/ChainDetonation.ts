@@ -48,8 +48,8 @@ export interface ChainDetonation {
 export class ChainDetonationManager {
   private activeChain: ChainDetonation | null = null;
   private lastSpawnTime: number = 0;
-  private spawnCooldown: number = 30000; // 30 seconds minimum between spawns
-  private spawnChance: number = 0.05; // 5% chance per check
+  private spawnCooldown: number = 15000; // 15 seconds minimum between spawns
+  private spawnChance: number = 0.15; // 15% chance per check
   private checkInterval: number = 2000; // Check every 2 seconds
   private lastCheckTime: number = 0;
 
@@ -134,8 +134,8 @@ export class ChainDetonationManager {
       id: `chain_${currentTime}`,
       active: true,
       fragments,
-      timeRemaining: 15000, // 15 seconds
-      maxTime: 15000,
+      timeRemaining: 5000, // 5 seconds - much more urgent!
+      maxTime: 5000,
       collectedCount: 0,
       totalFragments: 4,
       screenEffect: {
@@ -154,7 +154,7 @@ export class ChainDetonationManager {
     };
 
     this.lastSpawnTime = currentTime;
-    console.log('🔗 Chain Detonation spawned! Collect all 4 fragments within 15 seconds!');
+    console.log('🔗 Chain Detonation spawned! Collect all 4 fragments within 5 seconds!');
   }
 
   private updateActiveChain(deltaTime: number, currentTime: number): void {
