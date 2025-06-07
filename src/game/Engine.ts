@@ -693,7 +693,6 @@ export default class Engine {
     for (const meteor of defenseResult.destroyedMeteors) {
       this.releaseMeteor(meteor);
       this.gameStats.meteorsDestroyed++;
-      // Add score for defended meteors
       this.scoreSystem.addMeteorScore(meteor.x, meteor.y, meteor.isSuper);
     }
     

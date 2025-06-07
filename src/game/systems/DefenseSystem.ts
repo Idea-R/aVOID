@@ -189,7 +189,6 @@ export class DefenseSystem {
           
           if (action === 'destroy') {
             destroyedMeteors.push(meteor);
-            this.createLocalizedLightningEffects(zone.x, zone.y, meteor.x, meteor.y, 'destroy');
           } else if (action === 'deflect') {
             const deflection = this.calculateDeflection(meteor, zone, distance);
             deflectedMeteors.push({
