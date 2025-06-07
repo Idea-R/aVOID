@@ -104,14 +104,29 @@ export class ParticleSystem {
   }
 
   createDefenseEffect(x: number, y: number, type: 'destroy' | 'deflect'): void {
-    const particleCount = this.isMobile ? 8 : 15;
-    const color = type === 'destroy' ? '#06b6d4' : '#00ff88';
-    const life = type === 'destroy' ? 40 : 25;
-    
+    if (type === 'destroy') {
+      this.createLightningDestruction(x, y);
+    } else {
+      this.createLightningDeflection(x, y);
+    }
+  }
+
+  /**
+   * Create lightning-style destruction effect
+   */
+  private createLightningDestruction(x: number, y: number): void {
+    const particleCount = this.isMobile ? 12 : 20;
     const particles = Math.min(particleCount, this.maxParticles - this.activeParticles.length);
+    
+    // Create jagged lightning-style particles
     for (let i = 0; i < particles; i++) {
-      const angle = (Math.PI * 2 * i) / particles;
-      const velocity = type === 'destroy' ? 3 + Math.random() * 2 : 2 + Math.random() * 1.5;
+      // Create branching lightning effect
+      const mainAngle = (Math.PI * 2 * i) / particles;
+      const angleVariation = (Math.random() - 0.5) * 0.8; // Add randomness for jagged effect
+      const angle = mainAngle + angleVariation;
+      
+      const velocity = 4 + Math.random() * 3; // Fast, electric-like movement
+      const life = 30 + Math.random() * 20; // Short, intense flash
       
       const particle = this.particlePool.get();
       initializeParticle(
@@ -120,9 +135,57 @@ export class ParticleSystem {
         y,
         Math.cos(angle) * velocity,
         Math.sin(angle) * velocity,
-        type === 'destroy' ? 3 + Math.random() * 2 : 2 + Math.random() * 1,
-        color,
-        life + Math.random() * 20
+        1 + Math.random() * 2, // Smaller, more electric-like particles
+        '#ffff00', // Bright yellow lightning color
+        life
+      );
+      this.activeParticles.push(particle);
+    }
+    
+    // Add central flash effect
+    const centralParticles = Math.min(5, this.maxParticles - this.activeParticles.length);
+    for (let i = 0; i < centralParticles; i++) {
+      const particle = this.particlePool.get();
+      initializeParticle(
+        particle,
+        x + (Math.random() - 0.5) * 10,
+        y + (Math.random() - 0.5) * 10,
+        (Math.random() - 0.5) * 2,
+        (Math.random() - 0.5) * 2,
+        3 + Math.random() * 2,
+        '#ffffff', // Bright white core
+        25 + Math.random() * 15
+      );
+      this.activeParticles.push(particle);
+    }
+  }
+
+  /**
+   * Create lightning-style deflection effect
+   */
+  private createLightningDeflection(x: number, y: number): void {
+    const particleCount = this.isMobile ? 8 : 12;
+    const particles = Math.min(particleCount, this.maxParticles - this.activeParticles.length);
+    
+    // Create smaller, more subtle lightning effect for deflection
+    for (let i = 0; i < particles; i++) {
+      const angle = (Math.PI * 2 * i) / particles;
+      const angleVariation = (Math.random() - 0.5) * 0.6;
+      const finalAngle = angle + angleVariation;
+      
+      const velocity = 2 + Math.random() * 2;
+      const life = 20 + Math.random() * 15;
+      
+      const particle = this.particlePool.get();
+      initializeParticle(
+        particle,
+        x,
+        y,
+        Math.cos(finalAngle) * velocity,
+        Math.sin(finalAngle) * velocity,
+        1 + Math.random() * 1.5,
+        '#00ffff', // Cyan lightning for deflection
+        life
       );
       this.activeParticles.push(particle);
     }

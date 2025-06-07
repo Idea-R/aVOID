@@ -41,14 +41,14 @@ export default function BoltBadge({ onMeteorDefense }: BoltBadgeProps) {
       `}</style>
 
       {/* Badge Container with Defense Field */}
-      <div className="fixed bottom-4 right-4 z-50" id="bolt-badge-container">
+      <div className="fixed bottom-4 right-8 z-50" id="bolt-badge-container">
         {/* Invisible Defense Area */}
         <div 
-          className="absolute inset-0 w-32 h-32 -translate-x-12 -translate-y-12 pointer-events-none"
+          className="absolute inset-0 w-40 h-40 -translate-x-16 -translate-y-16 pointer-events-none"
           id="bolt-defense-zone"
         >
           {/* Visual Defense Field (optional, can be hidden) */}
-          <div className="absolute inset-0 rounded-full border-2 border-cyan-400/30 defense-field opacity-0 hover:opacity-100 transition-opacity duration-300" />
+          <div className="absolute inset-0 rounded-full border-2 border-yellow-400/40 defense-field opacity-0 hover:opacity-100 transition-opacity duration-300" />
         </div>
 
         {/* Bolt Badge */}

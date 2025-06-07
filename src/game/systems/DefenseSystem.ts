@@ -22,13 +22,13 @@ export class DefenseSystem {
    */
   private initializeBoltDefenseZone(): void {
     // Position matches the badge location (bottom-right corner)
-    const badgeX = this.canvas.width - 80; // Approximate badge center
+    const badgeX = this.canvas.width - 96; // Moved further right to match new position
     const badgeY = this.canvas.height - 40; // Approximate badge center
     
     this.defenseZones.push({
       x: badgeX,
       y: badgeY,
-      radius: 80, // 80px defense radius around badge
+      radius: 96, // 20% larger defense radius (80 * 1.2 = 96px)
       strength: 0.7, // 70% chance to destroy, 30% to deflect
       type: 'hybrid'
     });
@@ -43,7 +43,7 @@ export class DefenseSystem {
     
     // Update Bolt badge defense zone position
     if (this.defenseZones.length > 0) {
-      this.defenseZones[0].x = width - 80;
+      this.defenseZones[0].x = width - 96;
       this.defenseZones[0].y = height - 40;
     }
   }
