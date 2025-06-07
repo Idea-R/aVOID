@@ -245,3 +245,5 @@ export class ParticleSystem {
     this.maxParticles = this.isMobile ? 150 : 300;
   }
 }
+
+export { ParticleSystem }
