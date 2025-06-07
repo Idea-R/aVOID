@@ -100,6 +100,9 @@ export default function HUD({ score, comboInfo, powerUpCharges = 0, maxPowerUpCh
             </div>
           )}
           
+          {/* Chain Detonation Status */}
+          {/* Note: Chain detonation UI is rendered directly by the ChainDetonationRenderer */}
+          
           {(meteors > 0 || particles > 0) && (
             <div className="flex gap-6 text-xs opacity-80">
               {meteors > 0 && (

@@ -7,6 +7,8 @@ import { ParticleSystem } from './systems/ParticleSystem';
 import { CollisionSystem } from './systems/CollisionSystem';
 import { ScoreSystem, ScoreBreakdown, ComboInfo } from './systems/ScoreSystem';
 import { DefenseSystem } from './systems/DefenseSystem';
+import { ChainDetonationManager } from './entities/ChainDetonation';
+import { ChainDetonationRenderer } from './systems/ChainDetonationRenderer';
 
 interface GameSettings {
   volume: number;
@@ -39,6 +41,8 @@ export default class Engine {
   private collisionSystem: CollisionSystem;
   private scoreSystem: ScoreSystem;
   private defenseSystem: DefenseSystem;
+  private chainDetonationManager: ChainDetonationManager;
+  private chainDetonationRenderer: ChainDetonationRenderer;
   
   // Object pools
   private meteorPool: ObjectPool<Meteor>;
@@ -133,6 +137,8 @@ export default class Engine {
     this.collisionSystem = new CollisionSystem(this.spatialGrid);
     this.scoreSystem = new ScoreSystem();
     this.defenseSystem = new DefenseSystem(canvas);
+    this.chainDetonationManager = new ChainDetonationManager(canvas.width, canvas.height);
+    this.chainDetonationRenderer = new ChainDetonationRenderer(canvas);
     
     // Initialize object pools
     this.meteorPool = new ObjectPool(createMeteor, resetMeteor, 20, this.MAX_METEORS);
@@ -162,6 +168,9 @@ export default class Engine {
     
     // Listen for defense effects
     window.addEventListener('defenseEffect', this.handleDefenseEffect);
+    
+    // Listen for chain detonation completion
+    window.addEventListener('chainDetonationComplete', this.handleChainDetonationComplete);
   }
 
   private loadSettings() {
@@ -460,6 +469,7 @@ export default class Engine {
     this.spatialGrid.resize(window.innerWidth, window.innerHeight);
     this.collisionSystem.updateSpatialGrid(this.spatialGrid);
     this.defenseSystem.updateCanvasSize(window.innerWidth, window.innerHeight);
+    this.chainDetonationManager.updateCanvasSize(window.innerWidth, window.innerHeight);
   };
 
   private getRandomColor(): string {
@@ -470,6 +480,43 @@ export default class Engine {
   private handleDefenseEffect = (event: CustomEvent) => {
     // Defense effects are now handled entirely by the DefenseSystem
     // No additional particle effects needed here
+  };
+
+  private handleChainDetonationComplete = (event: CustomEvent) => {
+    console.log('🔗💥 Chain Detonation Complete - Processing screen clear');
+    
+    // Count meteors for scoring
+    const meteorsDestroyed = this.activeMeteors.length;
+    let totalPoints = 0;
+    
+    // Destroy all meteors and calculate points
+    this.activeMeteors.forEach(meteor => {
+      // Create explosion effect for each meteor
+      this.particleSystem.createExplosion(meteor.x, meteor.y, meteor.color, meteor.isSuper);
+      
+      // Add points per meteor
+      totalPoints += 25;
+      this.gameStats.meteorsDestroyed++;
+    });
+    
+    // Clear all meteors
+    this.activeMeteors.forEach(meteor => this.meteorPool.release(meteor));
+    this.activeMeteors.length = 0;
+    
+    // Add completion bonus
+    const completionBonus = 100;
+    totalPoints += completionBonus;
+    
+    // Add to score system
+    this.scoreSystem.addChainDetonationScore(totalPoints, meteorsDestroyed, event.detail.centerX, event.detail.centerY);
+    
+    // Create massive particle explosion at center
+    this.particleSystem.createChainDetonationExplosion(event.detail.centerX, event.detail.centerY);
+    
+    // Screen shake
+    this.screenShake = { x: 0, y: 0, intensity: 25, duration: 1000 };
+    
+    console.log(`🔗💥 Chain Detonation destroyed ${meteorsDestroyed} meteors for ${totalPoints} points!`);
   };
 
   private spawnMeteor() {
@@ -646,6 +693,7 @@ export default class Engine {
     this.particleSystem.update(deltaTime);
     this.scoreSystem.update(deltaTime, performance.now());
     this.defenseSystem.update(deltaTime);
+    this.chainDetonationManager.update(deltaTime, performance.now());
     
     // Process defense system
     const defenseResult = this.defenseSystem.processMeteorDefense(this.activeMeteors);
@@ -717,6 +765,19 @@ export default class Engine {
       this.particleSystem.createExplosion(collectedPowerUp.x, collectedPowerUp.y, '#ffd700', false);
       
       console.log('🔋 Power-up collected! Current charges:', this.powerUpManager.getCharges(), '/', this.powerUpManager.getMaxCharges());
+    }
+    
+    // Check chain detonation fragment collection
+    const chainResult = this.chainDetonationManager.checkCollision(this.mouseX, this.mouseY);
+    if (chainResult.collected) {
+      if (chainResult.fragment) {
+        // Add points for fragment collection
+        this.scoreSystem.addChainFragmentScore(chainResult.fragment.x, chainResult.fragment.y);
+      }
+      
+      if (chainResult.completed) {
+        console.log('🔗✨ All chain fragments collected! Preparing massive detonation...');
+      }
     }
     
     if (this.knockbackCooldown > 0) {
@@ -919,6 +980,20 @@ export default class Engine {
     
     // Render defense system effects on top
     this.defenseSystem.render();
+    
+    // Render chain detonation effects
+    const activeChain = this.chainDetonationManager.getActiveChain();
+    if (activeChain) {
+      this.chainDetonationRenderer.renderChainDetonation(activeChain);
+      this.chainDetonationRenderer.renderUI(activeChain);
+    }
+    
+    // Apply chain detonation screen effects
+    const chainEffects = this.chainDetonationManager.getScreenEffects();
+    if (chainEffects.shakeIntensity > 0) {
+      this.screenShake.intensity = Math.max(this.screenShake.intensity, chainEffects.shakeIntensity);
+      this.screenShake.duration = Math.max(this.screenShake.duration, 500);
+    }
   }
 
   private renderPauseOverlay(): void {
@@ -1027,6 +1102,7 @@ export default class Engine {
     window.removeEventListener('focus', this.handleWindowFocus);
     document.removeEventListener('visibilitychange', this.handleVisibilityChange);
     window.removeEventListener('defenseEffect', this.handleDefenseEffect);
+    window.removeEventListener('chainDetonationComplete', this.handleChainDetonationComplete);
   }
 
   isStarted(): boolean {
@@ -1086,6 +1162,7 @@ export default class Engine {
     this.powerUpManager.reset();
     this.scoreSystem.reset();
     this.defenseSystem.clear();
+    this.chainDetonationManager.reset();
     
     // Re-initialize defense zones
     this.defenseSystem = new DefenseSystem(this.canvas);
