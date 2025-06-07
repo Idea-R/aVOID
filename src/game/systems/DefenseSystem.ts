@@ -159,13 +159,16 @@ export class DefenseSystem {
   /**
    * Check if meteor is entering defense zone and apply effects
    * Only affects meteors that ENTER the zone, not those that start in it
+   * Also checks for player collision with active defense zones
    */
   public processMeteorDefense(meteors: Meteor[]): {
     destroyedMeteors: Meteor[];
     deflectedMeteors: Array<{ meteor: Meteor; newVx: number; newVy: number }>;
+    playerInDangerZone: boolean;
   } {
     const destroyedMeteors: Meteor[] = [];
     const deflectedMeteors: Array<{ meteor: Meteor; newVx: number; newVy: number }> = [];
+    let playerInDangerZone = false;
 
     for (const meteor of meteors) {
       if (!meteor.active) continue;
@@ -205,7 +208,66 @@ export class DefenseSystem {
       }
     }
 
-    return { destroyedMeteors, deflectedMeteors };
+    return { destroyedMeteors, deflectedMeteors, playerInDangerZone };
+  }
+
+  /**
+   * Check if player is in an active electrical defense zone
+   * Returns true if player should be eliminated
+   */
+  public checkPlayerCollision(playerX: number, playerY: number): boolean {
+    // Only check collision if defense system has been recently activated
+    const timeSinceActivation = performance.now() - this.lastActivationTime;
+    const isDefenseActive = timeSinceActivation < 1000; // Active for 1 second after activation
+    
+    if (!isDefenseActive) return false;
+    
+    for (const zone of this.defenseZones) {
+      const distance = this.getDistance(playerX, playerY, zone.x, zone.y);
+      
+      // Player collision radius is smaller than meteor collision radius for fairness
+      const playerCollisionRadius = zone.radius * 0.7; // 70% of full zone radius
+      
+      if (distance <= playerCollisionRadius) {
+        // Create dramatic lightning effect for player elimination
+        this.createPlayerEliminationEffect(zone.x, zone.y, playerX, playerY);
+        return true;
+      }
+    }
+    
+    return false;
+  }
+
+  /**
+   * Create dramatic lightning effect when player is eliminated by defense system
+   */
+  private createPlayerEliminationEffect(badgeX: number, badgeY: number, playerX: number, playerY: number): void {
+    // Create multiple intense lightning bolts
+    for (let i = 0; i < 5; i++) {
+      setTimeout(() => {
+        this.createLightningBolt(badgeX, badgeY, playerX, playerY, 'destroy');
+      }, i * 30); // Staggered bolts for dramatic effect
+    }
+    
+    // Create large electric ring at player position
+    this.createElectricRing(playerX, playerY, 'destroy');
+    
+    // Create intense spark burst at player position
+    this.createElectricSparkBurst(playerX, playerY, 'destroy');
+    
+    // Extend static electricity duration for dramatic effect
+    this.staticElectricityTimer = 1000; // 1 second of intense static
+    
+    // Dispatch special audio event for player elimination
+    const audioEvent = new CustomEvent('electricDefense', {
+      detail: {
+        type: 'playerElimination',
+        intensity: 'maximum',
+        timestamp: performance.now()
+      }
+    });
+    
+    window.dispatchEvent(audioEvent);
   }
 
   /**

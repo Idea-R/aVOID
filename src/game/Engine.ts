@@ -648,6 +648,47 @@ export default class Engine {
     // Process defense system
     const defenseResult = this.defenseSystem.processMeteorDefense(this.activeMeteors);
     
+    // Check if player is in electrical danger zone
+    const playerInElectricalZone = this.defenseSystem.checkPlayerCollision(this.mouseX, this.mouseY);
+    if (playerInElectricalZone) {
+      // Player eliminated by electrical defense system
+      this.particleSystem.createExplosion(this.mouseX, this.mouseY, '#00bfff'); // Electric blue explosion
+      this.isGameOver = true;
+      
+      // Update user statistics if authenticated
+      this.updateUserStatistics();
+      
+      // Force immediate state update
+      this.onStateUpdate({
+        score: this.scoreSystem.getTotalScore(),
+        scoreBreakdown: this.scoreSystem.getScoreBreakdown(),
+        comboInfo: this.scoreSystem.getComboInfo(),
+        time: this.gameTime, 
+        isGameOver: true, 
+        fps: this.currentFPS,
+        meteors: this.meteorCount,
+        particles: this.particleSystem.getParticleCount(),
+        poolSizes: {
+          meteors: this.meteorPool.getPoolSize(),
+          particles: this.particleSystem.getPoolSize()
+        },
+        autoScaling: {
+          enabled: this.autoScaleEnabled,
+          shadowsEnabled: this.shadowsEnabled,
+          maxParticles: this.dynamicMaxParticles,
+          adaptiveTrailsActive: this.adaptiveTrailsActive
+        },
+        performance: {
+          averageFrameTime: this.averageFrameTime,
+          memoryUsage: this.memoryUsageEstimate,
+          lastScalingEvent: this.lastScalingEvent
+        },
+        settings: this.gameSettings
+      });
+      
+      return;
+    }
+    
     // Handle destroyed meteors from defense system
     for (const meteor of defenseResult.destroyedMeteors) {
       this.releaseMeteor(meteor);
