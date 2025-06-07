@@ -75,51 +75,183 @@ export default function CyberpunkScoreDisplay({ score }: CyberpunkScoreDisplayPr
   const scoreChars = formatScore(displayScore).split('');
 
   return (
-    <div 
-      ref={containerRef}
-      className={`cyberpunk-score-container ${animationClass} ${glitchActive ? 'glitch-active' : ''} ${milestoneEffect ? 'milestone-active' : ''}`}
-    >
-      {/* Hexagonal tech border */}
-      <div className="cyberpunk-score-border">
-        <div className="cyberpunk-score-content">
-          {/* Circuit pattern background */}
-          <div className="cyberpunk-circuit-pattern"></div>
-          
-          {/* Scan lines */}
-          <div className="cyberpunk-scan-lines"></div>
-          
-          {/* Score digits */}
-          <div className="cyberpunk-score-digits">
-            {scoreChars.map((char, index) => (
-              <span 
-                key={index} 
-                className={`cyberpunk-digit ${char === '0' && index < scoreChars.length - 3 ? 'leading-zero' : ''}`}
-                style={{ animationDelay: `${index * 50}ms` }}
-              >
-                {char}
-              </span>
-            ))}
-          </div>
-          
-          {/* Holographic shimmer overlay */}
-          <div className="cyberpunk-shimmer"></div>
-          
-          {/* Glow ring for large increases */}
-          <div className="cyberpunk-glow-ring"></div>
+    <>
+      {/* Cyberpunk Score Display */}
+      <div 
+        ref={containerRef}
+        className={`fixed top-4 left-1/2 transform -translate-x-1/2 z-40 ${animationClass} ${glitchActive ? 'glitch-active' : ''} ${milestoneEffect ? 'milestone-active' : ''}`}
+        style={{
+          background: 'linear-gradient(135deg, rgba(0, 20, 40, 0.9), rgba(0, 40, 80, 0.8))',
+          border: '2px solid #06b6d4',
+          borderRadius: '12px',
+          padding: '12px 24px',
+          boxShadow: '0 0 20px rgba(6, 182, 212, 0.5), inset 0 0 20px rgba(6, 182, 212, 0.1)',
+          fontFamily: '"Orbitron", monospace',
+          fontSize: '28px',
+          fontWeight: 'bold',
+          color: '#ffffff',
+          textShadow: '0 0 10px #06b6d4, 0 0 20px #06b6d4, 0 0 30px #06b6d4',
+          minWidth: '200px',
+          textAlign: 'center' as const,
+          position: 'relative' as const,
+          overflow: 'hidden' as const
+        }}
+      >
+        {/* Circuit pattern background */}
+        <div 
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'repeating-linear-gradient(90deg, transparent, transparent 10px, rgba(6, 182, 212, 0.1) 10px, rgba(6, 182, 212, 0.1) 11px)',
+            animation: 'circuitFlow 3s linear infinite',
+            zIndex: 1
+          }}
+        />
+        
+        {/* Scan lines */}
+        <div 
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(6, 182, 212, 0.1) 2px, rgba(6, 182, 212, 0.1) 3px)',
+            animation: 'scanLines 2s linear infinite',
+            zIndex: 2
+          }}
+        />
+        
+        {/* Score digits */}
+        <div style={{ position: 'relative', zIndex: 3 }}>
+          {scoreChars.map((char, index) => (
+            <span 
+              key={index} 
+              style={{
+                opacity: char === '0' && index < scoreChars.length - 3 ? 0.4 : 1,
+                transition: 'all 0.3s ease',
+                display: 'inline-block'
+              }}
+            >
+              {char}
+            </span>
+          ))}
         </div>
+        
+        {/* Holographic shimmer overlay */}
+        <div 
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: '-100%',
+            width: '100%',
+            height: '100%',
+            background: 'linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent)',
+            animation: 'shimmer 3s ease-in-out infinite',
+            zIndex: 4
+          }}
+        />
+        
+        {/* Glow ring for large increases */}
+        {glitchActive && (
+          <div 
+            style={{
+              position: 'absolute',
+              top: '-10px',
+              left: '-10px',
+              right: '-10px',
+              bottom: '-10px',
+              border: '2px solid #ffd700',
+              borderRadius: '16px',
+              boxShadow: '0 0 30px #ffd700',
+              animation: 'glowRing 0.5s ease-out',
+              zIndex: 0
+            }}
+          />
+        )}
       </div>
       
       {/* Milestone celebration effect */}
       {milestoneEffect && (
-        <div className="cyberpunk-milestone-effect">
-          <div className="milestone-text">MILESTONE ACHIEVED!</div>
-          <div className="milestone-sparks">
+        <div 
+          className="fixed top-20 left-1/2 transform -translate-x-1/2 z-50"
+          style={{
+            textAlign: 'center',
+            animation: 'milestoneAppear 2s ease-out'
+          }}
+        >
+          <div 
+            style={{
+              fontFamily: '"Orbitron", monospace',
+              fontSize: '24px',
+              fontWeight: 'bold',
+              color: '#ffd700',
+              textShadow: '0 0 10px #ffd700, 0 0 20px #ffd700',
+              marginBottom: '10px'
+            }}
+          >
+            MILESTONE ACHIEVED!
+          </div>
+          <div style={{ position: 'relative', width: '200px', height: '50px' }}>
             {[...Array(12)].map((_, i) => (
-              <div key={i} className="milestone-spark" style={{ '--spark-delay': `${i * 100}ms` } as React.CSSProperties}></div>
+              <div 
+                key={i} 
+                style={{
+                  position: 'absolute',
+                  width: '4px',
+                  height: '20px',
+                  background: 'linear-gradient(to bottom, #ffd700, transparent)',
+                  left: '50%',
+                  top: '50%',
+                  transformOrigin: '2px 25px',
+                  transform: `rotate(${i * 30}deg)`,
+                  animation: `sparkRadiate 1s ease-out ${i * 100}ms both`
+                }}
+              />
             ))}
           </div>
         </div>
       )}
-    </div>
+      
+      {/* Add keyframe animations */}
+      <style>{`
+        @keyframes circuitFlow {
+          0% { transform: translateX(-100%); }
+          100% { transform: translateX(100%); }
+        }
+        
+        @keyframes scanLines {
+          0% { transform: translateY(-100%); }
+          100% { transform: translateY(100%); }
+        }
+        
+        @keyframes shimmer {
+          0% { left: -100%; }
+          50% { left: 100%; }
+          100% { left: 100%; }
+        }
+        
+        @keyframes glowRing {
+          0% { transform: scale(1); opacity: 1; }
+          100% { transform: scale(1.2); opacity: 0; }
+        }
+        
+        @keyframes milestoneAppear {
+          0% { opacity: 0; transform: translateX(-50%) translateY(-20px) scale(0.8); }
+          20% { opacity: 1; transform: translateX(-50%) translateY(0) scale(1.1); }
+          80% { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
+          100% { opacity: 0; transform: translateX(-50%) translateY(-10px) scale(0.9); }
+        }
+        
+        @keyframes sparkRadiate {
+          0% { opacity: 0; transform: rotate(var(--rotation)) scale(0); }
+          50% { opacity: 1; transform: rotate(var(--rotation)) scale(1); }
+          100% { opacity: 0; transform: rotate(var(--rotation)) scale(1.5); }
+        }
+      `}</style>
+    </>
   );
 }
