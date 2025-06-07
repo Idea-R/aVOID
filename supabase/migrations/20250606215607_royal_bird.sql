@@ -33,7 +33,7 @@ CREATE OR REPLACE FUNCTION public.update_game_statistics(
   distance_increment NUMERIC DEFAULT 0,
   current_score INTEGER DEFAULT 0,
   current_meteors INTEGER DEFAULT 0,
-  current_time NUMERIC DEFAULT 0,
+  current_survival_time NUMERIC DEFAULT 0,
   current_distance NUMERIC DEFAULT 0
 )
 RETURNS VOID AS $$
