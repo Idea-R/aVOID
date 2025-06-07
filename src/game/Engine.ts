@@ -466,15 +466,8 @@ export default class Engine {
   }
 
   private handleDefenseEffect = (event: CustomEvent) => {
-    const { x, y, type } = event.detail;
-    
-    if (type === 'destroy') {
-      // Create cyan explosion effect for destroyed meteors
-      this.particleSystem.createExplosion(x, y, '#06b6d4', false);
-    } else if (type === 'deflect') {
-      // Create smaller deflection effect
-      this.particleSystem.createShockwave(x, y);
-    }
+    // Defense effects are now handled entirely by the DefenseSystem
+    // No additional particle effects needed here
   };
 
   private spawnMeteor() {
