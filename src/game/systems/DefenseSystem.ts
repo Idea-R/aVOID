@@ -100,9 +100,9 @@ export class DefenseSystem {
    * Initialize the Bolt.new badge defense zone
    */
   private initializeBoltDefenseZone(): void {
-    // Position matches the badge location (bottom-right corner)
-    const badgeX = this.canvas.width - 96;
-    const badgeY = this.canvas.height - 40;
+    // Position matches the badge location (bottom-right corner) - centered on badge
+    const badgeX = this.canvas.width - 64; // Adjusted to center on badge
+    const badgeY = this.canvas.height - 32; // Adjusted to center on badge
     
     this.defenseZones.push({
       x: badgeX,
@@ -122,8 +122,8 @@ export class DefenseSystem {
     
     // Update Bolt badge defense zone position
     if (this.defenseZones.length > 0) {
-      this.defenseZones[0].x = width - 96;
-      this.defenseZones[0].y = height - 40;
+      this.defenseZones[0].x = width - 64; // Centered on badge
+      this.defenseZones[0].y = height - 32; // Centered on badge
     }
   }
 
