@@ -103,6 +103,30 @@ export class ParticleSystem {
     }
   }
 
+  createDefenseEffect(x: number, y: number, type: 'destroy' | 'deflect'): void {
+    const particleCount = this.isMobile ? 8 : 15;
+    const color = type === 'destroy' ? '#06b6d4' : '#00ff88';
+    const life = type === 'destroy' ? 40 : 25;
+    
+    const particles = Math.min(particleCount, this.maxParticles - this.activeParticles.length);
+    for (let i = 0; i < particles; i++) {
+      const angle = (Math.PI * 2 * i) / particles;
+      const velocity = type === 'destroy' ? 3 + Math.random() * 2 : 2 + Math.random() * 1.5;
+      
+      const particle = this.particlePool.get();
+      initializeParticle(
+        particle,
+        x,
+        y,
+        Math.cos(angle) * velocity,
+        Math.sin(angle) * velocity,
+        type === 'destroy' ? 3 + Math.random() * 2 : 2 + Math.random() * 1,
+        color,
+        life + Math.random() * 20
+      );
+      this.activeParticles.push(particle);
+    }
+  }
   update(deltaTime: number): void {
     // Update particles
     for (let i = this.activeParticles.length - 1; i >= 0; i--) {

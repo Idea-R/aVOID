@@ -4,6 +4,7 @@ import HUD from './HUD';
 import GameOverScreen from './GameOverScreen';
 import GameIntro from './GameIntro';
 import { ScoreBreakdown, ComboInfo } from '../game/systems/ScoreSystem';
+import BoltBadge from './BoltBadge';
 
 interface GameSettings {
   volume: number;
@@ -179,6 +180,9 @@ export default function Game({ autoStart = false }: GameProps) {
           onPlayAgain={handlePlayAgain}
         />
       )}
+      
+      {/* Bolt.new Badge with Defense System */}
+      <BoltBadge />
     </>
   );
 }

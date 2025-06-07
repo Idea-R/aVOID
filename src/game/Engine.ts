@@ -6,6 +6,7 @@ import { RenderSystem } from './systems/RenderSystem';
 import { ParticleSystem } from './systems/ParticleSystem';
 import { CollisionSystem } from './systems/CollisionSystem';
 import { ScoreSystem, ScoreBreakdown, ComboInfo } from './systems/ScoreSystem';
+import { DefenseSystem } from './systems/DefenseSystem';
 
 interface GameSettings {
   volume: number;
@@ -37,6 +38,7 @@ export default class Engine {
   private particleSystem: ParticleSystem;
   private collisionSystem: CollisionSystem;
   private scoreSystem: ScoreSystem;
+  private defenseSystem: DefenseSystem;
   
   // Object pools
   private meteorPool: ObjectPool<Meteor>;
@@ -130,6 +132,7 @@ export default class Engine {
     this.particleSystem = new ParticleSystem();
     this.collisionSystem = new CollisionSystem(this.spatialGrid);
     this.scoreSystem = new ScoreSystem();
+    this.defenseSystem = new DefenseSystem(canvas);
     
     // Initialize object pools
     this.meteorPool = new ObjectPool(createMeteor, resetMeteor, 20, this.MAX_METEORS);
@@ -156,6 +159,9 @@ export default class Engine {
     window.addEventListener('blur', this.handleWindowBlur);
     window.addEventListener('focus', this.handleWindowFocus);
     document.addEventListener('visibilitychange', this.handleVisibilityChange);
+    
+    // Listen for defense effects
+    window.addEventListener('defenseEffect', this.handleDefenseEffect);
   }
 
   private loadSettings() {
@@ -451,12 +457,25 @@ export default class Engine {
     this.canvas.height = window.innerHeight;
     this.spatialGrid.resize(window.innerWidth, window.innerHeight);
     this.collisionSystem.updateSpatialGrid(this.spatialGrid);
+    this.defenseSystem.updateCanvasSize(window.innerWidth, window.innerHeight);
   };
 
   private getRandomColor(): string {
     const hue = Math.random() * 360;
     return `hsla(${hue}, 100%, 60%, 1)`;
   }
+
+  private handleDefenseEffect = (event: CustomEvent) => {
+    const { x, y, type } = event.detail;
+    
+    if (type === 'destroy') {
+      // Create cyan explosion effect for destroyed meteors
+      this.particleSystem.createExplosion(x, y, '#06b6d4', false);
+    } else if (type === 'deflect') {
+      // Create smaller deflection effect
+      this.particleSystem.createShockwave(x, y);
+    }
+  };
 
   private spawnMeteor() {
     if (this.activeMeteors.length >= this.MAX_METEORS) return;
@@ -631,6 +650,23 @@ export default class Engine {
     this.powerUpManager.update(this.gameTime, deltaTime);
     this.particleSystem.update(deltaTime);
     this.scoreSystem.update(deltaTime, performance.now());
+    
+    // Process defense system
+    const defenseResult = this.defenseSystem.processMeteorDefense(this.activeMeteors);
+    
+    // Handle destroyed meteors from defense system
+    for (const meteor of defenseResult.destroyedMeteors) {
+      this.releaseMeteor(meteor);
+      this.gameStats.meteorsDestroyed++;
+      // Add score for defended meteors
+      this.scoreSystem.addMeteorScore(meteor.x, meteor.y, meteor.isSuper);
+    }
+    
+    // Handle deflected meteors
+    for (const { meteor, newVx, newVy } of defenseResult.deflectedMeteors) {
+      meteor.vx = newVx;
+      meteor.vy = newVy;
+    }
     
     // Update survival score
     this.scoreSystem.updateSurvivalScore(this.gameTime);
@@ -943,6 +979,7 @@ export default class Engine {
     window.removeEventListener('blur', this.handleWindowBlur);
     window.removeEventListener('focus', this.handleWindowFocus);
     document.removeEventListener('visibilitychange', this.handleVisibilityChange);
+    window.removeEventListener('defenseEffect', this.handleDefenseEffect);
   }
 
   isStarted(): boolean {
@@ -1001,6 +1038,10 @@ export default class Engine {
     this.renderSystem.setShadowsEnabled(this.shadowsEnabled);
     this.powerUpManager.reset();
     this.scoreSystem.reset();
+    this.defenseSystem.clear();
+    
+    // Re-initialize defense zones
+    this.defenseSystem = new DefenseSystem(this.canvas);
     
     // Reset game statistics
     this.gameStats = {
