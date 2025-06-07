@@ -241,12 +241,24 @@ export class EngineCore {
     // Re-initialize defense zones
     this.defenseSystem = new DefenseSystem(this.canvas);
     
-    // Reset game logic
-    this.gameLogic.resetGame();
-    
-    // Reset input handler
+    // Reset and recreate input handler
     this.inputHandler.cleanup();
     this.inputHandler = new InputHandler(this.canvas, () => this.handleKnockbackActivation());
+    
+    // Update GameLogic with the new systems
+    const systems: GameSystems = {
+      particleSystem: this.particleSystem,
+      collisionSystem: this.collisionSystem,
+      scoreSystem: this.scoreSystem,
+      defenseSystem: this.defenseSystem,
+      chainDetonationManager: this.chainDetonationManager,
+      powerUpManager: this.powerUpManager,
+      inputHandler: this.inputHandler
+    };
+    
+    // Reset game logic with updated systems
+    this.gameLogic.resetGame();
+    this.gameLogic.updateSystems(systems);
     
     console.log('EngineCore systems reset completed');
   }

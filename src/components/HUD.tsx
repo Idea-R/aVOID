@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Trophy, User, UserPlus, Settings, UserCircle, HelpCircle, Star } from 'lucide-react';
+import { Trophy, User, UserPlus, Settings, UserCircle, HelpCircle, Star, Music } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import { ComboInfo } from '../game/systems/ScoreSystem';
 import AccountModal from './AccountModal';
@@ -9,6 +9,7 @@ import SettingsModal from './SettingsModal';
 import ProfileModal from './ProfileModal';
 import HelpModal from './HelpModal';
 import CyberpunkScoreDisplay from './CyberpunkScoreDisplay';
+import MusicControls from './MusicControls';
 
 interface HUDProps {
   score: number;
@@ -26,9 +27,10 @@ interface HUDProps {
   isGameOver?: boolean;
   showIntro?: boolean;
   isPaused?: boolean;
+  audioManager?: any;
 }
 
-export default function HUD({ score, comboInfo, powerUpCharges = 0, maxPowerUpCharges = 3, time, fps, meteors = 0, particles = 0, poolSizes, autoScaling, performance, settings, isGameOver = false, showIntro = false, isPaused = false }: HUDProps) {
+export default function HUD({ score, comboInfo, powerUpCharges = 0, maxPowerUpCharges = 3, time, fps, meteors = 0, particles = 0, poolSizes, autoScaling, performance, settings, isGameOver = false, showIntro = false, isPaused = false, audioManager }: HUDProps) {
   const { user } = useAuthStore();
   const [showAccount, setShowAccount] = useState(false);
   const [showSignup, setShowSignup] = useState(false);
@@ -36,6 +38,7 @@ export default function HUD({ score, comboInfo, powerUpCharges = 0, maxPowerUpCh
   const [showSettings, setShowSettings] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
+  const [showMusicControls, setShowMusicControls] = useState(false);
   
   // Mobile detection - screen width < 768px (md breakpoint)
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
@@ -153,6 +156,19 @@ export default function HUD({ score, comboInfo, powerUpCharges = 0, maxPowerUpCh
       {/* Top Right Controls - Hide on mobile during active gameplay, always show on desktop or when game is over */}
       {(!isMobile || isGameOver || isPaused) && !showIntro && (
         <div className="absolute top-4 right-4 flex gap-3">
+          {/* Music Controls Button */}
+          {audioManager && (
+            <button
+              onClick={() => setShowMusicControls(true)}
+              className="group bg-gradient-to-br from-purple-600 to-purple-800 hover:from-purple-500 hover:to-purple-700 text-white p-3 rounded-xl transition-all duration-300 flex items-center gap-2 text-sm font-semibold shadow-lg hover:shadow-purple-500/25 hover:scale-105 border border-purple-500/20"
+              title="Music Controls"
+            >
+              <Music className="w-5 h-5 group-hover:scale-110 transition-transform duration-300" />
+              <span className="hidden sm:inline">Music</span>
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent opacity-0 group-hover:opacity-100 transform translate-x-[-100%] group-hover:translate-x-[100%] transition-all duration-700 rounded-xl"></div>
+            </button>
+          )}
+
           <button
             onClick={() => setShowHelp(true)}
             className="group bg-gradient-to-br from-blue-600 to-blue-800 hover:from-blue-500 hover:to-blue-700 text-white p-3 rounded-xl transition-all duration-300 flex items-center gap-2 text-sm font-semibold shadow-lg hover:shadow-blue-500/25 hover:scale-105 border border-blue-500/20"
@@ -247,6 +263,15 @@ export default function HUD({ score, comboInfo, powerUpCharges = 0, maxPowerUpCh
         isOpen={showHelp}
         onClose={() => setShowHelp(false)}
       />
+
+      {/* Music Controls Modal */}
+      {audioManager && (
+        <MusicControls 
+          audioManager={audioManager} 
+          isVisible={showMusicControls}
+          onClose={() => setShowMusicControls(false)}
+        />
+      )}
     </>
   );
 }

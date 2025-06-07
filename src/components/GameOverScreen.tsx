@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Trophy, Star, UserPlus, Eye, RotateCcw, Settings, UserCircle, Target, Zap, HelpCircle } from 'lucide-react';
+import { Trophy, Star, UserPlus, Eye, RotateCcw, Settings, UserCircle, Target, Zap, HelpCircle, Music } from 'lucide-react';
 import { LeaderboardAPI } from '../api/leaderboard';
 import { useAuthStore } from '../store/authStore';
 import { ScoreBreakdown, ComboInfo } from '../game/systems/ScoreSystem';
@@ -9,6 +9,7 @@ import AccountModal from './AccountModal';
 import SettingsModal from './SettingsModal';
 import ProfileModal from './ProfileModal';
 import HelpModal from './HelpModal';
+import MusicControls from './MusicControls';
 import logoImage from '../assets/Futuristic aVOID with Fiery Meteors.png';
 
 interface GameOverScreenProps {
@@ -16,9 +17,10 @@ interface GameOverScreenProps {
   scoreBreakdown: ScoreBreakdown;
   comboInfo: ComboInfo;
   onPlayAgain?: () => void;
+  audioManager?: any;
 }
 
-export default function GameOverScreen({ score, scoreBreakdown, comboInfo, onPlayAgain }: GameOverScreenProps) {
+export default function GameOverScreen({ score, scoreBreakdown, comboInfo, onPlayAgain, audioManager }: GameOverScreenProps) {
   const [playerName, setPlayerName] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [showSignup, setShowSignup] = useState(false);
@@ -32,6 +34,7 @@ export default function GameOverScreen({ score, scoreBreakdown, comboInfo, onPla
   const [logoVisible, setLogoVisible] = useState(false);
   const [logoEnlarged, setLogoEnlarged] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
+  const [showMusicControls, setShowMusicControls] = useState(false);
   
   const { user } = useAuthStore();
 
@@ -183,6 +186,17 @@ export default function GameOverScreen({ score, scoreBreakdown, comboInfo, onPla
             
             {/* Quick Action Buttons */}
             <div className="flex gap-2">
+              {/* Music Controls Button */}
+              {audioManager && (
+                <button
+                  onClick={() => setShowMusicControls(true)}
+                  className="bg-purple-600 hover:bg-purple-700 text-white p-2 rounded-lg transition-colors duration-200"
+                  title="Music Controls"
+                >
+                  <Music className="w-4 h-4" />
+                </button>
+              )}
+
               <button
                 onClick={() => setShowHelp(true)}
                 className="bg-blue-600 hover:bg-blue-700 text-white p-2 rounded-lg transition-colors duration-200"
@@ -416,6 +430,15 @@ export default function GameOverScreen({ score, scoreBreakdown, comboInfo, onPla
         isOpen={showHelp}
         onClose={() => setShowHelp(false)}
       />
+
+      {/* Music Controls Modal */}
+      {audioManager && (
+        <MusicControls 
+          audioManager={audioManager} 
+          isVisible={showMusicControls}
+          onClose={() => setShowMusicControls(false)}
+        />
+      )}
     </>
   );
 }

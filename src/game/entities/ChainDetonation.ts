@@ -324,14 +324,19 @@ export class ChainDetonationManager {
   }
 
   private triggerCompletion(): void {
-    if (!this.activeChain) return;
+    if (!this.activeChain) {
+      console.log('🔗🐛 DEBUG: triggerCompletion called but no activeChain');
+      return;
+    }
 
     // Safety check
     if (!this.activeChain.completionEffect) {
-      console.warn('Invalid completion effect structure');
+      console.warn('🔗⚠️ Invalid completion effect structure');
       this.activeChain = null;
       return;
     }
+
+    console.log('🔗🐛 DEBUG: triggerCompletion starting, activeChain:', this.activeChain);
 
     this.activeChain.completionEffect.active = true;
     this.activeChain.completionEffect.duration = 0;
@@ -340,15 +345,25 @@ export class ChainDetonationManager {
 
     // Dispatch completion event for game engine with error handling
     try {
-      window.dispatchEvent(new CustomEvent('chainDetonationComplete', {
-        detail: {
-          centerX: this.canvasWidth / 2,
-          centerY: this.canvasHeight / 2,
-          timestamp: performance.now()
-        }
-      }));
+      const eventDetail = {
+        centerX: this.canvasWidth / 2,
+        centerY: this.canvasHeight / 2,
+        timestamp: performance.now()
+      };
+      
+      console.log('🔗🐛 DEBUG: Dispatching chainDetonationComplete event with detail:', eventDetail);
+      
+      const event = new CustomEvent('chainDetonationComplete', {
+        detail: eventDetail
+      });
+      
+      console.log('🔗🐛 DEBUG: Created event:', event);
+      
+      window.dispatchEvent(event);
+      
+      console.log('🔗🐛 DEBUG: Event dispatched successfully');
     } catch (error) {
-      console.error('Error dispatching chain detonation event:', error);
+      console.error('🔗❌ Error dispatching chain detonation event:', error);
     }
   }
 

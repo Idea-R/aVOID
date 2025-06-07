@@ -169,6 +169,20 @@ export class GameLogic {
       
       if (chainResult.completed) {
         console.log('🔗✨ All chain fragments collected! Preparing massive detonation...');
+        
+        // ACTUALLY DESTROY THE METEORS!
+        console.log('🔗🐛 DEBUG: GameLogic calling processChainDetonationScreenClear()');
+        const meteorsDestroyed = this.processChainDetonationScreenClear();
+        console.log(`🔗💥 GameLogic destroyed ${meteorsDestroyed} meteors via chain detonation!`);
+        
+        // Use the new enhanced scoring method with combo mechanics
+        const centerX = this.canvas.width / 2;
+        const centerY = this.canvas.height / 2;
+        const totalPoints = this.systems.scoreSystem.processChainDetonationScore(meteorsDestroyed, centerX, centerY);
+        console.log(`🔗🐛 DEBUG: Enhanced chain detonation scoring awarded ${totalPoints} points for ${meteorsDestroyed} meteors`);
+        
+        // Add screen shake for effect
+        this.setScreenShake({ x: 0, y: 0, intensity: 30, duration: 1500 });
       }
     }
     
@@ -426,6 +440,12 @@ export class GameLogic {
 
   updateSpatialGrid(width: number, height: number): void {
     this.spatialGrid.resize(width, height);
+    this.systems.collisionSystem.updateSpatialGrid(this.spatialGrid);
+  }
+
+  updateSystems(newSystems: GameSystems): void {
+    this.systems = newSystems;
+    // Update spatial grid reference for collision system
     this.systems.collisionSystem.updateSpatialGrid(this.spatialGrid);
   }
 

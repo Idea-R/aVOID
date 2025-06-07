@@ -18,7 +18,7 @@ interface GameSettings {
 
 export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   const [settings, setSettings] = useState<GameSettings>({
-    volume: 0.7,
+    volume: 0.5,
     soundEnabled: true,
     showUI: true,
     showFPS: true,
@@ -63,7 +63,7 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
 
   const resetSettings = () => {
     const defaultSettings: GameSettings = {
-      volume: 0.7,
+      volume: 0.5,
       soundEnabled: true,
       showUI: true,
       showFPS: true,

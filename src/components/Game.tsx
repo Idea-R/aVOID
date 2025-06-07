@@ -5,6 +5,7 @@ import GameOverScreen from './GameOverScreen';
 import GameIntro from './GameIntro';
 import { ScoreBreakdown, ComboInfo } from '../game/systems/ScoreSystem';
 import BoltBadge from './BoltBadge';
+import MusicControls from './MusicControls';
 
 interface GameSettings {
   volume: number;
@@ -41,7 +42,7 @@ export default function Game({ autoStart = false }: GameProps) {
     autoScaling: { enabled: true, shadowsEnabled: true, maxParticles: 300, adaptiveTrailsActive: true },
     performance: { averageFrameTime: 0, memoryUsage: 0, lastScalingEvent: 'none' },
     settings: {
-      volume: 0.7,
+      volume: 0.5,
       soundEnabled: true,
       showUI: true,
       showFPS: true,
@@ -54,10 +55,11 @@ export default function Game({ autoStart = false }: GameProps) {
   useEffect(() => {
     if (!canvasRef.current) return;
     
-    console.log('Initializing game engine...');
+    console.log('[GAME] Initializing game engine...');
     const engine = new Engine(canvasRef.current);
     engineRef.current = engine;
     setEngineInitialized(true);
+    console.log('[GAME] Game engine initialized');
     
     engine.onStateUpdate = (state) => {
       console.log('State update received:', state);
@@ -170,6 +172,7 @@ export default function Game({ autoStart = false }: GameProps) {
           isGameOver={gameState.isGameOver}
           showIntro={showIntro}
           isPaused={isPaused}
+          audioManager={engineRef.current?.getAudioManager()}
         />
       )}
       {gameState.isGameOver && (
@@ -178,6 +181,7 @@ export default function Game({ autoStart = false }: GameProps) {
           scoreBreakdown={gameState.scoreBreakdown}
           comboInfo={gameState.comboInfo}
           onPlayAgain={handlePlayAgain}
+          audioManager={engineRef.current?.getAudioManager()}
         />
       )}
       

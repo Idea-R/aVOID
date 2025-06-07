@@ -12,6 +12,7 @@ import { ChainDetonationRenderer } from './systems/ChainDetonationRenderer';
 import { InputHandler } from './InputHandler';
 import { GameLogic, GameSystems, GameSettings, GameStats } from './GameLogic';
 import { EngineCore, PerformanceSettings } from './EngineCore';
+import { AudioManager } from './audio/AudioManager';
 
 export default class Engine {
   private canvas: HTMLCanvasElement;
@@ -24,6 +25,7 @@ export default class Engine {
   
   // Core engine functionality
   private engineCore: EngineCore;
+  private audioManager: AudioManager;
   
   // FPS tracking
   private frameCount: number = 0;
@@ -55,12 +57,22 @@ export default class Engine {
   }) => void = () => {};
 
   constructor(canvas: HTMLCanvasElement) {
+    console.log('[ENGINE] Constructor called');
     this.canvas = canvas;
     
-    // Initialize engine core
+    console.log('[AUDIO] Creating AudioManager...');
+    try {
+      this.audioManager = new AudioManager();
+      console.log('[AUDIO] AudioManager created successfully');
+    } catch (error) {
+      console.error('[AUDIO] Failed to create AudioManager:', error);
+      throw error;
+    }
+    
+    // Initialize core engine
     this.engineCore = new EngineCore(canvas);
     
-    // Set up event handlers
+    // Setup event listeners
     this.engineCore.setEventHandlers({
       onSettingsChange: this.handleSettingsChange,
       onWindowBlur: this.handleWindowBlur,
@@ -69,6 +81,24 @@ export default class Engine {
       onDefenseEffect: this.handleDefenseEffect,
       onChainDetonationComplete: this.handleChainDetonationComplete,
       onKnockbackActivation: this.handleKnockbackActivation
+    });
+    
+    // Window event listeners
+    window.addEventListener('resize', this.resizeCanvas);
+    window.addEventListener('blur', this.handleWindowBlur);
+    window.addEventListener('focus', this.handleWindowFocus);
+    document.addEventListener('visibilitychange', this.handleVisibilityChange);
+    
+    // Initialize canvas size
+    this.resizeCanvas();
+    
+    // Setup audio event listeners
+    this.audioManager.addEventListener('track-changed', (event: any) => {
+      console.log(`🎵🎶 Track changed: ${event.detail.displayName}`);
+    });
+    
+    this.audioManager.addEventListener('playback-error', (event: any) => {
+      console.error('🎵❌ Audio playback error:', event.detail);
     });
     
     // Set up game logic callbacks
@@ -112,21 +142,21 @@ export default class Engine {
   };
 
   private pauseGame(): void {
-    if (this.isPaused) return;
-    
+    if (!this.started || this.isPaused) return;
     this.isPaused = true;
     this.lastPauseTime = performance.now();
+    this.audioManager.pause();
     
     // Stop the animation frame loop
     if (this.animationFrame !== null) {
       cancelAnimationFrame(this.animationFrame);
       this.animationFrame = null;
     }
+    console.log('⏸️ Game paused');
   }
 
   private resumeGame(): void {
-    if (!this.isPaused) return;
-    
+    if (!this.started || !this.isPaused) return;
     this.isPaused = false;
     
     // Calculate how long we were paused and adjust timers
@@ -139,8 +169,11 @@ export default class Engine {
     // Reset last time to prevent large delta
     this.lastTime = performance.now();
     
+    this.audioManager.resume();
+    
     // Resume the game loop
     this.animationFrame = requestAnimationFrame(this.gameLoop);
+    console.log('▶️ Game resumed');
   }
 
   private spawnMeteor() {
@@ -204,63 +237,78 @@ export default class Engine {
 
   private handleChainDetonationComplete = (event: Event) => {
     const customEvent = event as CustomEvent;
-    console.log('🔗💥 Chain Detonation Complete - Processing screen clear');
+    console.log('🔗💥🐛 DEBUG: Chain Detonation Complete Event Received!', {
+      event: event,
+      customEvent: customEvent,
+      detail: customEvent.detail
+    });
+    
+    // DEBUGGER: This will pause execution here so you can inspect everything
+    debugger;
     
     // Safety check for event detail
     if (!customEvent.detail) {
-      console.warn('Chain detonation event missing detail');
+      console.warn('🔗⚠️ Chain detonation event missing detail');
       return;
     }
     
-    // Count meteors for scoring
+    // Count meteors for scoring BEFORE destruction
     const activeMeteors = this.engineCore.getGameLogic().getActiveMeteors();
     const meteorsDestroyed = activeMeteors.length;
-    let totalPoints = 0;
     
-    // Safely destroy all meteors and calculate points
+    console.log(`🔗🐛 DEBUG: Found ${meteorsDestroyed} meteors to destroy`, activeMeteors);
+    
+    // Prepare meteor data for enhanced visual effects
+    const meteorData = activeMeteors.map(meteor => ({
+      x: meteor.x,
+      y: meteor.y,
+      color: meteor.color,
+      isSuper: meteor.isSuper
+    }));
+    
+    // Get center coordinates for effects
+    const centerX = customEvent.detail.centerX || this.canvas.width / 2;
+    const centerY = customEvent.detail.centerY || this.canvas.height / 2;
+    
+    // Create enhanced visual effects BEFORE destroying meteors
     try {
-      // Create explosion effects for each meteor and track them for destruction
-      const meteorsToDestroy = [...activeMeteors]; // Create a copy to avoid mutation during iteration
-      
-      meteorsToDestroy.forEach(meteor => {
+      console.log(`🔗🐛 DEBUG: Creating enhanced chain detonation visual effects`);
+      this.engineCore.getParticleSystem().createEnhancedChainDetonation(meteorData, centerX, centerY);
+      console.log(`🔗🐛 DEBUG: Enhanced visual effects created successfully`);
+    } catch (error) {
+      console.error('🔗❌ Error creating enhanced visual effects:', error);
+      // Fallback to basic explosion effects
+      activeMeteors.forEach(meteor => {
         if (meteor && meteor.active) {
           this.engineCore.getParticleSystem().createExplosion(meteor.x, meteor.y, meteor.color, meteor.isSuper);
-          totalPoints += meteor.isSuper ? 50 : 25; // Super meteors give more points
         }
       });
-      
-      // Actually destroy the meteors using the proper GameLogic method
-      const gameLogic = this.engineCore.getGameLogic();
-      const actualMeteorsDestroyed = gameLogic.clearAllMeteors();
-      
-      console.log(`🔗💥 Destroyed ${actualMeteorsDestroyed} meteors via chain detonation!`);
-      
-    } catch (error) {
-      console.error('Error processing meteor destruction:', error);
     }
     
-    // Add completion bonus
-    const completionBonus = 150; // Increased bonus for completing chain detonation
-    totalPoints += completionBonus;
+    // Use the proper GameLogic method to clear all meteors
+    const gameLogic = this.engineCore.getGameLogic();
+    console.log(`🔗🐛 DEBUG: About to call processChainDetonationScreenClear(), current count: ${activeMeteors.length}`);
     
-    // Add to score system with error handling
-    try {
-      this.engineCore.getScoreSystem().addChainDetonationScore(totalPoints, meteorsDestroyed, customEvent.detail.centerX || this.canvas.width / 2, customEvent.detail.centerY || this.canvas.height / 2);
-    } catch (error) {
-      console.error('Error adding chain detonation score:', error);
-    }
+    const actualMeteorsDestroyed = gameLogic.processChainDetonationScreenClear();
     
-    // Create massive particle explosion at center with error handling
+    console.log(`🔗🐛 DEBUG: processChainDetonationScreenClear() destroyed ${actualMeteorsDestroyed} meteors`);
+    console.log(`🔗🐛 DEBUG: Remaining meteors after clear: ${gameLogic.getActiveMeteors().length}`);
+    console.log(`🔗💥 Destroyed ${actualMeteorsDestroyed} meteors via chain detonation!`);
+    
+    // Use the new enhanced scoring method with combo mechanics
     try {
-      this.engineCore.getParticleSystem().createChainDetonationExplosion(customEvent.detail.centerX || this.canvas.width / 2, customEvent.detail.centerY || this.canvas.height / 2);
+      console.log(`🔗🐛 DEBUG: Using enhanced chain detonation scoring for ${meteorsDestroyed} meteors`);
+      const totalPoints = this.engineCore.getScoreSystem().processChainDetonationScore(meteorsDestroyed, centerX, centerY);
+      console.log(`🔗🐛 DEBUG: Enhanced scoring awarded ${totalPoints} total points`);
     } catch (error) {
-      console.error('Error creating chain detonation explosion:', error);
+      console.error('🔗❌ Error with enhanced chain detonation scoring:', error);
     }
     
     // Screen shake - use GameLogic method
     this.engineCore.getGameLogic().setScreenShake({ x: 0, y: 0, intensity: 30, duration: 1500 });
+    console.log(`🔗🐛 DEBUG: Screen shake applied`);
     
-    console.log(`🔗💥 Chain Detonation destroyed ${meteorsDestroyed} meteors for ${totalPoints} points!`);
+    console.log(`🔗💥 Chain Detonation COMPLETED - destroyed ${meteorsDestroyed} meteors with enhanced visuals and scoring!`);
   };
 
   private handleKnockbackActivation = () => {
@@ -522,13 +570,45 @@ export default class Engine {
   };
 
   start() {
+    console.log('[ENGINE] Start method called');
     if (this.animationFrame === null) {
       this.lastTime = performance.now();
       this.fpsLastTime = this.lastTime;
       this.started = true;
+      this.isPaused = false;
       this.animationFrame = requestAnimationFrame(this.gameLoop);
       
-      console.log('🎮 Game started with 3-second grace period');
+      console.log('[ENGINE] Game started successfully');
+      
+      // Start background music immediately
+      this.startBackgroundMusic();
+    }
+  }
+
+  private async startBackgroundMusic(): Promise<void> {
+    console.log('[AUDIO] startBackgroundMusic called');
+    try {
+      const settings = this.engineCore.getSettings();
+      console.log('[AUDIO] Game settings:', { soundEnabled: settings.soundEnabled, volume: settings.volume });
+      console.log('[AUDIO] AudioManager ready:', this.audioManager.isReady());
+      
+      if (settings.soundEnabled) {
+        if (this.audioManager.isReady()) {
+          console.log('[AUDIO] Attempting to start background music...');
+          const success = await this.audioManager.playTrack('into-the-void');
+          if (success) {
+            console.log('[AUDIO] Background music started successfully');
+          } else {
+            console.warn('[AUDIO] Failed to start background music');
+          }
+        } else {
+          console.log('[AUDIO] Waiting for user interaction to enable audio... Music will auto-start once interaction is detected.');
+        }
+      } else {
+        console.log('[AUDIO] Background music disabled in settings');
+      }
+    } catch (error) {
+      console.error('[AUDIO] Failed to start background music:', error);
     }
   }
 
@@ -782,5 +862,26 @@ export default class Engine {
     } catch (error) {
       console.warn('Failed to update user statistics:', error);
     }
+  }
+
+  // Audio control methods
+  public getAudioManager(): AudioManager {
+    return this.audioManager;
+  }
+  
+  public async changeTrack(trackName: string): Promise<boolean> {
+    return await this.audioManager.playTrack(trackName, 3.0); // 3 second crossfade
+  }
+  
+  public setMasterVolume(volume: number): void {
+    this.audioManager.setMasterVolume(volume);
+  }
+  
+  public setMusicVolume(volume: number): void {
+    this.audioManager.setMusicVolume(volume);
+  }
+  
+  public toggleMusic(): void {
+    this.audioManager.toggleMusic();
   }
 }

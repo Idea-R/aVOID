@@ -277,6 +277,219 @@ export class ParticleSystem {
       this.activeParticles.push(particle);
     }
   }
+
+  // Enhanced chain detonation with staggered meteor destruction
+  createEnhancedChainDetonation(meteors: Array<{ x: number; y: number; color: string; isSuper: boolean }>, centerX: number, centerY: number): void {
+    console.log('🔗✨ Creating enhanced chain detonation effects');
+    
+    // Create initial central explosion
+    this.createChainDetonationExplosion(centerX, centerY);
+    
+    // Create ripple wave effects expanding from center
+    this.createRippleWaves(centerX, centerY, 3);
+    
+    // Sort meteors by distance from center for staggered destruction
+    const meteorDistances = meteors.map((meteor, index) => ({
+      meteor,
+      index,
+      distance: Math.sqrt((meteor.x - centerX) ** 2 + (meteor.y - centerY) ** 2)
+    })).sort((a, b) => a.distance - b.distance);
+    
+    // Create electric arcs connecting meteors before destruction
+    this.createElectricArcs(meteorDistances.map(md => md.meteor), centerX, centerY);
+    
+    // Staggered destruction - closer meteors explode first
+    meteorDistances.forEach((meteorData, sequenceIndex) => {
+      const delay = sequenceIndex * 50 + Math.random() * 30; // 50ms base delay + random variance
+      
+      setTimeout(() => {
+        this.createEnhancedMeteorDestruction(
+          meteorData.meteor.x, 
+          meteorData.meteor.y, 
+          meteorData.meteor.color, 
+          meteorData.meteor.isSuper,
+          sequenceIndex
+        );
+      }, delay);
+    });
+    
+    // Create final massive shockwave after all meteors are destroyed
+    const finalDelay = meteorDistances.length * 50 + 200;
+    setTimeout(() => {
+      this.createFinalShockwave(centerX, centerY);
+    }, finalDelay);
+  }
+
+  private createRippleWaves(centerX: number, centerY: number, waveCount: number): void {
+    for (let wave = 0; wave < waveCount; wave++) {
+      const delay = wave * 100; // 100ms between waves
+      
+      setTimeout(() => {
+        const particleCount = this.isMobile ? 20 : 40;
+        const radius = 50 + wave * 30; // Expanding radius for each wave
+        
+        for (let i = 0; i < particleCount; i++) {
+          const angle = (Math.PI * 2 * i) / particleCount;
+          const x = centerX + Math.cos(angle) * radius;
+          const y = centerY + Math.sin(angle) * radius;
+          
+          const particle = this.particlePool.get();
+          initializeParticle(
+            particle,
+            x,
+            y,
+            Math.cos(angle) * 2, // Outward velocity
+            Math.sin(angle) * 2,
+            3 + Math.random() * 2,
+            wave === 0 ? '#ffffff' : '#9d4edd', // First wave white, others purple
+            30 + Math.random() * 20
+          );
+          this.activeParticles.push(particle);
+        }
+      }, delay);
+    }
+  }
+
+  private createElectricArcs(meteors: Array<{ x: number; y: number; color: string; isSuper: boolean }>, centerX: number, centerY: number): void {
+    const arcCount = Math.min(meteors.length, 8); // Limit arcs to prevent performance issues
+    
+    for (let i = 0; i < arcCount; i++) {
+      const meteor = meteors[i];
+      const steps = 8; // Number of particles in each arc
+      
+      for (let step = 0; step < steps; step++) {
+        const progress = step / (steps - 1);
+        
+        // Create curved arc path
+        const midX = (centerX + meteor.x) / 2 + (Math.random() - 0.5) * 40;
+        const midY = (centerY + meteor.y) / 2 + (Math.random() - 0.5) * 40;
+        
+        // Quadratic bezier curve
+        const x = (1 - progress) ** 2 * centerX + 2 * (1 - progress) * progress * midX + progress ** 2 * meteor.x;
+        const y = (1 - progress) ** 2 * centerY + 2 * (1 - progress) * progress * midY + progress ** 2 * meteor.y;
+        
+        const delay = step * 20 + i * 10; // Staggered arc creation
+        
+        setTimeout(() => {
+          const particle = this.particlePool.get();
+          initializeParticle(
+            particle,
+            x,
+            y,
+            (Math.random() - 0.5) * 2,
+            (Math.random() - 0.5) * 2,
+            2 + Math.random(),
+            '#e0e7ff', // Electric blue-white
+            20 + Math.random() * 15
+          );
+          this.activeParticles.push(particle);
+        }, delay);
+      }
+    }
+  }
+
+  private createEnhancedMeteorDestruction(x: number, y: number, color: string, isSuper: boolean, sequenceIndex: number): void {
+    // Create main explosion with enhanced effects
+    this.createExplosion(x, y, color, isSuper);
+    
+    // Add sequence-specific enhancements
+    const intensity = Math.max(0.5, 1 - sequenceIndex * 0.1); // Later explosions are slightly less intense
+    const particleCount = isSuper ? 15 : 10;
+    
+    // Create additional particles for enhanced visual impact
+    for (let i = 0; i < particleCount * intensity; i++) {
+      const angle = Math.random() * Math.PI * 2;
+      const velocity = 3 + Math.random() * 4;
+      
+      const particle = this.particlePool.get();
+      initializeParticle(
+        particle,
+        x + (Math.random() - 0.5) * 20,
+        y + (Math.random() - 0.5) * 20,
+        Math.cos(angle) * velocity,
+        Math.sin(angle) * velocity,
+        2 + Math.random() * 3,
+        sequenceIndex < 3 ? '#ffffff' : color, // First few explosions are brighter
+        40 + Math.random() * 30
+      );
+      this.activeParticles.push(particle);
+    }
+    
+    // Create small shockwave for each meteor
+    const ringParticles = 12;
+    for (let i = 0; i < ringParticles; i++) {
+      const angle = (Math.PI * 2 * i) / ringParticles;
+      const radius = isSuper ? 25 : 15;
+      
+      const particle = this.particlePool.get();
+      initializeParticle(
+        particle,
+        x + Math.cos(angle) * radius,
+        y + Math.sin(angle) * radius,
+        Math.cos(angle) * 1.5,
+        Math.sin(angle) * 1.5,
+        1 + Math.random(),
+        '#9d4edd',
+        20 + Math.random() * 10
+      );
+      this.activeParticles.push(particle);
+    }
+  }
+
+  private createFinalShockwave(centerX: number, centerY: number): void {
+    console.log('🔗💥 Creating final chain detonation shockwave');
+    
+    // Create massive final explosion
+    const particleCount = this.isMobile ? 80 : 150;
+    const particles = Math.min(particleCount, this.maxParticles - this.activeParticles.length);
+    
+    for (let i = 0; i < particles; i++) {
+      const angle = (Math.PI * 2 * i) / particles;
+      const velocity = 8 + Math.random() * 12; // Very fast particles
+      const life = 100 + Math.random() * 80; // Long lasting
+      
+      const particle = this.particlePool.get();
+      initializeParticle(
+        particle,
+        centerX,
+        centerY,
+        Math.cos(angle) * velocity,
+        Math.sin(angle) * velocity,
+        6 + Math.random() * 6, // Large particles
+        i % 3 === 0 ? '#ffffff' : '#9d4edd', // Mix of white and purple
+        life
+      );
+      this.activeParticles.push(particle);
+    }
+    
+    // Create expanding shockwave rings
+    for (let ring = 0; ring < 5; ring++) {
+      const delay = ring * 80;
+      
+      setTimeout(() => {
+        const ringParticles = 32;
+        const radius = 60 + ring * 40;
+        
+        for (let i = 0; i < ringParticles; i++) {
+          const angle = (Math.PI * 2 * i) / ringParticles;
+          
+          const particle = this.particlePool.get();
+          initializeParticle(
+            particle,
+            centerX + Math.cos(angle) * radius,
+            centerY + Math.sin(angle) * radius,
+            Math.cos(angle) * 3,
+            Math.sin(angle) * 3,
+            4 + Math.random() * 2,
+            ring === 0 ? '#ffffff' : '#9d4edd',
+            60 + Math.random() * 40
+          );
+          this.activeParticles.push(particle);
+        }
+      }, delay);
+    }
+  }
+
   clear(): void {
     this.activeParticles.forEach(particle => this.particlePool.release(particle));
     this.activeParticles.length = 0;
