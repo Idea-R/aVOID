@@ -374,7 +374,6 @@ export class GameEngine {
     
     this.gameState.isRunning = true;
     this.gameState.isPaused = false;
-    this.transitionToState('playing', 'game_started');
     this.lastFrameTime = performance.now();
     this.lastFPSUpdate = this.lastFrameTime;
     this.animationFrameId = requestAnimationFrame(this.enhancedGameLoop);
