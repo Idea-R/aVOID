@@ -219,21 +219,28 @@ export default class Engine {
     
     // Safely destroy all meteors and calculate points
     try {
-      // Create explosion effects for each meteor
-      activeMeteors.forEach(meteor => {
+      // Create explosion effects for each meteor and track them for destruction
+      const meteorsToDestroy = [...activeMeteors]; // Create a copy to avoid mutation during iteration
+      
+      meteorsToDestroy.forEach(meteor => {
         if (meteor && meteor.active) {
           this.engineCore.getParticleSystem().createExplosion(meteor.x, meteor.y, meteor.color, meteor.isSuper);
-          totalPoints += 25;
+          totalPoints += meteor.isSuper ? 50 : 25; // Super meteors give more points
         }
       });
       
-      // GameLogic will handle clearing meteors internally
+      // Actually destroy the meteors using the proper GameLogic method
+      const gameLogic = this.engineCore.getGameLogic();
+      const actualMeteorsDestroyed = gameLogic.clearAllMeteors();
+      
+      console.log(`🔗💥 Destroyed ${actualMeteorsDestroyed} meteors via chain detonation!`);
+      
     } catch (error) {
       console.error('Error processing meteor destruction:', error);
     }
     
     // Add completion bonus
-    const completionBonus = 100;
+    const completionBonus = 150; // Increased bonus for completing chain detonation
     totalPoints += completionBonus;
     
     // Add to score system with error handling
@@ -251,7 +258,7 @@ export default class Engine {
     }
     
     // Screen shake - use GameLogic method
-    this.engineCore.getGameLogic().setScreenShake({ x: 0, y: 0, intensity: 25, duration: 1000 });
+    this.engineCore.getGameLogic().setScreenShake({ x: 0, y: 0, intensity: 30, duration: 1500 });
     
     console.log(`🔗💥 Chain Detonation destroyed ${meteorsDestroyed} meteors for ${totalPoints} points!`);
   };

@@ -146,49 +146,58 @@ export default function HUD({ score, comboInfo, powerUpCharges = 0, maxPowerUpCh
 
       {/* Top Right Controls - Hide on mobile during active gameplay, always show on desktop or when game is over */}
       {(!isMobile || isGameOver || isPaused) && !showIntro && (
-        <div className="absolute top-4 right-4 flex gap-2">
+        <div className="absolute top-4 right-4 flex gap-3">
           <button
             onClick={() => setShowHelp(true)}
-            className="bg-blue-600 hover:bg-blue-700 text-white p-2 rounded-lg transition-colors duration-200 flex items-center gap-2 text-sm font-semibold"
+            className="group bg-gradient-to-br from-blue-600 to-blue-800 hover:from-blue-500 hover:to-blue-700 text-white p-3 rounded-xl transition-all duration-300 flex items-center gap-2 text-sm font-semibold shadow-lg hover:shadow-blue-500/25 hover:scale-105 border border-blue-500/20"
             title="Help & Instructions"
           >
-            <HelpCircle className="w-4 h-4" />
+            <HelpCircle className="w-5 h-5 group-hover:rotate-12 transition-transform duration-300" />
             <span className="hidden sm:inline">Help</span>
+            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent opacity-0 group-hover:opacity-100 transform translate-x-[-100%] group-hover:translate-x-[100%] transition-all duration-700 rounded-xl"></div>
           </button>
 
           <button
             onClick={() => setShowSettings(true)}
-            className="bg-gray-600 hover:bg-gray-700 text-white p-2 rounded-lg transition-colors duration-200 flex items-center gap-2 text-sm font-semibold"
+            className="group bg-gradient-to-br from-gray-600 to-gray-800 hover:from-gray-500 hover:to-gray-700 text-white p-3 rounded-xl transition-all duration-300 flex items-center gap-2 text-sm font-semibold shadow-lg hover:shadow-gray-500/25 hover:scale-105 border border-gray-500/20"
+            title="Settings"
           >
-            <Settings className="w-4 h-4" />
+            <Settings className="w-5 h-5 group-hover:rotate-90 transition-transform duration-300" />
             <span className="hidden sm:inline">Settings</span>
+            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent opacity-0 group-hover:opacity-100 transform translate-x-[-100%] group-hover:translate-x-[100%] transition-all duration-700 rounded-xl"></div>
           </button>
 
           <button
             onClick={() => setShowLeaderboard(true)}
-            className="bg-yellow-600 hover:bg-yellow-700 text-white p-2 rounded-lg transition-colors duration-200 flex items-center gap-2 text-sm font-semibold"
+            className="group bg-gradient-to-br from-yellow-600 to-amber-700 hover:from-yellow-500 hover:to-amber-600 text-white p-3 rounded-xl transition-all duration-300 flex items-center gap-2 text-sm font-semibold shadow-lg hover:shadow-yellow-500/25 hover:scale-105 border border-yellow-500/20"
+            title="Leaderboard"
           >
-            <Trophy className="w-4 h-4" />
+            <Trophy className="w-5 h-5 group-hover:scale-110 transition-transform duration-300" />
             <span className="hidden sm:inline">Leaderboard</span>
+            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent opacity-0 group-hover:opacity-100 transform translate-x-[-100%] group-hover:translate-x-[100%] transition-all duration-700 rounded-xl"></div>
           </button>
 
           {user ? (
             <button
               onClick={() => setShowProfile(true)}
-              className="bg-cyan-600 hover:bg-cyan-700 text-white p-2 rounded-lg transition-colors duration-200 flex items-center gap-2 text-sm font-semibold"
+              className="group bg-gradient-to-br from-cyan-600 to-cyan-800 hover:from-cyan-500 hover:to-cyan-700 text-white p-3 rounded-xl transition-all duration-300 flex items-center gap-2 text-sm font-semibold shadow-lg hover:shadow-cyan-500/25 hover:scale-105 border border-cyan-500/20"
+              title="Profile"
             >
-              <UserCircle className="w-4 h-4" />
+              <UserCircle className="w-5 h-5 group-hover:scale-110 transition-transform duration-300" />
               <span className="hidden sm:inline">
                 {user.user_metadata?.display_name || user.email?.split('@')[0] || 'Profile'}
               </span>
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent opacity-0 group-hover:opacity-100 transform translate-x-[-100%] group-hover:translate-x-[100%] transition-all duration-700 rounded-xl"></div>
             </button>
           ) : (
             <button
               onClick={() => setShowSignup(true)}
-              className="bg-green-600 hover:bg-green-700 text-white p-2 rounded-lg transition-colors duration-200 flex items-center gap-2 text-sm font-semibold"
+              className="group bg-gradient-to-br from-green-600 to-emerald-700 hover:from-green-500 hover:to-emerald-600 text-white p-3 rounded-xl transition-all duration-300 flex items-center gap-2 text-sm font-semibold shadow-lg hover:shadow-green-500/25 hover:scale-105 border border-green-500/20"
+              title="Sign Up"
             >
-              <UserPlus className="w-4 h-4" />
+              <UserPlus className="w-5 h-5 group-hover:scale-110 transition-transform duration-300" />
               <span className="hidden sm:inline">Sign Up</span>
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent opacity-0 group-hover:opacity-100 transform translate-x-[-100%] group-hover:translate-x-[100%] transition-all duration-700 rounded-xl"></div>
             </button>
           )}
         </div>
