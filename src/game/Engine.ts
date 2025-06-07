@@ -650,6 +650,7 @@ export default class Engine {
     this.powerUpManager.update(this.gameTime, deltaTime);
     this.particleSystem.update(deltaTime);
     this.scoreSystem.update(deltaTime, performance.now());
+    this.defenseSystem.update(deltaTime);
     
     // Process defense system
     const defenseResult = this.defenseSystem.processMeteorDefense(this.activeMeteors);
@@ -872,6 +873,9 @@ export default class Engine {
     };
     
     this.renderSystem.render(renderState);
+    
+    // Render defense system effects on top
+    this.defenseSystem.render();
   }
 
   private renderPauseOverlay(): void {
