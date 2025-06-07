@@ -59,29 +59,6 @@ export class GameEngine {
   private fpsCounter: number = 0;
   private lastFPSUpdate: number = 0;
   
-  // Physics timing and coordination
-  private physicsAccumulator: number = 0;
-  private readonly PHYSICS_TIMESTEP: number = 16.67; // 60fps physics
-  private readonly MAX_PHYSICS_STEPS: number = 5; // Prevent spiral of death
-  private lastPhysicsTime: number = 0;
-  private physicsUpdateCount: number = 0;
-  
-  // System update ordering and timing
-  private systemUpdateOrder: string[] = [
-    'input',
-    'physics', 
-    'collision',
-    'particles',
-    'powerups',
-    'scoring',
-    'audio',
-    'render'
-  ];
-  
-  private systemTimings: Map<string, number> = new Map();
-  private totalSystemTime: number = 0;
-  private systemPerformanceHistory: Map<string, number[]> = new Map();
-  
   constructor(config: GameEngineConfig) {
     this.canvas = config.canvas;
     this.config = {
@@ -218,113 +195,6 @@ export class GameEngine {
   }
   
   /**
-   * Coordinate physics updates with fixed timestep
-   */
-  private updatePhysicsCoordination(deltaTime: number): void {
-    // Add frame time to accumulator
-    this.physicsAccumulator += deltaTime;
-    
-    // Track physics timing
-    const physicsStartTime = performance.now();
-    let physicsSteps = 0;
-    
-    // Fixed timestep physics updates
-    while (this.physicsAccumulator >= this.PHYSICS_TIMESTEP && physicsSteps < this.MAX_PHYSICS_STEPS) {
-      this.updatePhysicsStep(this.PHYSICS_TIMESTEP);
-      this.physicsAccumulator -= this.PHYSICS_TIMESTEP;
-      physicsSteps++;
-      this.physicsUpdateCount++;
-    }
-    
-    // Track physics performance
-    const physicsEndTime = performance.now();
-    this.recordSystemTiming('physics', physicsEndTime - physicsStartTime);
-    
-    // Prevent accumulator from growing too large (spiral of death protection)
-    if (this.physicsAccumulator > this.PHYSICS_TIMESTEP * this.MAX_PHYSICS_STEPS) {
-      this.physicsAccumulator = this.PHYSICS_TIMESTEP;
-      console.warn('⚠️ Physics accumulator reset - frame time too large');
-    }
-  }
-  
-  /**
-   * Execute a single physics timestep
-   */
-  private updatePhysicsStep(timestep: number): void {
-    // Update meteor physics
-    this.updateMeteorPhysics(timestep);
-    
-    // Update particle physics
-    this.updateParticlePhysics(timestep);
-    
-    // Update power-up physics
-    this.updatePowerUpPhysics(timestep);
-    
-    // Update player physics (trail, movement smoothing)
-    this.updatePlayerPhysics(timestep);
-  }
-  
-  /**
-   * Coordinate system updates in optimal order
-   */
-  private coordinateSystemUpdates(deltaTime: number): void {
-    this.totalSystemTime = 0;
-    
-    for (const systemName of this.systemUpdateOrder) {
-      const startTime = performance.now();
-      
-      switch (systemName) {
-        case 'input':
-          this.updateInputSystem(deltaTime);
-          break;
-        case 'physics':
-          this.updatePhysicsCoordination(deltaTime);
-          break;
-        case 'collision':
-          this.updateCollisionSystem(deltaTime);
-          break;
-        case 'particles':
-          this.updateParticleSystem(deltaTime);
-          break;
-        case 'powerups':
-          this.updatePowerUpSystem(deltaTime);
-          break;
-        case 'scoring':
-          this.updateScoringSystem(deltaTime);
-          break;
-        case 'audio':
-          this.updateAudioSystem(deltaTime);
-          break;
-        case 'render':
-          this.updateRenderPreparation(deltaTime);
-          break;
-      }
-      
-      const endTime = performance.now();
-      this.recordSystemTiming(systemName, endTime - startTime);
-    }
-  }
-  
-  /**
-   * Record system timing for performance analysis
-   */
-  private recordSystemTiming(systemName: string, duration: number): void {
-    this.systemTimings.set(systemName, duration);
-    this.totalSystemTime += duration;
-    
-    // Maintain performance history (last 60 frames)
-    if (!this.systemPerformanceHistory.has(systemName)) {
-      this.systemPerformanceHistory.set(systemName, []);
-    }
-    
-    const history = this.systemPerformanceHistory.get(systemName)!;
-    history.push(duration);
-    if (history.length > 60) {
-      history.shift();
-    }
-  }
-  
-  /**
    * Update all game systems with delta time
    */
   private updateGameSystems(deltaTime: number): void {
@@ -333,8 +203,16 @@ export class GameEngine {
     // Update game time
     this.gameState.gameTime += deltaTime / 1000;
     
-    // Coordinate all system updates in optimal order
-    this.coordinateSystemUpdates(deltaTime);
+    // Update core systems
+    this.particleSystem.update(deltaTime);
+    this.scoreSystem.update(deltaTime, performance.now());
+    this.powerUpManager.update(this.gameState.gameTime, deltaTime);
+    
+    // Update game entities
+    this.updateMeteors(deltaTime);
+    
+    // Process collisions
+    this.checkCollisions();
     
     // Update score
     this.gameState.score = this.scoreSystem.getTotalScore();
@@ -403,108 +281,6 @@ export class GameEngine {
   private render(): void {
     // Render implementation will be added
     // this.renderSystem.render(renderState);
-  }
-  
-  /**
-   * Update meteor physics with fixed timestep
-   */
-  private updateMeteorPhysics(timestep: number): void {
-    const timeMultiplier = timestep / 16.67; // Normalize to 60fps
-    
-    for (const meteor of this.activeMeteors) {
-      // Apply velocity
-      meteor.x += meteor.vx * timeMultiplier;
-      meteor.y += meteor.vy * timeMultiplier;
-      
-      // Apply physics forces (gravity, drag, etc.)
-      meteor.vy += 0.02 * timeMultiplier; // Slight downward gravity
-      meteor.vx *= 0.999; // Air resistance
-      meteor.vy *= 0.999;
-    }
-  }
-  
-  /**
-   * Update particle physics
-   */
-  private updateParticlePhysics(timestep: number): void {
-    // Delegate to particle system with timestep
-    this.particleSystem.updatePhysics(timestep);
-  }
-  
-  /**
-   * Update power-up physics
-   */
-  private updatePowerUpPhysics(timestep: number): void {
-    // Delegate to power-up manager with timestep
-    this.powerUpManager.updatePhysics(timestep);
-  }
-  
-  /**
-   * Update player physics
-   */
-  private updatePlayerPhysics(timestep: number): void {
-    // Player trail physics, movement smoothing, etc.
-    // Implementation depends on player system
-  }
-  
-  /**
-   * Update input system
-   */
-  private updateInputSystem(deltaTime: number): void {
-    // Input processing and buffering
-  }
-  
-  /**
-   * Update collision system
-   */
-  private updateCollisionSystem(deltaTime: number): void {
-    this.checkCollisions();
-  }
-  
-  /**
-   * Update particle system
-   */
-  private updateParticleSystem(deltaTime: number): void {
-    this.particleSystem.update(deltaTime);
-  }
-  
-  /**
-   * Update power-up system
-   */
-  private updatePowerUpSystem(deltaTime: number): void {
-    this.powerUpManager.update(this.gameState.gameTime, deltaTime);
-  }
-  
-  /**
-   * Update scoring system
-   */
-  private updateScoringSystem(deltaTime: number): void {
-    this.scoreSystem.update(deltaTime, performance.now());
-  }
-  
-  /**
-   * Update audio system
-   */
-  private updateAudioSystem(deltaTime: number): void {
-    // Audio system updates
-  }
-  
-  /**
-   * Update render preparation
-   */
-  private updateRenderPreparation(deltaTime: number): void {
-    // Prepare render state, update spatial grid, etc.
-    this.spatialGrid.clear();
-    
-    // Add meteors to spatial grid
-    for (const meteor of this.activeMeteors) {
-      this.spatialGrid.insert({
-        x: meteor.x,
-        y: meteor.y,
-        radius: meteor.radius,
-        id: meteor.id
-      });
-    }
   }
   
   /**
@@ -680,52 +456,6 @@ export class GameEngine {
   }
   
   /**
-   * Get physics performance statistics
-   */
-  public getPhysicsStats(): {
-    physicsStepsPerSecond: number;
-    averagePhysicsTime: number;
-    accumulatorState: number;
-    systemTimings: Record<string, number>;
-    totalSystemTime: number;
-  } {
-    const physicsHistory = this.systemPerformanceHistory.get('physics') || [];
-    const averagePhysicsTime = physicsHistory.length > 0 
-      ? physicsHistory.reduce((sum, time) => sum + time, 0) / physicsHistory.length 
-      : 0;
-    
-    return {
-      physicsStepsPerSecond: this.physicsUpdateCount,
-      averagePhysicsTime,
-      accumulatorState: this.physicsAccumulator,
-      systemTimings: Object.fromEntries(this.systemTimings),
-      totalSystemTime: this.totalSystemTime
-    };
-  }
-  
-  /**
-   * Get system performance breakdown
-   */
-  public getSystemPerformance(): Map<string, { current: number; average: number; history: number[] }> {
-    const performance = new Map();
-    
-    for (const [systemName, history] of this.systemPerformanceHistory) {
-      const current = this.systemTimings.get(systemName) || 0;
-      const average = history.length > 0 
-        ? history.reduce((sum, time) => sum + time, 0) / history.length 
-        : 0;
-      
-      performance.set(systemName, {
-        current,
-        average,
-        history: [...history]
-      });
-    }
-    
-    return performance;
-  }
-  
-  /**
    * Cleanup resources
    */
   public destroy(): void {
@@ -736,9 +466,5 @@ export class GameEngine {
     this.renderSystem.destroy();
     this.particleSystem.clear();
     this.meteorPool.clear();
-    
-    // Clear performance tracking
-    this.systemTimings.clear();
-    this.systemPerformanceHistory.clear();
   }
 }
