@@ -30,6 +30,8 @@ export default function Game({ autoStart = false }: GameProps) {
     score: 0, 
     scoreBreakdown: { survival: 0, meteors: 0, combos: 0, total: 0 } as ScoreBreakdown,
     comboInfo: { count: 0, isActive: false, lastKnockbackTime: 0, highestCombo: 0 } as ComboInfo,
+    powerUpCharges: 0,
+    maxPowerUpCharges: 3,
     time: 0, 
     isGameOver: false, 
     fps: 0,

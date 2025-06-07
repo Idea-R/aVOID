@@ -159,7 +159,11 @@ export class PowerUpManager {
         // Add charge (up to max)
         if (this.playerCharges < this.maxCharges) {
           this.playerCharges++;
+          console.log('🔋 Power-up collected! Charges:', this.playerCharges, '/', this.maxCharges);
           return powerUp;
+        } else {
+          console.log('🔋 Power-up collected but charges are full:', this.playerCharges, '/', this.maxCharges);
+          return powerUp; // Still return the power-up for visual effects
         }
       }
     }

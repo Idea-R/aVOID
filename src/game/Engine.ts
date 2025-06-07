@@ -396,6 +396,8 @@ export default class Engine {
   private activateKnockback() {
     if (!this.powerUpManager.useCharge()) return;
 
+    console.log('💥 Knockback activated! Remaining charges:', this.powerUpManager.getCharges(), '/', this.powerUpManager.getMaxCharges());
+
     this.knockbackCooldown = 30;
 
     this.screenShake = { x: 0, y: 0, intensity: 15, duration: 500 };
@@ -663,6 +665,8 @@ export default class Engine {
         score: this.scoreSystem.getTotalScore(),
         scoreBreakdown: this.scoreSystem.getScoreBreakdown(),
         comboInfo: this.scoreSystem.getComboInfo(),
+        powerUpCharges: this.powerUpManager.getCharges(),
+        maxPowerUpCharges: this.powerUpManager.getMaxCharges(),
         time: this.gameTime, 
         isGameOver: true, 
         fps: this.currentFPS,
@@ -711,6 +715,8 @@ export default class Engine {
       
       // Create collection effect particles
       this.particleSystem.createExplosion(collectedPowerUp.x, collectedPowerUp.y, '#ffd700', false);
+      
+      console.log('🔋 Power-up collected! Current charges:', this.powerUpManager.getCharges(), '/', this.powerUpManager.getMaxCharges());
     }
     
     if (this.knockbackCooldown > 0) {
@@ -817,6 +823,8 @@ export default class Engine {
           score: this.scoreSystem.getTotalScore(),
           scoreBreakdown: this.scoreSystem.getScoreBreakdown(),
           comboInfo: this.scoreSystem.getComboInfo(),
+          powerUpCharges: this.powerUpManager.getCharges(),
+          maxPowerUpCharges: this.powerUpManager.getMaxCharges(),
           time: this.gameTime, 
           isGameOver: true, 
           fps: this.currentFPS,
@@ -857,6 +865,8 @@ export default class Engine {
       score: this.scoreSystem.getTotalScore(),
       scoreBreakdown: this.scoreSystem.getScoreBreakdown(),
       comboInfo: this.scoreSystem.getComboInfo(),
+      powerUpCharges: this.powerUpManager.getCharges(),
+      maxPowerUpCharges: this.powerUpManager.getMaxCharges(),
       time: this.gameTime, 
       isGameOver: this.isGameOver, 
       fps: this.currentFPS,
