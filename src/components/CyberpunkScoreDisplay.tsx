@@ -79,8 +79,14 @@ export default function CyberpunkScoreDisplay({ score }: CyberpunkScoreDisplayPr
       {/* Cyberpunk Score Display */}
       <div 
         ref={containerRef}
-        className={`fixed top-4 left-1/2 transform -translate-x-1/2 z-40 ${animationClass} ${glitchActive ? 'glitch-active' : ''} ${milestoneEffect ? 'milestone-active' : ''}`}
         style={{
+          position: 'fixed',
+          top: '16px',
+          left: '50%',
+          transform: `translateX(-50%) ${animationClass.includes('large-increase') ? 'scale(1.1)' : 
+                    animationClass.includes('medium-increase') ? 'scale(1.05)' : 
+                    animationClass.includes('small-increase') ? 'scale(1.02)' : 'scale(1)'}`,
+          zIndex: 1000,
           background: 'linear-gradient(135deg, rgba(0, 20, 40, 0.9), rgba(0, 40, 80, 0.8))',
           border: '2px solid #06b6d4',
           borderRadius: '12px',
@@ -93,8 +99,12 @@ export default function CyberpunkScoreDisplay({ score }: CyberpunkScoreDisplayPr
           textShadow: '0 0 10px #06b6d4, 0 0 20px #06b6d4, 0 0 30px #06b6d4',
           minWidth: '200px',
           textAlign: 'center' as const,
-          position: 'relative' as const,
-          overflow: 'hidden' as const
+          overflow: 'hidden' as const,
+          userSelect: 'none' as const,
+          WebkitUserSelect: 'none' as const,
+          MozUserSelect: 'none' as const,
+          msUserSelect: 'none' as const,
+          transition: 'transform 0.3s ease'
         }}
       >
         {/* Circuit pattern background */}
@@ -177,8 +187,12 @@ export default function CyberpunkScoreDisplay({ score }: CyberpunkScoreDisplayPr
       {/* Milestone celebration effect */}
       {milestoneEffect && (
         <div 
-          className="fixed top-20 left-1/2 transform -translate-x-1/2 z-50"
           style={{
+            position: 'fixed',
+            top: '100px',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            zIndex: 1001,
             textAlign: 'center',
             animation: 'milestoneAppear 2s ease-out'
           }}
@@ -240,10 +254,10 @@ export default function CyberpunkScoreDisplay({ score }: CyberpunkScoreDisplayPr
         }
         
         @keyframes milestoneAppear {
-          0% { opacity: 0; transform: translateX(-50%) translateY(-20px) scale(0.8); }
-          20% { opacity: 1; transform: translateX(-50%) translateY(0) scale(1.1); }
-          80% { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
-          100% { opacity: 0; transform: translateX(-50%) translateY(-10px) scale(0.9); }
+          0% { opacity: 0; transform: translateY(-20px) scale(0.8); }
+          20% { opacity: 1; transform: translateY(0) scale(1.1); }
+          80% { opacity: 1; transform: translateY(0) scale(1); }
+          100% { opacity: 0; transform: translateY(-10px) scale(0.9); }
         }
         
         @keyframes sparkRadiate {

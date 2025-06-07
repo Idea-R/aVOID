@@ -8,6 +8,7 @@ import LeaderboardModal from './LeaderboardModal';
 import SettingsModal from './SettingsModal';
 import ProfileModal from './ProfileModal';
 import HelpModal from './HelpModal';
+import CyberpunkScoreDisplay from './CyberpunkScoreDisplay';
 
 interface HUDProps {
   score: number;
@@ -64,11 +65,16 @@ export default function HUD({ score, comboInfo, powerUpCharges = 0, maxPowerUpCh
 
   return (
     <>
+      {/* Cyberpunk Score Display - Top Center */}
+      {!isGameOver && !showIntro && !isPaused && (
+        <CyberpunkScoreDisplay score={score} />
+      )}
+
       {/* Game Stats - Only show during active gameplay */}
       {!isGameOver && !showIntro && !isPaused && (
         <div className="absolute top-4 left-4 flex flex-col gap-2 text-cyan-500 font-mono text-sm">
           <div className="flex gap-6 items-center">
-            <div className="text-lg font-semibold">Score: {score.toLocaleString()}</div>
+            {/* Removed basic score display - now using CyberpunkScoreDisplay */}
             
             {/* Power-up Charges Display */}
             {maxPowerUpCharges > 0 && (

@@ -412,4 +412,33 @@ export class GameLogic {
     this.spatialGrid.resize(width, height);
     this.systems.collisionSystem.updateSpatialGrid(this.spatialGrid);
   }
+
+  // Handle meteors destroyed by knockback effects
+  processKnockbackDestroyedMeteors(destroyedMeteors: Meteor[]): void {
+    for (const meteor of destroyedMeteors) {
+      this.releaseMeteor(meteor);
+      this.gameStats.meteorsDestroyed++;
+      this.systems.scoreSystem.addMeteorScore(meteor.x, meteor.y, meteor.isSuper);
+    }
+  }
+
+  // Handle complete screen clear from chain detonation
+  processChainDetonationScreenClear(): number {
+    const meteorsDestroyed = this.activeMeteors.length;
+    
+    // Create a copy of the meteors array to avoid modification during iteration
+    const meteorsToDestroy = [...this.activeMeteors];
+    
+    // Clear the active meteors array first
+    this.activeMeteors.length = 0;
+    
+    // Release all meteors properly
+    for (const meteor of meteorsToDestroy) {
+      this.meteorPool.release(meteor);
+      this.gameStats.meteorsDestroyed++;
+    }
+    
+    console.log(`🔗💥 Chain detonation destroyed ${meteorsDestroyed} meteors!`);
+    return meteorsDestroyed;
+  }
 }

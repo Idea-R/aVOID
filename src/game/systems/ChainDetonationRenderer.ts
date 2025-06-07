@@ -233,9 +233,23 @@ export class ChainDetonationRenderer {
   private renderCompletionEffect(chain: ChainDetonation): void {
     const effect = chain.completionEffect;
     
-    // Screen flash
+    // Gentle screen flash with theme colors (much less harsh)
     if (effect.flashIntensity > 0) {
-      this.ctx.fillStyle = `rgba(255, 255, 255, ${effect.flashIntensity * 0.8})`;
+      // Create a radial gradient from center for softer effect
+      const centerX = this.canvas.width / 2;
+      const centerY = this.canvas.height / 2;
+      const maxRadius = Math.max(this.canvas.width, this.canvas.height);
+      
+      const gradient = this.ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, maxRadius);
+      
+      // Use purple/cyan theme colors instead of harsh white
+      const intensity = effect.flashIntensity * 0.3; // Reduced from 0.8 to 0.3
+      gradient.addColorStop(0, `rgba(157, 78, 221, ${intensity * 0.6})`); // Purple center
+      gradient.addColorStop(0.4, `rgba(6, 182, 212, ${intensity * 0.4})`); // Cyan middle  
+      gradient.addColorStop(0.8, `rgba(139, 69, 19, ${intensity * 0.2})`); // Subtle brown
+      gradient.addColorStop(1, `rgba(0, 0, 0, ${intensity * 0.1})`);       // Dark edges
+      
+      this.ctx.fillStyle = gradient;
       this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
     }
     

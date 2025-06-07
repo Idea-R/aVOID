@@ -227,7 +227,9 @@ export default class Engine {
         }
       });
       
-      // GameLogic will handle clearing meteors internally
+      // Handle complete screen clear through GameLogic for proper cleanup
+      const actualMeteorsDestroyed = this.engineCore.getGameLogic().processChainDetonationScreenClear();
+      console.log(`🔗 Actually destroyed ${actualMeteorsDestroyed} meteors through proper cleanup`);
     } catch (error) {
       console.error('Error processing meteor destruction:', error);
     }
@@ -300,7 +302,11 @@ export default class Engine {
     // Process destroyed meteors
     for (const meteor of knockbackResult.destroyedMeteors) {
       this.engineCore.getParticleSystem().createExplosion(meteor.x, meteor.y, meteor.color, meteor.isSuper);
-      // Note: GameLogic will handle meteor release and stats internally
+    }
+    
+    // Handle meteor destruction through GameLogic for proper cleanup
+    if (knockbackResult.destroyedMeteors.length > 0) {
+      this.engineCore.getGameLogic().processKnockbackDestroyedMeteors(knockbackResult.destroyedMeteors);
     }
 
     // Process pushed meteors
