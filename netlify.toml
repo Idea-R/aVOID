@@ -1,11 +1,12 @@
 [build]
   functions = "netlify/functions"
   publish = "dist"
-  command = "npm install && npm run build"
+  command = "npm ci --production=false && npm run build"
   
 [build.environment]
   NODE_VERSION = "18"
   NODE_ENV = "production"
+  NPM_CONFIG_PRODUCTION = "false"
   
 [functions]
   node_bundler = "esbuild"
@@ -27,6 +28,7 @@
 # Environment context - ensure dev dependencies are available for builds
 [context.production.environment]
   NODE_ENV = "production"
+  NPM_CONFIG_PRODUCTION = "false"
 
 [context.deploy-preview.environment]
   NODE_ENV = "development"
