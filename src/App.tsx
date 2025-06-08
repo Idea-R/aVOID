@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import Game from './components/Game';
 import PasswordResetModal from './components/PasswordResetModal';
 import { useAuthStore } from './store/authStore';
+import { logSupabaseHealth } from './utils/supabaseCheck';
 
 function App() {
   const [gameStarted, setGameStarted] = useState(false);
@@ -11,6 +12,9 @@ function App() {
 
   useEffect(() => {
     const initializeApp = async () => {
+      // Run Supabase health check for debugging
+      await logSupabaseHealth();
+      
       // Initialize auth
       await initialize();
       

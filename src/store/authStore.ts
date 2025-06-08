@@ -70,8 +70,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   resetPassword: async (email: string) => {
     try {
+      // Use the correct redirect URL based on environment
+      const redirectTo = import.meta.env.DEV 
+        ? 'http://localhost:5173' 
+        : 'https://avoidgame.io';
+
       const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: window.location.origin
+        redirectTo: redirectTo
       });
 
       if (error) {
@@ -107,8 +112,21 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const accessToken = hashParams.get('access_token');
       const refreshToken = hashParams.get('refresh_token');
       const type = hashParams.get('type');
+      const error = hashParams.get('error');
+      const errorDescription = hashParams.get('error_description');
+
+      // Log debug info
+      console.log('Password reset redirect params:', { type, hasAccessToken: !!accessToken, hasRefreshToken: !!refreshToken, error, errorDescription });
+
+      // Handle auth errors from Supabase
+      if (error) {
+        console.error('Auth redirect error:', error, errorDescription);
+        return { needsPasswordReset: false, error: errorDescription || error };
+      }
 
       if (type === 'recovery' && accessToken && refreshToken) {
+        console.log('Setting session for password recovery...');
+        
         // Set the session with the tokens from the URL
         const { data, error } = await supabase.auth.setSession({
           access_token: accessToken,
@@ -116,11 +134,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         });
 
         if (error) {
+          console.error('Session setting error:', error);
           return { needsPasswordReset: false, error: error.message };
         }
 
         if (data.user) {
+          console.log('Password reset session established for user:', data.user.id);
           set({ user: data.user });
+          
           // Clear the hash from URL for security
           window.history.replaceState(null, '', window.location.pathname);
           return { needsPasswordReset: true };
@@ -129,7 +150,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
       return { needsPasswordReset: false };
     } catch (error) {
-      return { needsPasswordReset: false, error: 'An unexpected error occurred' };
+      console.error('Password reset redirect error:', error);
+      return { needsPasswordReset: false, error: 'An unexpected error occurred during password reset' };
     }
   },
 

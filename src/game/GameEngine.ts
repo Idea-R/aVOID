@@ -6,6 +6,9 @@ import { PowerUpManager } from './entities/PowerUp';
 import { ObjectPool } from './utils/ObjectPool';
 import { SpatialGrid } from './utils/SpatialGrid';
 import { Meteor, createMeteor, resetMeteor } from './entities/Meteor';
+import { PerformanceMonitor, PerformanceMetrics } from './managers/PerformanceMonitor';
+import { EngineInputManager } from './managers/EngineInputManager';
+import { EngineStateManager, GameState } from './managers/EngineStateManager';
 
 interface GameEngineConfig {
   canvas: HTMLCanvasElement;
@@ -14,33 +17,19 @@ interface GameEngineConfig {
   enablePerformanceMode?: boolean;
 }
 
-interface GameState {
-  isRunning: boolean;
-  isPaused: boolean;
-  isGameOver: boolean;
-  gameTime: number;
-  score: number;
-  level: number;
-}
-
 export class GameEngine {
   // Core properties
   private canvas: HTMLCanvasElement;
   private animationFrameId: number | null = null;
   private lastFrameTime: number = 0;
   
-  // Game state
-  private gameState: GameState = {
-    isRunning: false,
-    isPaused: false,
-    isGameOver: false,
-    gameTime: 0,
-    score: 0,
-    level: 1
-  };
-  
   // Configuration
   private config: Required<GameEngineConfig>;
+  
+  // Specialized managers
+  private performanceMonitor!: PerformanceMonitor;
+  private inputManager!: EngineInputManager;
+  private stateManager!: EngineStateManager;
   
   // Core systems
   private renderSystem: RenderSystem;
@@ -54,11 +43,6 @@ export class GameEngine {
   private activeMeteors: Meteor[] = [];
   private spatialGrid: SpatialGrid;
   
-  // Performance tracking
-  private frameCount: number = 0;
-  private fpsCounter: number = 0;
-  private lastFPSUpdate: number = 0;
-  
   constructor(config: GameEngineConfig) {
     this.canvas = config.canvas;
     this.config = {
@@ -68,13 +52,21 @@ export class GameEngine {
       enablePerformanceMode: config.enablePerformanceMode ?? false
     };
     
+    this.initializeManagers();
     this.initializeSystems();
-    this.setupEventListeners();
   }
   
-  /**
-   * Initialize all game systems
-   */
+  private initializeManagers(): void {
+    // Initialize specialized managers
+    this.performanceMonitor = new PerformanceMonitor();
+    this.inputManager = new EngineInputManager(this.canvas);
+    this.stateManager = new EngineStateManager();
+    
+    // Setup manager callbacks
+    this.inputManager.setResizeCallback(() => this.handleManagerResize());
+    this.stateManager.setStateChangeCallback((state) => this.handleStateChange(state));
+  }
+  
   private initializeSystems(): void {
     // Initialize core systems
     this.renderSystem = new RenderSystem(this.canvas);
@@ -99,53 +91,30 @@ export class GameEngine {
       10,
       this.config.maxMeteors
     );
+    
+    // Connect managers to systems
+    this.performanceMonitor.setParticleSystem(this.particleSystem);
+    this.inputManager.setSpatialGrid(this.spatialGrid);
   }
   
-  /**
-   * Set up event listeners for user input
-   */
-  private setupEventListeners(): void {
-    // Canvas resize handling
-    window.addEventListener('resize', this.handleResize.bind(this));
-    
-    // Input event listeners will be added here
-    // this.canvas.addEventListener('mousemove', this.handleMouseMove.bind(this));
-    // this.canvas.addEventListener('click', this.handleClick.bind(this));
+  private handleManagerResize(): void {
+    // Additional resize handling if needed
+    console.log('🔄 Engine handling resize');
   }
   
-  /**
-   * Main game loop
-   */
-  private gameLoop = (timestamp: number): void => {
-    if (!this.gameState.isRunning || this.gameState.isPaused) {
-      return;
-    }
-    
-    const deltaTime = timestamp - this.lastFrameTime;
-    this.lastFrameTime = timestamp;
-    
-    // Update FPS counter
-    this.updateFPS(timestamp);
-    
-    // Update game systems
-    this.update(deltaTime);
-    
-    // Render frame
-    this.render();
-    
-    // Schedule next frame
-    this.animationFrameId = requestAnimationFrame(this.gameLoop);
-  };
+  private handleStateChange(state: GameState): void {
+    // Handle state changes if needed
+    console.log('🔄 Engine state changed:', state);
+  }
   
   /**
    * Enhanced game loop with performance monitoring and adaptive timing
    */
   private enhancedGameLoop = (timestamp: number): void => {
-    if (!this.gameState.isRunning) return;
+    if (!this.stateManager.isRunning()) return;
     
     // Handle pause state
-    if (this.gameState.isPaused) {
-      // Don't update game logic, but keep the loop alive for resume
+    if (this.stateManager.isPaused()) {
       this.animationFrameId = requestAnimationFrame(this.enhancedGameLoop);
       return;
     }
@@ -160,8 +129,8 @@ export class GameEngine {
       return;
     }
     
-    // Update FPS and performance metrics
-    this.updatePerformanceMetrics(timestamp, deltaTime);
+    // Update performance metrics
+    this.performanceMonitor.updatePerformanceMetrics(timestamp, deltaTime, this.config.enablePerformanceMode);
     
     // Update game systems with delta time
     this.updateGameSystems(deltaTime);
@@ -174,39 +143,18 @@ export class GameEngine {
   };
   
   /**
-   * Update performance metrics and FPS tracking
-   */
-  private updatePerformanceMetrics(timestamp: number, deltaTime: number): void {
-    this.frameCount++;
-    
-    // Update FPS every second
-    if (timestamp - this.lastFPSUpdate >= 1000) {
-      this.fpsCounter = Math.round((this.frameCount * 1000) / (timestamp - this.lastFPSUpdate));
-      this.frameCount = 0;
-      this.lastFPSUpdate = timestamp;
-      
-      // Performance mode detection
-      if (this.config.enablePerformanceMode && this.fpsCounter < 45) {
-        this.enablePerformanceOptimizations();
-      } else if (this.fpsCounter > 55) {
-        this.disablePerformanceOptimizations();
-      }
-    }
-  }
-  
-  /**
    * Update all game systems with delta time
    */
   private updateGameSystems(deltaTime: number): void {
-    if (this.gameState.isGameOver) return;
+    if (!this.stateManager.shouldUpdate()) return;
     
-    // Update game time
-    this.gameState.gameTime += deltaTime / 1000;
+    // Update game time in state manager
+    this.stateManager.updateGameTime(deltaTime);
     
     // Update core systems
     this.particleSystem.update(deltaTime);
     this.scoreSystem.update(deltaTime, performance.now());
-    this.powerUpManager.update(this.gameState.gameTime, deltaTime);
+    this.powerUpManager.update(this.stateManager.getGameTime(), deltaTime);
     
     // Update game entities
     this.updateMeteors(deltaTime);
@@ -214,73 +162,21 @@ export class GameEngine {
     // Process collisions
     this.checkCollisions();
     
-    // Update score
-    this.gameState.score = this.scoreSystem.getTotalScore();
+    // Update score in state manager
+    this.stateManager.updateScore(this.scoreSystem.getTotalScore());
   }
   
   /**
    * Render current frame
    */
   private renderFrame(): void {
+    if (!this.stateManager.shouldRender()) return;
+    
     // Clear spatial grid for next frame
     this.spatialGrid.clear();
     
     // Render implementation will be enhanced
     // this.renderSystem.render(this.buildRenderState());
-  }
-  
-  /**
-   * Enable performance optimizations when FPS drops
-   */
-  private enablePerformanceOptimizations(): void {
-    // Reduce particle count
-    this.particleSystem.setMaxParticles(150);
-    
-    // Disable expensive visual effects
-    // this.renderSystem.setShadowsEnabled(false);
-    
-    console.log('🔧 Performance optimizations enabled (FPS < 45)');
-  }
-  
-  /**
-   * Disable performance optimizations when FPS improves
-   */
-  private disablePerformanceOptimizations(): void {
-    // Restore full particle count
-    this.particleSystem.setMaxParticles(300);
-    
-    // Re-enable visual effects
-    // this.renderSystem.setShadowsEnabled(true);
-    
-    console.log('🔧 Performance optimizations disabled (FPS > 55)');
-  }
-  /**
-   * Update all game systems
-   */
-  private update(deltaTime: number): void {
-    if (this.gameState.isGameOver) return;
-    
-    // Update game time
-    this.gameState.gameTime += deltaTime / 1000;
-    
-    // Update systems
-    this.particleSystem.update(deltaTime);
-    this.scoreSystem.update(deltaTime, performance.now());
-    this.powerUpManager.update(this.gameState.gameTime, deltaTime);
-    
-    // Update meteors
-    this.updateMeteors(deltaTime);
-    
-    // Check collisions
-    this.checkCollisions();
-  }
-  
-  /**
-   * Render current frame
-   */
-  private render(): void {
-    // Render implementation will be added
-    // this.renderSystem.render(renderState);
   }
   
   /**
@@ -321,28 +217,6 @@ export class GameEngine {
   }
   
   /**
-   * Update FPS counter
-   */
-  private updateFPS(currentTime: number): void {
-    this.frameCount++;
-    
-    if (currentTime - this.lastFPSUpdate >= 1000) {
-      this.fpsCounter = this.frameCount;
-      this.frameCount = 0;
-      this.lastFPSUpdate = currentTime;
-    }
-  }
-  
-  /**
-   * Handle canvas resize
-   */
-  private handleResize(): void {
-    this.canvas.width = window.innerWidth;
-    this.canvas.height = window.innerHeight;
-    this.spatialGrid.resize(this.canvas.width, this.canvas.height);
-  }
-  
-  /**
    * Check if meteor is off-screen
    */
   private isOffScreen(meteor: Meteor): boolean {
@@ -370,12 +244,9 @@ export class GameEngine {
    * Start the game engine
    */
   public start(): void {
-    if (this.gameState.isRunning) return;
+    if (!this.stateManager.start()) return;
     
-    this.gameState.isRunning = true;
-    this.gameState.isPaused = false;
     this.lastFrameTime = performance.now();
-    this.lastFPSUpdate = this.lastFrameTime;
     this.animationFrameId = requestAnimationFrame(this.enhancedGameLoop);
     
     console.log('🎮 GameEngine started with enhanced loop');
@@ -385,35 +256,28 @@ export class GameEngine {
    * Stop the game engine
    */
   public stop(): void {
-    this.gameState.isRunning = false;
+    this.stateManager.stop();
     
     if (this.animationFrameId !== null) {
       cancelAnimationFrame(this.animationFrameId);
       this.animationFrameId = null;
     }
-    
-    console.log('🎮 GameEngine stopped');
   }
   
   /**
    * Pause the game
    */
   public pause(): void {
-    if (!this.gameState.isRunning) return;
-    
-    this.gameState.isPaused = true;
-    console.log('⏸️ GameEngine paused');
+    this.stateManager.pause();
   }
   
   /**
    * Resume the game
    */
   public resume(): void {
-    if (this.gameState.isRunning && this.gameState.isPaused) {
-      this.gameState.isPaused = false;
+    if (this.stateManager.resume()) {
       // Reset frame timing to prevent large delta
       this.lastFrameTime = performance.now();
-      console.log('▶️ GameEngine resumed');
     }
   }
   
@@ -421,14 +285,7 @@ export class GameEngine {
    * Reset game to initial state
    */
   public reset(): void {
-    this.gameState = {
-      isRunning: false,
-      isPaused: false,
-      isGameOver: false,
-      gameTime: 0,
-      score: 0,
-      level: 1
-    };
+    this.stateManager.reset();
     
     // Clear active entities
     this.activeMeteors.forEach(meteor => this.meteorPool.release(meteor));
@@ -438,20 +295,39 @@ export class GameEngine {
     this.particleSystem.reset();
     this.scoreSystem.reset();
     this.powerUpManager.reset();
+    this.performanceMonitor.reset();
   }
   
   /**
    * Get current game state
    */
   public getGameState(): Readonly<GameState> {
-    return { ...this.gameState };
+    return this.stateManager.getState();
   }
   
   /**
    * Get current FPS
    */
   public getFPS(): number {
-    return this.fpsCounter;
+    return this.performanceMonitor.getFPS();
+  }
+  
+  /**
+   * Get performance metrics
+   */
+  public getPerformanceMetrics(): PerformanceMetrics {
+    return this.performanceMonitor.getMetrics();
+  }
+  
+  /**
+   * Enable/disable performance optimizations
+   */
+  public setPerformanceOptimizations(enabled: boolean): void {
+    if (enabled) {
+      this.performanceMonitor.enablePerformanceOptimizations();
+    } else {
+      this.performanceMonitor.disablePerformanceOptimizations();
+    }
   }
   
   /**
@@ -459,7 +335,7 @@ export class GameEngine {
    */
   public destroy(): void {
     this.stop();
-    window.removeEventListener('resize', this.handleResize.bind(this));
+    this.inputManager.destroy();
     
     // Cleanup systems
     this.renderSystem.destroy();

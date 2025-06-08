@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Trophy, Star, UserPlus, Eye, RotateCcw, Settings, UserCircle, Target, Zap, HelpCircle, Music } from 'lucide-react';
+import { Trophy, Eye, RotateCcw, Settings, UserCircle, UserPlus, HelpCircle, Music } from 'lucide-react';
 import { LeaderboardAPI } from '../api/leaderboard';
 import { useAuthStore } from '../store/authStore';
 import { ScoreBreakdown, ComboInfo } from '../game/systems/ScoreSystem';
@@ -10,6 +10,9 @@ import SettingsModal from './SettingsModal';
 import ProfileModal from './ProfileModal';
 import HelpModal from './HelpModal';
 import MusicControls from './MusicControls';
+import ScoreDisplay from './game/ScoreDisplay';
+import PlayerRanking from './game/PlayerRanking';
+import ScoreSaving from './game/ScoreSaving';
 import logoImage from '../assets/Futuristic aVOID with Fiery Meteors.png';
 
 interface GameOverScreenProps {
@@ -21,8 +24,6 @@ interface GameOverScreenProps {
 }
 
 export default function GameOverScreen({ score, scoreBreakdown, comboInfo, onPlayAgain, audioManager }: GameOverScreenProps) {
-  const [playerName, setPlayerName] = useState('');
-  const [isSaving, setIsSaving] = useState(false);
   const [showSignup, setShowSignup] = useState(false);
   const [showLeaderboard, setShowLeaderboard] = useState(false);
   const [showAccount, setShowAccount] = useState(false);
@@ -30,7 +31,6 @@ export default function GameOverScreen({ score, scoreBreakdown, comboInfo, onPla
   const [showProfile, setShowProfile] = useState(false);
   const [playerRank, setPlayerRank] = useState<number | null>(null);
   const [verifiedRank, setVerifiedRank] = useState<number | null>(null);
-  const [scoreSaved, setScoreSaved] = useState(false);
   const [logoVisible, setLogoVisible] = useState(false);
   const [logoEnlarged, setLogoEnlarged] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
@@ -63,31 +63,6 @@ export default function GameOverScreen({ score, scoreBreakdown, comboInfo, onPla
       clearTimeout(logoTimer);
     };
   }, [score]);
-
-  const handleSaveGuestScore = async () => {
-    if (!playerName.trim() || isSaving) return;
-    
-    setIsSaving(true);
-    const success = await LeaderboardAPI.submitGuestScore(playerName.trim(), score);
-    
-    if (success) {
-      setScoreSaved(true);
-    }
-    setIsSaving(false);
-  };
-
-  const handleSaveVerifiedScore = async () => {
-    if (!user || isSaving) return;
-    
-    setIsSaving(true);
-    const displayName = user.user_metadata?.display_name || user.email?.split('@')[0] || 'Player';
-    const success = await LeaderboardAPI.submitVerifiedScore(displayName, score, user.id);
-    
-    if (success) {
-      setScoreSaved(true);
-    }
-    setIsSaving(false);
-  };
 
   const handlePlayAgain = () => {
     console.log('Play again button clicked');
@@ -233,150 +208,27 @@ export default function GameOverScreen({ score, scoreBreakdown, comboInfo, onPla
             </div>
           </div>
           
-          <div className="text-center mb-6">
-            <div className="mb-4">
-              <p className="text-2xl mb-2 text-cyan-300 font-bold">Final Score: {score.toLocaleString()}</p>
-              
-              {/* Score Breakdown */}
-              <div className="bg-gray-800/50 rounded-lg p-4 mb-4">
-                <h4 className="text-lg font-semibold text-cyan-300 mb-3 flex items-center gap-2">
-                  <Trophy className="w-5 h-5" />
-                  Score Breakdown
-                </h4>
-                <div className="grid grid-cols-3 gap-4 text-sm">
-                  <div className="text-center">
-                    <div className="flex items-center justify-center gap-1 mb-1">
-                      <Target className="w-4 h-4 text-blue-400" />
-                      <span className="text-blue-300">Survival</span>
-                    </div>
-                    <p className="text-white font-semibold">{scoreBreakdown.survival.toLocaleString()}</p>
-                  </div>
-                  <div className="text-center">
-                    <div className="flex items-center justify-center gap-1 mb-1">
-                      <Zap className="w-4 h-4 text-orange-400" />
-                      <span className="text-orange-300">Meteors</span>
-                    </div>
-                    <p className="text-white font-semibold">{scoreBreakdown.meteors.toLocaleString()}</p>
-                  </div>
-                  <div className="text-center">
-                    <div className="flex items-center justify-center gap-1 mb-1">
-                      <Star className="w-4 h-4 text-green-400" />
-                      <span className="text-green-300">Combos</span>
-                    </div>
-                    <p className="text-white font-semibold">{scoreBreakdown.combos.toLocaleString()}</p>
-                  </div>
-                </div>
-              </div>
-              
-              {/* Combo Achievement */}
-              {comboInfo.highestCombo > 0 && (
-                <div className="bg-gradient-to-r from-green-900/30 to-yellow-900/30 border border-green-500/50 rounded-lg p-3 mb-4">
-                  <div className="flex items-center justify-center gap-2">
-                    <Star className="w-5 h-5 text-yellow-400" />
-                    <span className="text-green-300 font-semibold">
-                      Highest Combo: {comboInfo.highestCombo}x
-                    </span>
-                    <Star className="w-5 h-5 text-yellow-400" />
-                  </div>
-                  {comboInfo.highestCombo >= 7 && (
-                    <p className="text-yellow-300 text-sm text-center mt-1">🔥 INCREDIBLE COMBO MASTER! 🔥</p>
-                  )}
-                  {comboInfo.highestCombo >= 5 && comboInfo.highestCombo < 7 && (
-                    <p className="text-green-300 text-sm text-center mt-1">⚡ Great combo skills! ⚡</p>
-                  )}
-                </div>
-              )}
-            </div>
-            
-            {playerRank && (
-              <div className="space-y-2">
-                <p className="text-lg text-yellow-400 font-semibold">
-                  🎯 You placed #{playerRank} globally!
-                </p>
-                {!user && verifiedRank && (
-                  <p className="text-sm text-cyan-300 bg-cyan-900/30 border border-cyan-500/50 rounded-lg p-3">
-                    💎 You would be <span className="font-bold text-yellow-400">#{verifiedRank}</span> on the verified leaderboard!
-                    <br />
-                    <span className="text-xs text-cyan-400">Sign up to claim your spot!</span>
-                  </p>
-                )}
-              </div>
-            )}
-          </div>
+          {/* Score Display Component */}
+          <ScoreDisplay 
+            score={score} 
+            scoreBreakdown={scoreBreakdown} 
+            comboInfo={comboInfo} 
+          />
+          
+          {/* Player Ranking Component */}
+          <PlayerRanking 
+            playerRank={playerRank} 
+            verifiedRank={verifiedRank} 
+            isUser={!!user} 
+          />
 
-          {!scoreSaved ? (
-            <div className="space-y-4">
-              {user ? (
-                // Verified user flow
-                <div className="bg-cyan-900/30 border border-cyan-500/50 rounded-lg p-4">
-                  <div className="flex items-center gap-2 mb-3">
-                    <Star className="w-5 h-5 text-cyan-400" />
-                    <span className="text-cyan-300 font-semibold">Verified Player</span>
-                  </div>
-                  <p className="text-sm text-cyan-200 mb-3">
-                    Save your score as {user.user_metadata?.display_name || user.email?.split('@')[0]}
-                  </p>
-                  <button
-                    onClick={handleSaveVerifiedScore}
-                    disabled={isSaving}
-                    className="w-full bg-cyan-500 hover:bg-cyan-600 text-black font-bold py-2 px-4 rounded disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
-                  >
-                    {isSaving ? 'Saving...' : 'Save Verified Score'}
-                  </button>
-                </div>
-              ) : (
-                // Guest user flow
-                <>
-                  <input
-                    type="text"
-                    placeholder="Enter your name"
-                    value={playerName}
-                    onChange={(e) => setPlayerName(e.target.value)}
-                    className="w-full px-4 py-2 bg-gray-800 border border-cyan-500 rounded text-cyan-100 placeholder-cyan-700 focus:outline-none focus:ring-2 focus:ring-cyan-500"
-                    maxLength={20}
-                  />
-                  
-                  <button
-                    onClick={handleSaveGuestScore}
-                    disabled={!playerName.trim() || isSaving}
-                    className="w-full bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
-                  >
-                    {isSaving ? 'Saving...' : 'Save as Guest'}
-                  </button>
-
-                  <div className="relative">
-                    <div className="absolute inset-0 flex items-center">
-                      <div className="w-full border-t border-gray-600"></div>
-                    </div>
-                    <div className="relative flex justify-center text-sm">
-                      <span className="px-2 bg-gray-900 text-gray-400">or</span>
-                    </div>
-                  </div>
-
-                  <button
-                    onClick={() => setShowSignup(true)}
-                    className="w-full bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 text-white font-bold py-3 px-4 rounded transition-all duration-200 transform hover:scale-105 shadow-lg"
-                  >
-                    <div className="flex items-center justify-center gap-2">
-                      <UserPlus className="w-5 h-5" />
-                      <span>Sign up to compete on leaderboard!</span>
-                    </div>
-                  </button>
-                </>
-              )}
-            </div>
-          ) : (
-            <div className="bg-green-900/30 border border-green-500/50 rounded-lg p-4 mb-4">
-              <p className="text-green-300 text-center font-semibold">
-                ✅ Score saved successfully!
-              </p>
-              {user && verifiedRank && (
-                <p className="text-green-200 text-center text-sm mt-2">
-                  You're now #{verifiedRank} on the verified leaderboard!
-                </p>
-              )}
-            </div>
-          )}
+          {/* Score Saving Component */}
+          <ScoreSaving 
+            score={score} 
+            user={user} 
+            verifiedRank={verifiedRank} 
+            onShowSignup={() => setShowSignup(true)} 
+          />
 
           <div className="space-y-3 mt-6">
             <button
@@ -398,11 +250,12 @@ export default function GameOverScreen({ score, scoreBreakdown, comboInfo, onPla
         </div>
       </div>
 
+      {/* Modals */}
       <SignupModal
         isOpen={showSignup}
         onClose={() => setShowSignup(false)}
         playerScore={score}
-        playerName={playerName}
+        playerName=""
       />
 
       <LeaderboardModal

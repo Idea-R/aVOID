@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import Engine from '../game/Engine';
+import GameEngine from '../game/core/GameEngine';
 import HUD from './HUD';
 import GameOverScreen from './GameOverScreen';
 import GameIntro from './GameIntro';
@@ -23,7 +23,7 @@ interface GameProps {
 
 export default function Game({ autoStart = false }: GameProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const engineRef = useRef<Engine | null>(null);
+  const engineRef = useRef<GameEngine | null>(null);
   const [showIntro, setShowIntro] = useState(true);
   const [isPaused, setIsPaused] = useState(false);
   const [engineInitialized, setEngineInitialized] = useState(false);
@@ -56,7 +56,7 @@ export default function Game({ autoStart = false }: GameProps) {
     if (!canvasRef.current) return;
     
     console.log('[GAME] Initializing game engine...');
-    const engine = new Engine(canvasRef.current);
+    const engine = new GameEngine(canvasRef.current);
     engineRef.current = engine;
     setEngineInitialized(true);
     console.log('[GAME] Game engine initialized');
