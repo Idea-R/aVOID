@@ -20,7 +20,37 @@ export const LOCAL_AUDIO_TRACKS = {
   'Robot-Factory-Breakdown': '/audio/Robot-Factory-Breakdown.mp3'
 };
 
-// Environment-based audio source
-export const getAudioSource = (track: keyof typeof AUDIO_TRACKS) => {
+// Enhanced audio source with fallback support
+export interface AudioSourceConfig {
+  primary: string;
+  fallback: string;
+  local: string;
+}
+
+export const getAudioSource = (track: keyof typeof AUDIO_TRACKS): string => {
   return import.meta.env.PROD ? AUDIO_TRACKS[track] : LOCAL_AUDIO_TRACKS[track];
+};
+
+// Enhanced function with fallback support
+export const getAudioSourceWithFallback = (track: keyof typeof AUDIO_TRACKS): AudioSourceConfig => {
+  return {
+    primary: AUDIO_TRACKS[track],    // Vercel Blob CDN (primary)
+    fallback: LOCAL_AUDIO_TRACKS[track], // Local fallback
+    local: LOCAL_AUDIO_TRACKS[track]     // Always available local
+  };
+};
+
+// Health check for CDN assets
+export const checkAudioCDNHealth = async (): Promise<boolean> => {
+  try {
+    const testTrack = AUDIO_TRACKS['Into-The-Void'];
+    const response = await fetch(testTrack, { 
+      method: 'HEAD',
+      mode: 'cors'
+    });
+    return response.status === 200;
+  } catch (error) {
+    console.warn('CDN health check failed:', error);
+    return false;
+  }
 }; 
