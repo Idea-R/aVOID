@@ -1,71 +1,32 @@
-import React from 'react';
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
 
-interface BoltBadgeProps {
-  onMeteorDefense?: (meteorId: string, x: number, y: number) => void;
-}
-
-export default function BoltBadge({ onMeteorDefense }: BoltBadgeProps) {
-  return (
-    <>
-      {/* Custom Badge Styles */}
-      <style>{`
-        .bolt-badge {
-          transition: all 0.3s ease;
+// https://vitejs.dev/config/
+export default defineConfig({
+  plugins: [react()],
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vendor: ['react', 'react-dom'],
+          ui: ['lucide-react'],
+          auth: ['@supabase/supabase-js'],
+          audio: ['howler'],
+          state: ['zustand']
         }
-        @keyframes badgeIntro {
-          0% { transform: translateX(100px); opacity: 0; }
-          100% { transform: translateX(0); opacity: 1; }
-        }
-        .bolt-badge-intro {
-          animation: badgeIntro 0.6s ease-out 1s both;
-        }
-        .bolt-badge-intro.animated {
-          animation: none;
-        }
-        @keyframes badgeHover {
-          0% { transform: scale(1) rotate(0deg); }
-          50% { transform: scale(1.1) rotate(22deg); }
-          100% { transform: scale(1) rotate(0deg); }
-        }
-        .bolt-badge:hover {
-          animation: badgeHover 0.6s ease-in-out;
-        }
-        @keyframes defenseField {
-          0% { opacity: 0.3; transform: scale(0.8); }
-          50% { opacity: 0.6; transform: scale(1.2); }
-          100% { opacity: 0.3; transform: scale(1); }
-        }
-        .defense-field {
-          animation: defenseField 2s ease-in-out infinite;
-        }
-      `}</style>
-
-      {/* Badge Container with Defense Field */}
-      <div className="fixed bottom-4 right-8 z-50" id="bolt-badge-container">
-        {/* Invisible Defense Area */}
-        <div 
-          className="absolute inset-0 w-40 h-40 -translate-x-16 -translate-y-16 pointer-events-none"
-          id="bolt-defense-zone"
-        >
-          {/* Visual Defense Field (optional, can be hidden) */}
-          <div className="absolute inset-0 rounded-full border-2 border-yellow-400/40 defense-field opacity-0 hover:opacity-100 transition-opacity duration-300" />
-        </div>
-
-        {/* Bolt Badge */}
-        <a 
-          href="https://bolt.new/" 
-          target="_blank" 
-          rel="noopener noreferrer" 
-          className="block transition-all duration-300 hover:shadow-2xl relative z-10"
-        >
-          <img 
-            src="https://bolt.army/logotext_poweredby_360w.png" 
-            alt="Powered by Bolt.new badge" 
-            className="h-8 md:h-10 w-auto shadow-lg opacity-90 hover:opacity-100 bolt-badge bolt-badge-intro"
-            onAnimationEnd={(e) => e.currentTarget.classList.add('animated')}
-          />
-        </a>
-      </div>
-    </>
-  );
-}
+      }
+    },
+    chunkSizeWarningLimit: 1000,
+    minify: 'terser',
+    terserOptions: {
+      compress: {
+        drop_console: true,
+        drop_debugger: true
+      }
+    }
+  },
+  optimizeDeps: {
+    exclude: ['lucide-react'],
+    include: ['@supabase/supabase-js', 'howler', 'zustand']
+  },
+});
