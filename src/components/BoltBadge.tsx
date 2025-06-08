@@ -7,7 +7,7 @@ interface BoltBadgeProps {
 export default function BoltBadge({ onMeteorDefense }: BoltBadgeProps) {
   return (
     <>
-      {/* Custom Badge Styles */}
+      {/* Custom Bolt.new Badge Configuration */}
       <style>{`
         .bolt-badge {
           transition: all 0.3s ease;
@@ -41,7 +41,7 @@ export default function BoltBadge({ onMeteorDefense }: BoltBadgeProps) {
       `}</style>
 
       {/* Badge Container with Defense Field */}
-      <div className="fixed bottom-4 right-8 z-50" id="bolt-badge-container">
+      <div className="fixed bottom-4 right-4 z-50" id="bolt-badge-container">
         {/* Invisible Defense Area */}
         <div 
           className="absolute inset-0 w-40 h-40 -translate-x-16 -translate-y-16 pointer-events-none"
@@ -56,10 +56,10 @@ export default function BoltBadge({ onMeteorDefense }: BoltBadgeProps) {
           href="https://bolt.new/" 
           target="_blank" 
           rel="noopener noreferrer" 
-          className="block transition-all duration-300 hover:shadow-2xl relative z-10"
+          className="block transition-all duration-300 hover:shadow-2xl"
         >
           <img 
-            src="https://bolt.army/logotext_poweredby_360w.png" 
+            src="https://storage.bolt.army/logotext_poweredby_360w.png" 
             alt="Powered by Bolt.new badge" 
             className="h-8 md:h-10 w-auto shadow-lg opacity-90 hover:opacity-100 bolt-badge bolt-badge-intro"
             onAnimationEnd={(e) => e.currentTarget.classList.add('animated')}
