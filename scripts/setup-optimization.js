@@ -80,6 +80,9 @@ logFiles.forEach(file => {
 
 // Create backup timestamp function
 const backupScript = `#!/usr/bin/env node
+import fs from 'fs';
+import path from 'path';
+
 // Backup utility for optimization process
 export function createBackup(sourceFile, targetDir = 'archive') {
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
@@ -156,4 +159,4 @@ tail -f logs/optimization_progress.log
 `;
 
 fs.writeFileSync('scripts/quick-start-commands.sh', quickStart);
-console.log('📝 Created quick start commands: scripts/quick-start-commands.sh'); 
+console.log('📝 Created quick start commands: scripts/quick-start-commands.sh');
