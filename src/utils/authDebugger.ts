@@ -224,10 +224,10 @@ WARNINGS:
 
 // Quick diagnostic function
 export async function quickAuthDiagnostic(): Promise<void> {
-  const debugger = new AuthDebugger();
-  const results = await debugger.runFullDiagnostic();
+  const authDebugger = new AuthDebugger();
+  const results = await authDebugger.runFullDiagnostic();
   
-  console.log('\n' + debugger.generateReport());
+  console.log('\n' + authDebugger.generateReport());
   
   // Return actionable recommendations
   const errors = results.filter(r => r.status === 'error');

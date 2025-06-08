@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import Game from './components/Game';
 import PasswordResetModal from './components/PasswordResetModal';
+import AuthTestPanel from './components/AuthTestPanel';
 import { useAuthStore } from './store/authStore';
 import { logSupabaseHealth } from './utils/supabaseCheck';
+import { quickAuthDiagnostic } from './utils/authDebugger';
 
 function App() {
   const [gameStarted, setGameStarted] = useState(false);
@@ -12,8 +14,8 @@ function App() {
 
   useEffect(() => {
     const initializeApp = async () => {
-      // Run Supabase health check for debugging
-      await logSupabaseHealth();
+      // Run comprehensive auth diagnostic
+      await quickAuthDiagnostic();
       
       // Initialize auth
       await initialize();
@@ -36,8 +38,8 @@ function App() {
         setGameStarted(true);
         
         // Track auto-start engagement
-        if (typeof window !== 'undefined' && window.gtag) {
-          window.gtag('event', 'auto_start_triggered', {
+        if (typeof window !== 'undefined' && (window as any).gtag) {
+          (window as any).gtag('event', 'auto_start_triggered', {
             event_category: 'engagement',
             event_label: 'game_auto_started'
           });
@@ -54,8 +56,8 @@ function App() {
     setGameStarted(true);
     
     // Track manual start
-    if (typeof window !== 'undefined' && window.gtag) {
-      window.gtag('event', 'manual_start_clicked', {
+    if (typeof window !== 'undefined' && (window as any).gtag) {
+      (window as any).gtag('event', 'manual_start_clicked', {
         event_category: 'engagement',
         event_label: 'start_button_clicked'
       });
@@ -81,6 +83,9 @@ function App() {
   return (
     <div className="min-h-screen bg-black text-cyan-500 flex items-center justify-center relative overflow-hidden">
       <Game autoStart={gameStarted} />
+      
+      {/* Temporary Auth Debugger - Remove after fixing auth */}
+      {import.meta.env.DEV && <AuthTestPanel />}
       
       {/* Password Reset Success Message */}
       {passwordResetSuccess && (
