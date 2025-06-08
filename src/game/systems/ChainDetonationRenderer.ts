@@ -298,43 +298,47 @@ export class ChainDetonationRenderer {
     const progress = chain.collectedCount / chain.totalFragments;
     const timeRatio = chain.timeRemaining / chain.maxTime;
     
-    // Timer background
+    // Position below scoreboard - moved down significantly
     const timerX = this.canvas.width / 2;
-    const timerY = 80;
+    const timerY = 150; // Changed from 80 to 150 to avoid scoreboard overlap
     
-    this.ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-    this.ctx.fillRect(timerX - 100, timerY - 30, 200, 60);
+    // Make the background smaller and thinner
+    const boxWidth = 180;  // Reduced from 200
+    const boxHeight = 45;  // Reduced from 60
+    
+    this.ctx.fillStyle = 'rgba(0, 0, 0, 0.8)'; // More opaque for better visibility
+    this.ctx.fillRect(timerX - boxWidth/2, timerY - boxHeight/2, boxWidth, boxHeight);
     this.ctx.strokeStyle = '#9d4edd';
     this.ctx.lineWidth = 2;
-    this.ctx.strokeRect(timerX - 100, timerY - 30, 200, 60);
+    this.ctx.strokeRect(timerX - boxWidth/2, timerY - boxHeight/2, boxWidth, boxHeight);
     
-    // Timer text
+    // Timer text - slightly smaller
     const timeLeft = Math.ceil(chain.timeRemaining / 1000);
     let timerColor = '#9d4edd';
     if (timeRatio < 0.3) timerColor = '#ff6b6b';
     else if (timeRatio < 0.6) timerColor = '#ffa726';
     
-    this.ctx.font = 'bold 24px Arial';
+    this.ctx.font = 'bold 20px Arial'; // Reduced from 24px
     this.ctx.textAlign = 'center';
     this.ctx.fillStyle = timerColor;
-    this.ctx.fillText(`${timeLeft}s`, timerX, timerY + 8);
+    this.ctx.fillText(`${timeLeft}s`, timerX, timerY + 5);
     
-    // Progress text
-    this.ctx.font = 'bold 16px Arial';
+    // Progress text - smaller font
+    this.ctx.font = 'bold 14px Arial'; // Reduced from 16px  
     this.ctx.fillStyle = '#ffffff';
-    this.ctx.fillText(`${chain.collectedCount}/${chain.totalFragments} COLLECTED`, timerX, timerY - 10);
+    this.ctx.fillText(`${chain.collectedCount}/${chain.totalFragments} COLLECTED`, timerX, timerY - 8);
     
-    // Warning text
-    const warningY = 140;
-    this.ctx.font = 'bold 18px Arial';
+    // Warning text - moved further down and smaller
+    const warningY = 210; // Moved down from 140
+    this.ctx.font = 'bold 16px Arial'; // Reduced from 18px
     this.ctx.fillStyle = timeRatio < 0.5 ? '#ff6b6b' : '#ffa726';
     this.ctx.fillText('CHAIN ACTIVE - COLLECT ALL FRAGMENTS!', timerX, warningY);
     
-    // Progress bar
-    const barX = timerX - 80;
-    const barY = warningY + 20;
-    const barWidth = 160;
-    const barHeight = 8;
+    // Progress bar - smaller and moved
+    const barX = timerX - 70; // Reduced from 80
+    const barY = warningY + 15; // Reduced gap
+    const barWidth = 140; // Reduced from 160
+    const barHeight = 6; // Reduced from 8
     
     // Background
     this.ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
