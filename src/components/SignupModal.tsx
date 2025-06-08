@@ -22,13 +22,55 @@ export default function SignupModal({ isOpen, onClose, playerScore, playerName }
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
   const [resetEmailSent, setResetEmailSent] = useState(false);
+  const [resetCooldown, setResetCooldown] = useState(0);
 
   const { signUp, signIn } = useAuthStore();
+
+  // Cooldown timer for password reset
+  React.useEffect(() => {
+    if (resetCooldown > 0) {
+      const timer = setTimeout(() => setResetCooldown(resetCooldown - 1), 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [resetCooldown]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError('');
+
+    // Client-side validation
+    if (!formData.email.trim()) {
+      setError('Email is required');
+      setLoading(false);
+      return;
+    }
+
+    if (!formData.password.trim()) {
+      setError('Password is required');
+      setLoading(false);
+      return;
+    }
+
+    if (formData.password.length < 6) {
+      setError('Password must be at least 6 characters long');
+      setLoading(false);
+      return;
+    }
+
+    if (!isLogin && !formData.displayName.trim()) {
+      setError('Display name is required');
+      setLoading(false);
+      return;
+    }
+
+    // Email format validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(formData.email)) {
+      setError('Please enter a valid email address');
+      setLoading(false);
+      return;
+    }
 
     try {
       let result;
@@ -57,7 +99,28 @@ export default function SignupModal({ isOpen, onClose, playerScore, playerName }
           window.location.reload();
         }, 2000);
       } else {
-        setError(result.error || 'An error occurred');
+        // Handle specific error types for better UX
+        let errorMessage = result.error || 'An error occurred';
+        
+        if (errorMessage.includes('User already registered')) {
+          errorMessage = 'An account with this email already exists. Switching to sign in...';
+          setError(errorMessage);
+          // Auto-switch to login mode after showing the message
+          setTimeout(() => {
+            setIsLogin(true);
+            setError('');
+            setFormData(prev => ({ ...prev, password: '' })); // Clear password for security
+          }, 2000);
+          return;
+        } else if (errorMessage.includes('Invalid email')) {
+          errorMessage = 'Please enter a valid email address.';
+        } else if (errorMessage.includes('Password should be at least')) {
+          errorMessage = 'Password must be at least 6 characters long.';
+        } else if (errorMessage.includes('Invalid login credentials')) {
+          errorMessage = 'Invalid email or password. Please check and try again.';
+        }
+        
+        setError(errorMessage);
       }
     } catch (err) {
       setError('An unexpected error occurred');
@@ -76,6 +139,11 @@ export default function SignupModal({ isOpen, onClose, playerScore, playerName }
       return;
     }
 
+    if (resetCooldown > 0) {
+      setError(`Please wait ${resetCooldown} seconds before requesting another reset email`);
+      return;
+    }
+
     setLoading(true);
     setError('');
 
@@ -86,6 +154,7 @@ export default function SignupModal({ isOpen, onClose, playerScore, playerName }
       if (result.success) {
         setResetEmailSent(true);
         setShowForgotPassword(false);
+        setResetCooldown(60); // 60 second cooldown
       } else {
         setError(result.error || 'Failed to send reset email');
       }
@@ -162,10 +231,10 @@ export default function SignupModal({ isOpen, onClose, playerScore, playerName }
 
               <button
                 onClick={handleForgotPassword}
-                disabled={loading || !formData.email.trim()}
+                disabled={loading || !formData.email.trim() || resetCooldown > 0}
                 className="w-full bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 text-white font-bold py-3 px-4 rounded disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
               >
-                {loading ? 'Sending...' : 'Send Reset Link'}
+                {loading ? 'Sending...' : resetCooldown > 0 ? `Wait ${resetCooldown}s` : 'Send Reset Link'}
               </button>
 
               <button
@@ -337,7 +406,13 @@ export default function SignupModal({ isOpen, onClose, playerScore, playerName }
 
             {resetEmailSent && (
               <div className="bg-green-900/50 border border-green-500 text-green-300 px-4 py-3 rounded">
-                Password reset email sent! Check your inbox and follow the instructions to reset your password.
+                <div className="flex items-center space-x-2">
+                  <span className="text-lg">✉️</span>
+                  <div>
+                    <div className="font-semibold">Reset Email Sent!</div>
+                    <div className="text-sm">Check your inbox and click the link to reset your password. The link expires in 24 hours.</div>
+                  </div>
+                </div>
               </div>
             )}
 

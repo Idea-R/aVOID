@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import Game from './components/Game';
 import PasswordResetModal from './components/PasswordResetModal';
-import AuthTestPanel from './components/AuthTestPanel';
+// import AuthTestPanel from './components/AuthTestPanel'; // Archived for now
 import { useAuthStore } from './store/authStore';
-import { logSupabaseHealth } from './utils/supabaseCheck';
-import { quickAuthDiagnostic } from './utils/authDebugger';
+// import { logSupabaseHealth } from './utils/supabaseCheck'; // Not currently used
+// import { quickAuthDiagnostic } from './utils/authDebugger'; // Archived for now
 
 function App() {
   const [gameStarted, setGameStarted] = useState(false);
@@ -14,8 +14,8 @@ function App() {
 
   useEffect(() => {
     const initializeApp = async () => {
-      // Run comprehensive auth diagnostic
-      await quickAuthDiagnostic();
+      // Run comprehensive auth diagnostic - Archived for now
+      // await quickAuthDiagnostic();
       
       // Initialize auth
       await initialize();
@@ -84,8 +84,8 @@ function App() {
     <div className="min-h-screen bg-black text-cyan-500 flex items-center justify-center relative overflow-hidden">
       <Game autoStart={gameStarted} />
       
-      {/* Temporary Auth Debugger - Remove after fixing auth */}
-      {import.meta.env.DEV && <AuthTestPanel />}
+      {/* Temporary Auth Debugger - Archived for now */}
+      {/* {import.meta.env.DEV && <AuthTestPanel />} */}
       
       {/* Password Reset Success Message */}
       {passwordResetSuccess && (

@@ -49,13 +49,20 @@ export class ChainDetonationManager {
   private activeChain: ChainDetonation | null = null;
   private lastSpawnTime: number = 0;
   private spawnCooldown: number = 15000; // 15 seconds minimum between spawns
-  private spawnChance: number = 0.15; // 15% chance per check
+  private spawnChance: number = 0.15; // 15% chance per check  
   private checkInterval: number = 2000; // Check every 2 seconds
+  private minGameTimeBeforeSpawn: number = 10000; // No spawning for first 10 seconds
   private lastCheckTime: number = 0;
+  private gameStartTime: number = 0; // Will be set when first update() is called
 
   constructor(private canvasWidth: number, private canvasHeight: number) {}
 
   update(deltaTime: number, currentTime: number): void {
+    // Initialize game start time on first update
+    if (this.gameStartTime === 0) {
+      this.gameStartTime = currentTime;
+    }
+
     // Check for new chain spawns
     if (!this.activeChain && currentTime - this.lastCheckTime >= this.checkInterval) {
       this.checkForSpawn(currentTime);
@@ -69,7 +76,14 @@ export class ChainDetonationManager {
   }
 
   private checkForSpawn(currentTime: number): void {
-    if (currentTime - this.lastSpawnTime < this.spawnCooldown) return;
+    // Don't spawn for the first 10 seconds of the game
+    if (currentTime - this.gameStartTime < this.minGameTimeBeforeSpawn) {
+      return;
+    }
+
+    if (currentTime - this.lastSpawnTime < this.spawnCooldown) {
+      return;
+    }
 
     if (Math.random() < this.spawnChance) {
       this.spawnChainDetonation(currentTime);
@@ -81,8 +95,12 @@ export class ChainDetonationManager {
     const margin = 100; // Keep fragments away from edges
     const minDistance = 150; // Minimum distance between fragments
 
-    // Generate 4 fragment positions
-    for (let i = 0; i < 4; i++) {
+    // Generate 4-6 fragment positions with dynamic difficulty scaling
+    const gameTimeMinutes = (currentTime - this.gameStartTime) / 60000;
+    const difficultyBonus = Math.min(Math.floor(gameTimeMinutes / 2), 2); // +1 fragment every 2 minutes, max +2
+    const baseCount = 4 + Math.floor(Math.random() * 3); // 4, 5, or 6 fragments
+    const fragmentCount = Math.min(baseCount + difficultyBonus, 6); // Cap at 6 total
+    for (let i = 0; i < fragmentCount; i++) {
       let attempts = 0;
       let validPosition = false;
       let x, y;
@@ -102,7 +120,7 @@ export class ChainDetonationManager {
       }
 
       if (validPosition) {
-        fragments.push({
+        const fragment = {
           id: `fragment_${i}_${currentTime}`,
           x: x!,
           y: y!,
@@ -113,7 +131,8 @@ export class ChainDetonationManager {
             active: false,
             particles: []
           }
-        });
+        };
+        fragments.push(fragment);
       }
     }
 
@@ -137,7 +156,7 @@ export class ChainDetonationManager {
       timeRemaining: 5000, // 5 seconds - much more urgent!
       maxTime: 5000,
       collectedCount: 0,
-      totalFragments: 4,
+      totalFragments: fragmentCount,
       screenEffect: {
         edgeGlow: 0,
         pulseIntensity: 0
@@ -154,7 +173,7 @@ export class ChainDetonationManager {
     };
 
     this.lastSpawnTime = currentTime;
-    console.log('🔗 Chain Detonation spawned! Collect all 4 fragments within 5 seconds!');
+    console.log(`🔗 Chain Detonation spawned! Collect all ${fragmentCount} fragments within 5 seconds!`);
   }
 
   private updateActiveChain(deltaTime: number, currentTime: number): void {
@@ -416,5 +435,6 @@ export class ChainDetonationManager {
     this.activeChain = null;
     this.lastSpawnTime = 0;
     this.lastCheckTime = 0;
+    this.gameStartTime = 0; // Will be re-initialized on next update
   }
 }

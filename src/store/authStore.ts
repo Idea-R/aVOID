@@ -70,6 +70,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   resetPassword: async (email: string) => {
     try {
+      // Email format validation
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        return { success: false, error: 'Please enter a valid email address' };
+      }
+
       // Use the correct redirect URL based on environment
       const redirectTo = import.meta.env.DEV 
         ? 'http://localhost:5173' 
@@ -80,6 +86,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       });
 
       if (error) {
+        // Handle common errors with better messaging
+        if (error.message.includes('For security purposes')) {
+          return { success: true }; // Don't reveal if email exists or not
+        }
         return { success: false, error: error.message };
       }
 
@@ -161,7 +171,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       set({ user, loading: false });
 
       // Listen for auth changes
-      supabase.auth.onAuthStateChange((event, session) => {
+      supabase.auth.onAuthStateChange((event: any, session: any) => {
         set({ user: session?.user || null });
       });
     } catch (error) {

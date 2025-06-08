@@ -13,6 +13,8 @@ export class ChainDetonationRenderer {
 
   renderChainDetonation(chain: ChainDetonation): void {
     if (!chain.active) return;
+    
+    console.log(`🔗🎨 Rendering chain with ${chain.fragments.length} fragments, active: ${chain.active}`);
 
     this.ctx.save();
 
@@ -127,6 +129,8 @@ export class ChainDetonationRenderer {
 
   private renderActiveFragment(fragment: ChainFragment, timeRatio: number): void {
     this.ctx.save();
+    
+    console.log(`🔗🎨 Rendering active fragment at x=${fragment.x}, y=${fragment.y}`);
     
     // Pulsing scale
     const pulseScale = 1 + Math.sin(fragment.pulsePhase) * 0.2;
@@ -298,61 +302,119 @@ export class ChainDetonationRenderer {
     const progress = chain.collectedCount / chain.totalFragments;
     const timeRatio = chain.timeRemaining / chain.maxTime;
     
-    // Position below scoreboard - moved down significantly
-    const timerX = this.canvas.width / 2;
-    const timerY = 150; // Changed from 80 to 150 to avoid scoreboard overlap
+    // Position below scoreboard
+    const centerX = this.canvas.width / 2;
+    const baseY = 170; // Simplified positioning
     
-    // Make the background smaller and thinner
-    const boxWidth = 180;  // Reduced from 200
-    const boxHeight = 45;  // Reduced from 60
+    // Progress bar - clean and minimal
+    const barWidth = 160;
+    const barHeight = 8;
+    const barX = centerX - barWidth / 2;
+    const barY = baseY;
     
-    this.ctx.fillStyle = 'rgba(0, 0, 0, 0.8)'; // More opaque for better visibility
-    this.ctx.fillRect(timerX - boxWidth/2, timerY - boxHeight/2, boxWidth, boxHeight);
-    this.ctx.strokeStyle = '#9d4edd';
-    this.ctx.lineWidth = 2;
-    this.ctx.strokeRect(timerX - boxWidth/2, timerY - boxHeight/2, boxWidth, boxHeight);
+    // Subtle background with rounded corners
+    this.ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
+    this.ctx.fillRect(barX - 2, barY - 2, barWidth + 4, barHeight + 4);
     
-    // Timer text - slightly smaller
-    const timeLeft = Math.ceil(chain.timeRemaining / 1000);
-    let timerColor = '#9d4edd';
-    if (timeRatio < 0.3) timerColor = '#ff6b6b';
-    else if (timeRatio < 0.6) timerColor = '#ffa726';
-    
-    this.ctx.font = 'bold 20px Arial'; // Reduced from 24px
-    this.ctx.textAlign = 'center';
-    this.ctx.fillStyle = timerColor;
-    this.ctx.fillText(`${timeLeft}s`, timerX, timerY + 5);
-    
-    // Progress text - smaller font
-    this.ctx.font = 'bold 14px Arial'; // Reduced from 16px  
-    this.ctx.fillStyle = '#ffffff';
-    this.ctx.fillText(`${chain.collectedCount}/${chain.totalFragments} COLLECTED`, timerX, timerY - 8);
-    
-    // Warning text - moved further down and smaller
-    const warningY = 210; // Moved down from 140
-    this.ctx.font = 'bold 16px Arial'; // Reduced from 18px
-    this.ctx.fillStyle = timeRatio < 0.5 ? '#ff6b6b' : '#ffa726';
-    this.ctx.fillText('CHAIN ACTIVE - COLLECT ALL FRAGMENTS!', timerX, warningY);
-    
-    // Progress bar - smaller and moved
-    const barX = timerX - 70; // Reduced from 80
-    const barY = warningY + 15; // Reduced gap
-    const barWidth = 140; // Reduced from 160
-    const barHeight = 6; // Reduced from 8
-    
-    // Background
-    this.ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
+    // Progress bar background
+    this.ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
     this.ctx.fillRect(barX, barY, barWidth, barHeight);
     
-    // Progress fill
-    this.ctx.fillStyle = progress === 1 ? '#00ff00' : '#9d4edd';
+    // Progress fill with time-based color
+    let progressColor = '#9d4edd'; // Purple default
+    if (timeRatio < 0.3) progressColor = '#ff6b6b'; // Red urgent
+    else if (timeRatio < 0.6) progressColor = '#ffa726'; // Orange warning
+    
+    this.ctx.fillStyle = progress === 1 ? '#00ff00' : progressColor;
     this.ctx.fillRect(barX, barY, barWidth * progress, barHeight);
     
-    // Border
-    this.ctx.strokeStyle = '#ffffff';
+    // Subtle border glow
+    this.ctx.strokeStyle = progressColor;
     this.ctx.lineWidth = 1;
+    this.ctx.shadowColor = progressColor;
+    this.ctx.shadowBlur = 8;
     this.ctx.strokeRect(barX, barY, barWidth, barHeight);
+    this.ctx.shadowBlur = 0;
+    
+    // Mini collection symbols below progress bar
+    this.renderCollectionSymbols(chain, centerX, baseY + 20);
     
     this.ctx.restore();
+  }
+
+  private renderCollectionSymbols(chain: ChainDetonation, centerX: number, symbolY: number): void {
+    const symbolSize = 8;
+    const symbolSpacing = 16;
+    const totalWidth = (chain.totalFragments - 1) * symbolSpacing;
+    const startX = centerX - totalWidth / 2;
+    const timeRatio = chain.timeRemaining / chain.maxTime;
+    
+    for (let i = 0; i < chain.totalFragments; i++) {
+      const x = startX + i * symbolSpacing;
+      const collected = i < chain.collectedCount;
+      
+      this.ctx.save();
+      this.ctx.translate(x, symbolY);
+      
+      if (collected) {
+        // Collected - bright crystal symbol with gentle pulse
+        const pulseScale = 1 + Math.sin(Date.now() * 0.005 + i) * 0.1;
+        this.ctx.scale(pulseScale, pulseScale);
+        
+        this.ctx.beginPath();
+        for (let j = 0; j < 6; j++) {
+          const angle = (Math.PI * 2 * j) / 6;
+          const px = Math.cos(angle) * symbolSize;
+          const py = Math.sin(angle) * symbolSize;
+          if (j === 0) this.ctx.moveTo(px, py);
+          else this.ctx.lineTo(px, py);
+        }
+        this.ctx.closePath();
+        
+        // Bright fill
+        this.ctx.fillStyle = '#9d4edd';
+        this.ctx.shadowColor = '#9d4edd';
+        this.ctx.shadowBlur = 8;
+        this.ctx.fill();
+        
+        // White center
+        this.ctx.beginPath();
+        this.ctx.arc(0, 0, symbolSize * 0.3, 0, Math.PI * 2);
+        this.ctx.fillStyle = '#ffffff';
+        this.ctx.shadowBlur = 0;
+        this.ctx.fill();
+      } else {
+        // Not collected - dim outline with subtle urgency animation
+        const urgencyPulse = timeRatio < 0.5 ? 1 + Math.sin(Date.now() * 0.01) * 0.2 : 1;
+        this.ctx.scale(urgencyPulse, urgencyPulse);
+        
+        this.ctx.beginPath();
+        for (let j = 0; j < 6; j++) {
+          const angle = (Math.PI * 2 * j) / 6;
+          const px = Math.cos(angle) * symbolSize;
+          const py = Math.sin(angle) * symbolSize;
+          if (j === 0) this.ctx.moveTo(px, py);
+          else this.ctx.lineTo(px, py);
+        }
+        this.ctx.closePath();
+        
+        // Dim stroke with time-based urgency color
+        const baseAlpha = timeRatio < 0.5 ? 0.6 : 0.3;
+        const urgencyAlpha = timeRatio < 0.3 ? 0.8 : baseAlpha;
+        
+        if (timeRatio < 0.3) {
+          this.ctx.strokeStyle = `rgba(255, 107, 107, ${urgencyAlpha})`; // Red urgency
+        } else if (timeRatio < 0.6) {
+          this.ctx.strokeStyle = `rgba(255, 167, 38, ${urgencyAlpha})`; // Orange warning
+        } else {
+          this.ctx.strokeStyle = `rgba(157, 78, 221, ${urgencyAlpha})`; // Purple normal
+        }
+        
+        this.ctx.lineWidth = 1.5;
+        this.ctx.stroke();
+      }
+      
+      this.ctx.restore();
+    }
   }
 }
