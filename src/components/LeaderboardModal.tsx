@@ -80,8 +80,8 @@ export default function LeaderboardModal({ isOpen, onClose, playerScore }: Leade
           <div className="flex items-center gap-3">
             <Trophy className="w-8 h-8 text-yellow-400" />
             <div>
-              <h2 className="text-2xl font-bold text-white">Verified Leaderboard</h2>
-              <p className="text-cyan-100">Top verified players worldwide</p>
+              <h2 className="text-2xl font-bold text-white">Leaderboard Top 10</h2>
+              <p className="text-cyan-100">Best score from each verified player</p>
             </div>
           </div>
 
@@ -108,23 +108,36 @@ export default function LeaderboardModal({ isOpen, onClose, playerScore }: Leade
             </div>
           ) : (
             <div className="space-y-3">
-              {scores.map((score, index) => (
+              {scores.map((score, index) => {
+                const isTop3 = index < 3;
+                const rankColor = index === 0 ? 'text-yellow-400' : index === 1 ? 'text-gray-300' : index === 2 ? 'text-amber-600' : 'text-cyan-400';
+                const bgClass = isTop3 
+                  ? `bg-gradient-to-r ${
+                      index === 0 ? 'from-yellow-900/40 to-yellow-800/40 border-yellow-500/60' :
+                      index === 1 ? 'from-gray-700/40 to-gray-600/40 border-gray-400/60' :
+                      'from-amber-900/40 to-amber-800/40 border-amber-500/60'
+                    }`
+                  : 'bg-gray-800/50 border-gray-700';
+                
+                return (
                 <div
                   key={score.id}
-                  className={`flex items-center justify-between p-4 rounded-lg transition-all duration-200 ${
-                    index < 3
-                      ? 'bg-gradient-to-r from-yellow-900/30 to-yellow-800/30 border border-yellow-600/50'
-                      : 'bg-gray-800/50 border border-gray-700'
-                  } shadow-lg shadow-cyan-500/20`}
+                  className={`flex items-center justify-between p-4 rounded-lg transition-all duration-200 ${bgClass} border shadow-lg ${isTop3 ? 'shadow-yellow-500/20' : 'shadow-cyan-500/10'}`}
                 >
                   <div className="flex items-center gap-4">
-                    <div className={`flex items-center justify-center w-8 h-8 rounded-full font-bold ${
-                      index === 0 ? 'bg-yellow-500 text-black' :
-                      index === 1 ? 'bg-gray-400 text-black' :
-                      index === 2 ? 'bg-amber-600 text-white' :
+                    <div className={`flex items-center justify-center w-10 h-10 rounded-full font-bold text-lg ${
+                      index === 0 ? 'bg-yellow-500 text-black shadow-lg shadow-yellow-500/50' :
+                      index === 1 ? 'bg-gray-400 text-black shadow-lg shadow-gray-400/50' :
+                      index === 2 ? 'bg-amber-600 text-white shadow-lg shadow-amber-600/50' :
                       'bg-gray-600 text-white'
                     }`}>
-                      {index + 1}
+                      {index < 3 ? (
+                        <span className="text-xl">
+                          {index === 0 ? '🥇' : index === 1 ? '🥈' : '🥉'}
+                        </span>
+                      ) : (
+                        `#${index + 1}`
+                      )}
                     </div>
                     
                     <div>
@@ -163,7 +176,8 @@ export default function LeaderboardModal({ isOpen, onClose, playerScore }: Leade
                     </div>
                   </div>
                 </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>

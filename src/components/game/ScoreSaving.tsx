@@ -21,10 +21,13 @@ export default function ScoreSaving({ score, user, verifiedRank, onShowSignup }:
     if (!playerName.trim() || isSaving) return;
     
     setIsSaving(true);
-    const success = await LeaderboardAPI.submitGuestScore(playerName.trim(), score);
+    const result = await LeaderboardAPI.submitGuestScore(playerName.trim(), score);
     
-    if (success) {
+    if (result.success) {
       setScoreSaved(true);
+      console.log('Guest score saved successfully:', result.data);
+    } else {
+      console.error('Failed to save guest score');
     }
     setIsSaving(false);
   };

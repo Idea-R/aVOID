@@ -85,7 +85,6 @@ export class AuthDebugger {
     
     const endpoints = [
       { name: 'Auth Settings', path: '/auth/v1/settings' },
-      { name: 'Auth Users', path: '/auth/v1/admin/users' },
       { name: 'Rest API', path: '/rest/v1/' }
     ];
     
