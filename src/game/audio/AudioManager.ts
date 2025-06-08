@@ -1,3 +1,5 @@
+import { getAudioSource } from '../../config/audioConfig';
+
 export interface AudioTrack {
   name: string;
   displayName: string;
@@ -54,25 +56,25 @@ export class AudioManager extends EventTarget {
     {
       name: 'robot-factory-breakdown',
       displayName: 'Robot Factory Breakdown',
-      src: '/audio/Robot-Factory-Breakdown.mp3',
+      src: getAudioSource('Robot-Factory-Breakdown'),
       artist: 'Digital Composer'
     },
     {
       name: 'chasing-retro',
       displayName: 'Chasing Retro',
-      src: '/audio/Chasing-Retro.mp3',
+      src: getAudioSource('Chasing-Retro'),
       artist: 'Retro Synth'
     },
     {
       name: 'into-the-void',
       displayName: 'Into the Void',
-      src: '/audio/Into-The-Void.mp3',
+      src: getAudioSource('Into-The-Void'),
       artist: 'Cosmic Sounds'
     },
     {
       name: 'laser-dreams',
       displayName: 'Laser Dreams',
-      src: '/audio/Laser-Dreams.mp3',
+      src: getAudioSource('Laser-Dreams'),
       artist: 'Synthwave Studio'
     }
   ];

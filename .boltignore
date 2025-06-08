@@ -1,0 +1,48 @@
+# Bolt.new World's Largest Hackathon - SAFE OPTIMIZATION
+# Reduces token consumption while ensuring hackathon compliance
+
+# Development dependencies (safe to exclude - will be rebuilt)
+node_modules/
+.git/
+dist/
+build/
+.vite/
+coverage/
+.nyc_output/
+
+# Development artifacts (safe to exclude)
+*.log
+.env
+.env.local
+.env.production
+.DS_Store
+Thumbs.db
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# Your backup system (safe to exclude)
+archive/
+logs/
+docs/
+
+# KEEP AUDIO FILES FOR HACKATHON JUDGING
+# Judges need to test offline, so audio files must remain in project
+# public/audio/ <- COMMENTED OUT - KEEP FOR JUDGES TO TEST
+
+# Keep other media files for judging
+# *.mp3  <- COMMENTED OUT - KEEP FOR JUDGES
+# *.wav  <- COMMENTED OUT - KEEP FOR JUDGES
+
+# Still exclude other large media (judges don't need these)
+*.mp4
+*.avi
+*.mov
+*.jpg
+*.jpeg
+*.png
+*.gif
+*.svg
+*.zip
+*.tar.gz
+*.tgz 

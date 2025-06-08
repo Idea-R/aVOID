@@ -23,3 +23,11 @@ dist-ssr
 *.sln
 *.sw?
 .env
+
+# Documentation and optimization files
+docs/
+
+# Backup files (per RULE #3 - local safety backups only)
+archive/
+.vercel
+.env*.local

@@ -9,6 +9,8 @@ interface AuthState {
   signIn: (email: string, password: string) => Promise<{ success: boolean; error?: string; user?: User }>;
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<{ success: boolean; error?: string }>;
+  updatePassword: (password: string) => Promise<{ success: boolean; error?: string }>;
+  handlePasswordResetRedirect: () => Promise<{ needsPasswordReset: boolean; error?: string }>;
   initialize: () => Promise<void>;
 }
 
@@ -68,7 +70,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   resetPassword: async (email: string) => {
     try {
-      const { data, error } = await supabase.auth.resetPasswordForEmail(email);
+      const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: window.location.origin
+      });
 
       if (error) {
         return { success: false, error: error.message };
@@ -77,6 +81,55 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       return { success: true };
     } catch (error) {
       return { success: false, error: 'An unexpected error occurred' };
+    }
+  },
+
+  updatePassword: async (password: string) => {
+    try {
+      const { data, error } = await supabase.auth.updateUser({
+        password: password
+      });
+
+      if (error) {
+        return { success: false, error: error.message };
+      }
+
+      return { success: true };
+    } catch (error) {
+      return { success: false, error: 'An unexpected error occurred' };
+    }
+  },
+
+  handlePasswordResetRedirect: async () => {
+    try {
+      // Check if we're handling a password reset redirect
+      const hashParams = new URLSearchParams(window.location.hash.substring(1));
+      const accessToken = hashParams.get('access_token');
+      const refreshToken = hashParams.get('refresh_token');
+      const type = hashParams.get('type');
+
+      if (type === 'recovery' && accessToken && refreshToken) {
+        // Set the session with the tokens from the URL
+        const { data, error } = await supabase.auth.setSession({
+          access_token: accessToken,
+          refresh_token: refreshToken
+        });
+
+        if (error) {
+          return { needsPasswordReset: false, error: error.message };
+        }
+
+        if (data.user) {
+          set({ user: data.user });
+          // Clear the hash from URL for security
+          window.history.replaceState(null, '', window.location.pathname);
+          return { needsPasswordReset: true };
+        }
+      }
+
+      return { needsPasswordReset: false };
+    } catch (error) {
+      return { needsPasswordReset: false, error: 'An unexpected error occurred' };
     }
   },
 

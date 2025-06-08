@@ -16,6 +16,9 @@ if (!supabaseUrl || !supabaseAnonKey) {
       getUser: () => Promise.resolve({ data: { user: null }, error: null }),
       signUp: () => Promise.resolve({ data: null, error: { message: 'Offline mode - authentication disabled' } }),
       signInWithPassword: () => Promise.resolve({ data: null, error: { message: 'Offline mode - authentication disabled' } }),
+      resetPasswordForEmail: () => Promise.resolve({ data: null, error: { message: 'Offline mode - authentication disabled' } }),
+      updateUser: () => Promise.resolve({ data: null, error: { message: 'Offline mode - authentication disabled' } }),
+      setSession: () => Promise.resolve({ data: { user: null }, error: { message: 'Offline mode - authentication disabled' } }),
       signOut: () => Promise.resolve(),
       onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => {} } } })
     },
