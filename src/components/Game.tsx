@@ -146,8 +146,12 @@ export default function Game({ autoStart = false }: GameProps) {
       <canvas
         ref={canvasRef}
         className="w-full h-full absolute inset-0"
-       style={{ cursor: gameState.isGameOver || isPaused ? 'default' : 'none' }}
-       onClick={handleCanvasClick}
+        style={{ 
+          cursor: gameState.isGameOver || isPaused ? 'default' : 'none',
+          touchAction: 'none',
+          userSelect: 'none'
+        }}
+        onClick={handleCanvasClick}
       />
       
       {/* Game Intro Overlay */}

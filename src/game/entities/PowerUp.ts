@@ -18,6 +18,23 @@ export interface PowerUp {
   };
   breathingScale: number;
   collectionTrail: Array<{ x: number; y: number; alpha: number }>;
+  driftDirection: { x: number; y: number };
+  driftSpeed: number;
+  driftChangeTimer: number;
+  floatingSparkles: Array<{
+    x: number;
+    y: number;
+    angle: number;
+    distance: number;
+    alpha: number;
+    size: number;
+    rotationSpeed: number;
+  }>;
+  energyWaves: Array<{
+    radius: number;
+    alpha: number;
+    growthRate: number;
+  }>;
 }
 
 export class PowerUpManager {
@@ -27,8 +44,14 @@ export class PowerUpManager {
   private playerCharges: number = 0;
   private maxCharges: number = 3;
   private readonly MAX_POWERUPS_ON_SCREEN = 2;
+  private canvasWidth: number = window.innerWidth;
+  private canvasHeight: number = window.innerHeight;
 
   update(gameTime: number, deltaTime: number) {
+    // Update canvas dimensions for boundary detection
+    this.canvasWidth = window.innerWidth;
+    this.canvasHeight = window.innerHeight;
+
     // Dynamic spawn rate based on game time
     const progressiveSpawnRate = this.getProgressiveSpawnRate(gameTime);
     
@@ -57,8 +80,8 @@ export class PowerUpManager {
         particle.angle += particle.speed * deltaTime * 0.001;
         if (particle.angle > Math.PI * 2) particle.angle -= Math.PI * 2;
       });
-      
-      // Update magnetic effect trail
+
+      // Handle movement - either magnetic attraction or random drift
       if (powerUp.magneticEffect.isActive) {
         // Move toward target with smooth interpolation
         const dx = powerUp.magneticEffect.targetX - powerUp.x;
@@ -75,8 +98,96 @@ export class PowerUpManager {
           if (powerUp.collectionTrail.length > 8) powerUp.collectionTrail.pop();
           powerUp.collectionTrail.forEach(point => point.alpha *= 0.85);
         }
+      } else {
+        // Random drift movement when not magnetically attracted
+        this.updateDriftMovement(powerUp, deltaTime);
+      }
+
+      // Update floating sparkles
+      this.updateFloatingSparkles(powerUp, deltaTime);
+
+      // Update energy waves
+      this.updateEnergyWaves(powerUp, deltaTime);
+    });
+  }
+
+  private updateDriftMovement(powerUp: PowerUp, deltaTime: number): void {
+    // Update drift direction change timer
+    powerUp.driftChangeTimer -= deltaTime;
+    
+    // Change drift direction periodically (every 3-6 seconds)
+    if (powerUp.driftChangeTimer <= 0) {
+      const angle = Math.random() * Math.PI * 2;
+      powerUp.driftDirection.x = Math.cos(angle);
+      powerUp.driftDirection.y = Math.sin(angle);
+      powerUp.driftSpeed = 0.3 + Math.random() * 0.4; // Speed between 0.3-0.7
+      powerUp.driftChangeTimer = 3000 + Math.random() * 3000; // 3-6 seconds
+    }
+
+    // Apply drift movement
+    const moveX = powerUp.driftDirection.x * powerUp.driftSpeed * deltaTime * 0.1;
+    const moveY = powerUp.driftDirection.y * powerUp.driftSpeed * deltaTime * 0.1;
+    
+    powerUp.x += moveX;
+    powerUp.y += moveY;
+
+    // Keep power-up within screen bounds with padding
+    const padding = 50;
+    if (powerUp.x < padding) {
+      powerUp.x = padding;
+      powerUp.driftDirection.x = Math.abs(powerUp.driftDirection.x); // Bounce off left edge
+    } else if (powerUp.x > this.canvasWidth - padding) {
+      powerUp.x = this.canvasWidth - padding;
+      powerUp.driftDirection.x = -Math.abs(powerUp.driftDirection.x); // Bounce off right edge
+    }
+    
+    if (powerUp.y < padding) {
+      powerUp.y = padding;
+      powerUp.driftDirection.y = Math.abs(powerUp.driftDirection.y); // Bounce off top edge
+    } else if (powerUp.y > this.canvasHeight - padding) {
+      powerUp.y = this.canvasHeight - padding;
+      powerUp.driftDirection.y = -Math.abs(powerUp.driftDirection.y); // Bounce off bottom edge
+    }
+  }
+
+  private updateFloatingSparkles(powerUp: PowerUp, deltaTime: number): void {
+    powerUp.floatingSparkles.forEach(sparkle => {
+      // Update sparkle rotation around power-up
+      sparkle.angle += sparkle.rotationSpeed * deltaTime * 0.001;
+      if (sparkle.angle > Math.PI * 2) sparkle.angle -= Math.PI * 2;
+
+      // Update position based on angle and distance
+      sparkle.x = powerUp.x + Math.cos(sparkle.angle) * sparkle.distance;
+      sparkle.y = powerUp.y + Math.sin(sparkle.angle) * sparkle.distance;
+
+      // Pulsing alpha animation
+      sparkle.alpha = 0.4 + Math.sin(powerUp.pulsePhase * 2 + sparkle.angle) * 0.3;
+      
+      // Slight size variation
+      sparkle.size = 1.5 + Math.sin(powerUp.pulsePhase * 3 + sparkle.angle) * 0.5;
+    });
+  }
+
+  private updateEnergyWaves(powerUp: PowerUp, deltaTime: number): void {
+    // Update existing waves
+    powerUp.energyWaves.forEach((wave, index) => {
+      wave.radius += wave.growthRate * deltaTime * 0.1;
+      wave.alpha *= 0.995; // Fade out gradually
+      
+      // Remove waves that are too faded or too large
+      if (wave.alpha < 0.05 || wave.radius > 80) {
+        powerUp.energyWaves.splice(index, 1);
       }
     });
+
+    // Spawn new energy waves periodically
+    if (Math.random() < 0.002 * deltaTime) { // Roughly every 2-3 seconds
+      powerUp.energyWaves.push({
+        radius: powerUp.radius * 1.2,
+        alpha: 0.6,
+        growthRate: 0.8 + Math.random() * 0.4
+      });
+    }
   }
 
   private getProgressiveSpawnRate(gameTime: number): number {
@@ -106,6 +217,28 @@ export class PowerUpManager {
       });
     }
 
+    // Initialize drift movement
+    const driftAngle = Math.random() * Math.PI * 2;
+    const driftDirection = {
+      x: Math.cos(driftAngle),
+      y: Math.sin(driftAngle)
+    };
+
+    // Create floating sparkles around the power-up
+    const sparkleCount = 8 + Math.floor(Math.random() * 4); // 8-12 sparkles
+    const floatingSparkles = [];
+    for (let i = 0; i < sparkleCount; i++) {
+      floatingSparkles.push({
+        x: x,
+        y: y,
+        angle: (Math.PI * 2 * i) / sparkleCount + Math.random() * 0.5,
+        distance: 50 + Math.random() * 30, // 50-80px from center
+        alpha: 0.5 + Math.random() * 0.3,
+        size: 1 + Math.random() * 2,
+        rotationSpeed: 0.2 + Math.random() * 0.6 // Varying rotation speeds
+      });
+    }
+
     this.powerUps.push({
       x,
       y,
@@ -121,7 +254,12 @@ export class PowerUpManager {
         targetY: y
       },
       breathingScale: 1,
-      collectionTrail: []
+      collectionTrail: [],
+      driftDirection,
+      driftSpeed: 0.3 + Math.random() * 0.4,
+      driftChangeTimer: 3000 + Math.random() * 3000, // 3-6 seconds
+      floatingSparkles,
+      energyWaves: []
     });
   }
 

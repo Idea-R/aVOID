@@ -15,6 +15,7 @@ import { InputHandler } from '../InputHandler';
 import { GameLogic } from '../GameLogic';
 import { EngineCore } from '../EngineCore';
 import { AudioManager } from '../audio/AudioManager';
+import { CanvasState } from './CanvasManager';
 
 /**
  * SystemManager coordinates all game systems and handles their lifecycle.
@@ -107,12 +108,34 @@ export class SystemManager {
   }
   
   /**
-   * Handle canvas resizing
+   * Handle canvas resizing (legacy method)
    */
   private resizeCanvas = () => {
     this.canvas.width = window.innerWidth;
     this.canvas.height = window.innerHeight;
     console.log('[SYSTEMS] Canvas resized to', this.canvas.width, 'x', this.canvas.height);
+  };
+
+  /**
+   * Handle canvas resize from CanvasManager
+   */
+  handleCanvasResize(canvasState: CanvasState): void {
+    // Update all systems that depend on canvas size
+    const dimensions = { width: canvasState.displayWidth, height: canvasState.displayHeight };
+    
+    // Update spatial grid and collision system
+    this.engineCore.getCollisionSystem().updateSpatialGrid(this.engineCore.getGameLogic().getSpatialGrid());
+    
+    // Update defense system
+    this.engineCore.getDefenseSystem().updateCanvasSize(dimensions.width, dimensions.height);
+    
+    // Update chain detonation manager  
+    this.engineCore.getChainDetonationManager().updateCanvasSize(dimensions.width, dimensions.height);
+    
+    // Update game logic spatial grid
+    this.engineCore.getGameLogic().updateSpatialGrid(dimensions.width, dimensions.height);
+    
+    console.log(`[SYSTEMS] Systems updated for canvas resize: ${dimensions.width}x${dimensions.height}`);
   };
   
   /**

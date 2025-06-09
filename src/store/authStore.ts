@@ -76,10 +76,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         return { success: false, error: 'Please enter a valid email address' };
       }
 
-      // Use the correct redirect URL based on environment
+      // Use the correct redirect URL with hash preservation
       const redirectTo = import.meta.env.DEV 
-        ? 'http://localhost:5173' 
-        : 'https://avoidgame.io';
+        ? 'http://localhost:5173/#/reset-password' 
+        : 'https://avoidgame.io/#/reset-password';
 
       const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo: redirectTo
@@ -118,15 +118,19 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   handlePasswordResetRedirect: async () => {
     try {
       // Check if we're handling a password reset redirect
-      const hashParams = new URLSearchParams(window.location.hash.substring(1));
+      const fullHash = window.location.hash;
+      const hashParams = new URLSearchParams(fullHash.includes('?') ? fullHash.split('?')[1] : fullHash.substring(1));
       const accessToken = hashParams.get('access_token');
       const refreshToken = hashParams.get('refresh_token');
       const type = hashParams.get('type');
       const error = hashParams.get('error');
       const errorDescription = hashParams.get('error_description');
 
+      // Check if this is our custom reset password path
+      const isResetPasswordPath = fullHash.includes('/reset-password') || fullHash.includes('#/reset-password');
+
       // Log debug info
-      console.log('Password reset redirect params:', { type, hasAccessToken: !!accessToken, hasRefreshToken: !!refreshToken, error, errorDescription });
+      console.log('Password reset redirect params:', { type, hasAccessToken: !!accessToken, hasRefreshToken: !!refreshToken, error, errorDescription, isResetPasswordPath, fullHash });
 
       // Handle auth errors from Supabase
       if (error) {
@@ -152,10 +156,16 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           console.log('Password reset session established for user:', data.user.id);
           set({ user: data.user });
           
-          // Clear the hash from URL for security
+          // Clear the hash from URL for security, but preserve the game state
           window.history.replaceState(null, '', window.location.pathname);
           return { needsPasswordReset: true };
         }
+      }
+
+      // Also check if user manually navigated to reset password path (for testing)
+      if (isResetPasswordPath && !type) {
+        console.log('Manual navigation to reset password path detected');
+        return { needsPasswordReset: false };
       }
 
       return { needsPasswordReset: false };

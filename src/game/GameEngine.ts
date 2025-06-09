@@ -32,16 +32,16 @@ export class GameEngine {
   private stateManager!: EngineStateManager;
   
   // Core systems
-  private renderSystem: RenderSystem;
-  private particleSystem: ParticleSystem;
-  private collisionSystem: CollisionSystem;
-  private scoreSystem: ScoreSystem;
-  private powerUpManager: PowerUpManager;
+  private renderSystem!: RenderSystem;
+  private particleSystem!: ParticleSystem;
+  private collisionSystem!: CollisionSystem;
+  private scoreSystem!: ScoreSystem;
+  private powerUpManager!: PowerUpManager;
   
   // Object management
-  private meteorPool: ObjectPool<Meteor>;
+  private meteorPool!: ObjectPool<Meteor>;
   private activeMeteors: Meteor[] = [];
-  private spatialGrid: SpatialGrid;
+  private spatialGrid!: SpatialGrid;
   
   constructor(config: GameEngineConfig) {
     this.canvas = config.canvas;

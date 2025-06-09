@@ -63,8 +63,9 @@ export class InputSystem {
     // Apply screen shake
     this.gameLogic.setScreenShake({ x: 0, y: 0, intensity: 15, duration: 500 });
     
-    // Create shockwave effect
-    this.particleSystem.createShockwave(mousePos.x, mousePos.y);
+    // Create cursor-colored shockwave effect
+    const cursorColor = this.gameLogic.getSettings().cursorColor || '#06b6d4';
+    this.particleSystem.createShockwave(mousePos.x, mousePos.y, cursorColor);
 
     const activeMeteors = this.gameLogic.getActiveMeteors();
     
@@ -77,6 +78,8 @@ export class InputSystem {
       mousePos.y, 
       activeMeteors
     );
+
+    console.log(`💥 Knockback result: ${knockbackResult.destroyedMeteors.length} destroyed, ${knockbackResult.pushedMeteors.length} pushed`);
 
     // Process destroyed meteors
     for (const meteor of knockbackResult.destroyedMeteors) {

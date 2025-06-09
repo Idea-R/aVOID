@@ -51,10 +51,19 @@ export class RenderDrawing {
   }
 
   /**
-   * Draw power-up with atomic nucleus effect and orbiting electrons
+   * Draw power-up as an energy capsule with glowing core
    */
   private drawPowerUp(powerUp: PowerUp): void {
     this.ctx.save();
+    
+    // Draw subtle energy waves first (much less prominent)
+    powerUp.energyWaves.forEach(wave => {
+      this.ctx.beginPath();
+      this.ctx.arc(powerUp.x, powerUp.y, wave.radius, 0, Math.PI * 2);
+      this.ctx.strokeStyle = `rgba(100, 200, 255, ${wave.alpha * 0.2})`;
+      this.ctx.lineWidth = 1;
+      this.ctx.stroke();
+    });
     
     // Apply breathing scale effect
     this.ctx.translate(powerUp.x, powerUp.y);
@@ -67,67 +76,189 @@ export class RenderDrawing {
         const progress = 1 - index / powerUp.collectionTrail.length;
         this.ctx.beginPath();
         this.ctx.arc(point.x, point.y, 3 * progress, 0, Math.PI * 2);
-        this.ctx.fillStyle = `rgba(255, 215, 0, ${point.alpha * 0.6})`;
+        this.ctx.fillStyle = `rgba(100, 200, 255, ${point.alpha * 0.6})`;
         this.ctx.fill();
       });
     }
     
-    // Draw orbiting particles (cyan electrons)
+    // Draw floating energy discharge sparkles
+    powerUp.floatingSparkles.forEach(sparkle => {
+      this.drawEnergyBolt(sparkle.x, sparkle.y, sparkle.size, `rgba(150, 220, 255, ${sparkle.alpha})`);
+    });
+    
+    // Draw orbiting energy particles (more electrical looking)
     powerUp.orbitingParticles.forEach(particle => {
       const x = powerUp.x + Math.cos(particle.angle) * particle.distance;
       const y = powerUp.y + Math.sin(particle.angle) * particle.distance;
       
       this.ctx.beginPath();
-      this.ctx.arc(x, y, 3, 0, Math.PI * 2);
-      this.ctx.fillStyle = '#06b6d4';
-      this.ctx.shadowColor = '#06b6d4';
-      this.ctx.shadowBlur = 8;
+      this.ctx.arc(x, y, 2.5, 0, Math.PI * 2);
+      this.ctx.fillStyle = '#00bfff';
+      this.ctx.shadowColor = '#00bfff';
+      this.ctx.shadowBlur = 6;
       this.ctx.fill();
       this.ctx.shadowBlur = 0;
+      
+      // Add small electric arc effect
+      this.drawMiniArc(x, y, 4, particle.angle);
     });
     
-    // Outer glow (uses current shadow settings)
+    // Very subtle outer energy field
     this.ctx.beginPath();
-    this.ctx.arc(powerUp.x, powerUp.y, powerUp.radius * 2, 0, Math.PI * 2);
-    this.ctx.fillStyle = `rgba(255, 215, 0, ${powerUp.glowIntensity * 0.3})`;
+    this.ctx.arc(powerUp.x, powerUp.y, powerUp.radius * 1.6, 0, Math.PI * 2);
+    this.ctx.fillStyle = `rgba(100, 200, 255, ${powerUp.glowIntensity * 0.05})`;
     this.ctx.fill();
     
-    // Main power-up body (atomic nucleus)
-    this.ctx.beginPath();
-    this.ctx.arc(powerUp.x, powerUp.y, powerUp.radius, 0, Math.PI * 2);
-    const gradient = this.ctx.createRadialGradient(
-      powerUp.x, powerUp.y, 0,
-      powerUp.x, powerUp.y, powerUp.radius
-    );
-    gradient.addColorStop(0, '#ffffff'); // Bright white core
-    gradient.addColorStop(0.3, '#ffff80');
-    gradient.addColorStop(0.7, '#ffd700');
-    gradient.addColorStop(1, '#ffb000');
-    this.ctx.fillStyle = gradient;
-    this.ctx.fill();
+    // Draw energy capsule instead of diamond
+    this.drawEnergyCapsule(powerUp.x, powerUp.y, powerUp.radius, powerUp.pulsePhase);
     
-    // Core highlight (nucleus)
-    this.ctx.beginPath();
-    this.ctx.arc(powerUp.x, powerUp.y, powerUp.radius * 0.4, 0, Math.PI * 2);
-    this.ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
-    this.ctx.fill();
-    
-    // Sparkle particles around the power-up
-    const sparkleCount = 6;
-    for (let i = 0; i < sparkleCount; i++) {
-      const angle = (powerUp.pulsePhase + i * Math.PI * 2 / sparkleCount) * 0.5;
-      const distance = powerUp.radius * 2.5 + Math.sin(powerUp.pulsePhase * 2 + i) * 10;
+    // Draw energy arcs around the capsule
+    const arcCount = 8;
+    for (let i = 0; i < arcCount; i++) {
+      const angle = (powerUp.pulsePhase * 1.5 + i * Math.PI * 2 / arcCount);
+      const distance = powerUp.radius * 1.4 + Math.sin(powerUp.pulsePhase * 2 + i * 0.8) * 6;
       const x = powerUp.x + Math.cos(angle) * distance;
       const y = powerUp.y + Math.sin(angle) * distance;
-      const alpha = 0.3 + Math.sin(powerUp.pulsePhase * 3 + i) * 0.3;
+      const alpha = 0.4 + Math.sin(powerUp.pulsePhase * 3 + i) * 0.3;
+      const size = 2 + Math.sin(powerUp.pulsePhase * 4 + i * 0.7) * 1;
       
-      this.ctx.beginPath();
-      this.ctx.arc(x, y, 2, 0, Math.PI * 2);
-      this.ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
-      this.ctx.fill();
+      // Draw small energy bolts
+      this.drawEnergyBolt(x, y, size, `rgba(150, 220, 255, ${alpha})`);
     }
     
     this.ctx.restore();
+  }
+
+  /**
+   * Draw an energy capsule with glowing core and metal caps
+   */
+  private drawEnergyCapsule(x: number, y: number, size: number, pulsePhase: number): void {
+    const capsuleWidth = size * 1.8;
+    const capsuleHeight = size * 0.8;
+    const capWidth = capsuleHeight * 0.3;
+    
+    // Draw glass tube (main body)
+    this.ctx.beginPath();
+    this.ctx.ellipse(x, y, capsuleWidth * 0.5, capsuleHeight * 0.5, 0, 0, Math.PI * 2);
+    
+    // Glass tube gradient (clear with slight blue tint)
+    const tubeGradient = this.ctx.createRadialGradient(x, y, 0, x, y, capsuleWidth * 0.5);
+    tubeGradient.addColorStop(0, 'rgba(200, 230, 255, 0.3)');
+    tubeGradient.addColorStop(0.7, 'rgba(150, 200, 255, 0.2)');
+    tubeGradient.addColorStop(1, 'rgba(100, 150, 200, 0.4)');
+    this.ctx.fillStyle = tubeGradient;
+    this.ctx.fill();
+    
+    // Glass tube border
+    this.ctx.strokeStyle = 'rgba(200, 230, 255, 0.6)';
+    this.ctx.lineWidth = 1;
+    this.ctx.stroke();
+    
+    // Left cap (metal)
+    this.ctx.beginPath();
+    this.ctx.ellipse(x - capsuleWidth * 0.35, y, capWidth, capsuleHeight * 0.5, 0, 0, Math.PI * 2);
+    const leftCapGradient = this.ctx.createRadialGradient(
+      x - capsuleWidth * 0.35, y, 0,
+      x - capsuleWidth * 0.35, y, capWidth
+    );
+    leftCapGradient.addColorStop(0, '#87ceeb');
+    leftCapGradient.addColorStop(0.5, '#4682b4');
+    leftCapGradient.addColorStop(1, '#2f4f8f');
+    this.ctx.fillStyle = leftCapGradient;
+    this.ctx.fill();
+    
+    // Right cap (metal)
+    this.ctx.beginPath();
+    this.ctx.ellipse(x + capsuleWidth * 0.35, y, capWidth, capsuleHeight * 0.5, 0, 0, Math.PI * 2);
+    const rightCapGradient = this.ctx.createRadialGradient(
+      x + capsuleWidth * 0.35, y, 0,
+      x + capsuleWidth * 0.35, y, capWidth
+    );
+    rightCapGradient.addColorStop(0, '#87ceeb');
+    rightCapGradient.addColorStop(0.5, '#4682b4');
+    rightCapGradient.addColorStop(1, '#2f4f8f');
+    this.ctx.fillStyle = rightCapGradient;
+    this.ctx.fill();
+    
+    // Glowing energy core inside
+    const coreSize = size * (0.4 + Math.sin(pulsePhase * 3) * 0.1);
+    this.ctx.beginPath();
+    this.ctx.arc(x, y, coreSize, 0, Math.PI * 2);
+    const coreGradient = this.ctx.createRadialGradient(x, y, 0, x, y, coreSize);
+    coreGradient.addColorStop(0, '#ffffff');
+    coreGradient.addColorStop(0.3, '#b3e5ff');
+    coreGradient.addColorStop(0.7, '#00bfff');
+    coreGradient.addColorStop(1, '#0080ff');
+    this.ctx.fillStyle = coreGradient;
+    this.ctx.shadowColor = '#00bfff';
+    this.ctx.shadowBlur = 8;
+    this.ctx.fill();
+    this.ctx.shadowBlur = 0;
+    
+    // Internal energy arcs
+    for (let i = 0; i < 3; i++) {
+      const arcAngle = pulsePhase * 4 + i * Math.PI * 0.7;
+      const startX = x + Math.cos(arcAngle) * coreSize * 0.3;
+      const startY = y + Math.sin(arcAngle) * coreSize * 0.3;
+      const endX = x + Math.cos(arcAngle + Math.PI) * coreSize * 0.3;
+      const endY = y + Math.sin(arcAngle + Math.PI) * coreSize * 0.3;
+      
+      this.ctx.beginPath();
+      this.ctx.moveTo(startX, startY);
+      this.ctx.quadraticCurveTo(
+        x + Math.cos(arcAngle + Math.PI * 0.5) * coreSize * 0.6,
+        y + Math.sin(arcAngle + Math.PI * 0.5) * coreSize * 0.6,
+        endX, endY
+      );
+      this.ctx.strokeStyle = `rgba(255, 255, 255, ${0.6 + Math.sin(pulsePhase * 5 + i) * 0.4})`;
+      this.ctx.lineWidth = 1.5;
+      this.ctx.stroke();
+    }
+  }
+
+  /**
+   * Draw a small energy bolt
+   */
+  private drawEnergyBolt(x: number, y: number, size: number, color: string): void {
+    this.ctx.save();
+    this.ctx.translate(x, y);
+    
+    // Lightning bolt shape
+    this.ctx.beginPath();
+    this.ctx.moveTo(-size * 0.3, -size);
+    this.ctx.lineTo(size * 0.1, -size * 0.3);
+    this.ctx.lineTo(-size * 0.1, -size * 0.1);
+    this.ctx.lineTo(size * 0.3, size);
+    this.ctx.lineTo(-size * 0.1, size * 0.3);
+    this.ctx.lineTo(size * 0.1, size * 0.1);
+    this.ctx.closePath();
+    
+    this.ctx.fillStyle = color;
+    this.ctx.shadowColor = '#00bfff';
+    this.ctx.shadowBlur = 4;
+    this.ctx.fill();
+    this.ctx.shadowBlur = 0;
+    
+    this.ctx.restore();
+  }
+
+  /**
+   * Draw a mini electric arc
+   */
+  private drawMiniArc(x: number, y: number, radius: number, baseAngle: number): void {
+    const arcCount = 2;
+    for (let i = 0; i < arcCount; i++) {
+      const angle = baseAngle + (i - 0.5) * 0.5;
+      const endX = x + Math.cos(angle) * radius;
+      const endY = y + Math.sin(angle) * radius;
+      
+      this.ctx.beginPath();
+      this.ctx.moveTo(x, y);
+      this.ctx.lineTo(endX, endY);
+      this.ctx.strokeStyle = `rgba(100, 200, 255, ${0.3 + Math.random() * 0.4})`;
+      this.ctx.lineWidth = 0.5;
+      this.ctx.stroke();
+    }
   }
 
   /**
@@ -234,6 +365,13 @@ export class RenderDrawing {
    * Draw particle with color and alpha effects
    */
   private drawParticle(particle: Particle): void {
+    // Special rendering for canvas ring particles
+    if (particle.customBehavior === 'canvasRing') {
+      this.drawCanvasRing(particle);
+      return;
+    }
+    
+    // Standard particle rendering
     this.ctx.beginPath();
     this.ctx.arc(particle.x, particle.y, particle.radius, 0, Math.PI * 2);
     this.ctx.fillStyle = particle.color.replace(/,\s*[\d.]+\)$/, `, ${particle.alpha})`);
@@ -243,6 +381,42 @@ export class RenderDrawing {
       this.ctx.shadowColor = particle.color;
     }
     this.ctx.fill();
+  }
+
+  /**
+   * Draw expanding ring with chain detonation style
+   */
+  private drawCanvasRing(particle: Particle): void {
+    if (particle.radius <= 0 || particle.alpha <= 0.01) return;
+    
+    this.ctx.save();
+    this.ctx.globalAlpha = particle.alpha;
+    
+    // Calculate ring thickness based on ring index (outer rings are thicker)
+    const baseThickness = 6;
+    const thickness = baseThickness + (particle.ringIndex || 0) * 2;
+    
+    // Draw outer ring with shadow/glow
+    this.ctx.beginPath();
+    this.ctx.arc(particle.x, particle.y, particle.radius, 0, Math.PI * 2);
+    this.ctx.strokeStyle = particle.color;
+    this.ctx.lineWidth = thickness;
+    
+    if (this.shadowsEnabled) {
+      this.ctx.shadowColor = particle.color;
+      this.ctx.shadowBlur = 15;
+    }
+    this.ctx.stroke();
+    
+    // Draw inner bright ring (always white core for impact)
+    this.ctx.beginPath();
+    this.ctx.arc(particle.x, particle.y, particle.radius, 0, Math.PI * 2);
+    this.ctx.strokeStyle = '#ffffff';
+    this.ctx.lineWidth = thickness * 0.5;
+    this.ctx.shadowBlur = 0;
+    this.ctx.stroke();
+    
+    this.ctx.restore();
   }
 
   /**

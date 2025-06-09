@@ -1,3 +1,5 @@
+import { CanvasManager } from './core/CanvasManager';
+
 export interface KnockbackHandler {
   (): void;
 }
@@ -5,6 +7,7 @@ export interface KnockbackHandler {
 export class InputHandler {
   private canvas: HTMLCanvasElement;
   private onKnockback: KnockbackHandler;
+  private canvasManager?: CanvasManager;
   
   // Mouse and touch position tracking
   private mouseX: number = 0;
@@ -25,6 +28,10 @@ export class InputHandler {
     this.setupEventListeners();
   }
 
+  setCanvasManager(canvasManager: CanvasManager): void {
+    this.canvasManager = canvasManager;
+  }
+
   private setupEventListeners(): void {
     // Mouse events
     window.addEventListener('mousemove', this.handleMouseMove);
@@ -38,9 +45,18 @@ export class InputHandler {
 
   private handleMouseMove = (e: MouseEvent) => {
     if (this.isTouchDevice) return;
-    const rect = this.canvas.getBoundingClientRect();
-    this.mouseX = e.clientX - rect.left;
-    this.mouseY = e.clientY - rect.top;
+    
+    if (this.canvasManager) {
+      // Use CanvasManager for proper coordinate mapping
+      const coords = this.canvasManager.screenToCanvas(e.clientX, e.clientY);
+      this.mouseX = coords.x;
+      this.mouseY = coords.y;
+    } else {
+      // Fallback to old method
+      const rect = this.canvas.getBoundingClientRect();
+      this.mouseX = e.clientX - rect.left;
+      this.mouseY = e.clientY - rect.top;
+    }
   };
 
   private handleTouchStart = (e: TouchEvent) => {
@@ -52,9 +68,17 @@ export class InputHandler {
       const touch = e.touches[0];
       this.activeTouchId = touch.identifier;
       
-      const rect = this.canvas.getBoundingClientRect();
-      this.mouseX = touch.clientX - rect.left;
-      this.mouseY = touch.clientY - rect.top;
+      if (this.canvasManager) {
+        // Use CanvasManager for proper coordinate mapping
+        const coords = this.canvasManager.screenToCanvas(touch.clientX, touch.clientY);
+        this.mouseX = coords.x;
+        this.mouseY = coords.y;
+      } else {
+        // Fallback to old method
+        const rect = this.canvas.getBoundingClientRect();
+        this.mouseX = touch.clientX - rect.left;
+        this.mouseY = touch.clientY - rect.top;
+      }
     }
   };
 
@@ -67,9 +91,17 @@ export class InputHandler {
       for (let i = 0; i < e.touches.length; i++) {
         const touch = e.touches[i];
         if (touch.identifier === this.activeTouchId) {
-          const rect = this.canvas.getBoundingClientRect();
-          this.mouseX = touch.clientX - rect.left;
-          this.mouseY = touch.clientY - rect.top;
+          if (this.canvasManager) {
+            // Use CanvasManager for proper coordinate mapping
+            const coords = this.canvasManager.screenToCanvas(touch.clientX, touch.clientY);
+            this.mouseX = coords.x;
+            this.mouseY = coords.y;
+          } else {
+            // Fallback to old method
+            const rect = this.canvas.getBoundingClientRect();
+            this.mouseX = touch.clientX - rect.left;
+            this.mouseY = touch.clientY - rect.top;
+          }
           break;
         }
       }
@@ -107,9 +139,17 @@ export class InputHandler {
         const touch = e.touches[0];
         this.activeTouchId = touch.identifier;
         
-        const rect = this.canvas.getBoundingClientRect();
-        this.mouseX = touch.clientX - rect.left;
-        this.mouseY = touch.clientY - rect.top;
+        if (this.canvasManager) {
+          // Use CanvasManager for proper coordinate mapping
+          const coords = this.canvasManager.screenToCanvas(touch.clientX, touch.clientY);
+          this.mouseX = coords.x;
+          this.mouseY = coords.y;
+        } else {
+          // Fallback to old method
+          const rect = this.canvas.getBoundingClientRect();
+          this.mouseX = touch.clientX - rect.left;
+          this.mouseY = touch.clientY - rect.top;
+        }
       }
     }
     

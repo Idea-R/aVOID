@@ -3,11 +3,13 @@ import { PerformanceManager } from './PerformanceManager';
 import { SystemManager } from './SystemManager';
 import { InputSystem } from '../systems/InputSystem';
 import { GameState, GameStateData } from '../state/GameState';
+import { CanvasManager } from './CanvasManager';
 import { GameSettings } from '../GameLogic';
 import { GameStats } from '../managers/GameStatsManager';
 
 export class GameEngineCore {
   private canvas: HTMLCanvasElement;
+  private canvasManager!: CanvasManager;
   
   private gameLoop!: GameLoop;
   private performanceManager!: PerformanceManager;
@@ -21,10 +23,29 @@ export class GameEngineCore {
     console.log('[ENGINE CORE] GameEngineCore constructor called');
     this.canvas = canvas;
     
+    this.initializeCanvasManager();
     this.initializeSystems();
     this.setupEventHandlers();
     
     console.log('[ENGINE CORE] GameEngineCore initialized successfully');
+  }
+
+  private initializeCanvasManager(): void {
+    this.canvasManager = new CanvasManager(this.canvas, {
+      preventZoom: true,
+      handleDevicePixelRatio: true,
+      maintainAspectRatio: false,
+      minWidth: 320,
+      minHeight: 240,
+      maxWidth: 3840,
+      maxHeight: 2160
+    });
+
+    // Handle canvas resize
+    this.canvasManager.onResize((state) => {
+      console.log('🖼️ Canvas state updated:', state);
+      // Will be connected to systemManager after it's initialized
+    });
   }
   
   private initializeSystems(): void {
@@ -44,6 +65,17 @@ export class GameEngineCore {
     );
     
     this.gameState = new GameState();
+    
+    // Connect InputHandler to CanvasManager for proper coordinate mapping
+    const inputHandler = engineCore.getInputHandler();
+    inputHandler.setCanvasManager(this.canvasManager);
+    
+    // Connect canvas resize handler to SystemManager
+    this.canvasManager.onResize((state) => {
+      console.log('🖼️ Canvas state updated:', state);
+      this.systemManager.handleCanvasResize(state);
+    });
+    
     console.log('[ENGINE CORE] All systems initialized');
   }
   

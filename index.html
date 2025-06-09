@@ -3,8 +3,137 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- Strongest possible zoom prevention for games -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover, shrink-to-fit=no" />
+    <meta name="format-detection" content="telephone=no" />
+    <meta name="msapplication-tap-highlight" content="no" />
     <title>aVOID - Browser Dodge Game</title>
+    <style>
+      /* Global zoom and interaction prevention */
+      html {
+        font-size: 100% !important; /* Prevent zoom from affecting font size */
+        zoom: 1.0 !important; /* Force zoom to 1 (IE/Edge) */
+        -ms-zoom: 1.0 !important; /* IE specific */
+        -webkit-text-size-adjust: 100% !important; /* Prevent text size adjustment */
+        -ms-text-size-adjust: 100% !important;
+        text-size-adjust: 100% !important;
+      }
+      
+      /* Prevent zoom and scroll on mobile */
+      body {
+        touch-action: none !important;
+        overflow: hidden !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        position: fixed !important;
+        width: 100% !important;
+        height: 100% !important;
+        zoom: 1.0 !important;
+        -ms-zoom: 1.0 !important;
+      }
+      
+      /* Prevent text selection, dragging, and highlighting */
+      * {
+        -webkit-user-select: none !important;
+        -moz-user-select: none !important;
+        -ms-user-select: none !important;
+        user-select: none !important;
+        -webkit-touch-callout: none !important;
+        -webkit-tap-highlight-color: transparent !important;
+        -webkit-user-drag: none !important;
+        -khtml-user-drag: none !important;
+        -moz-user-drag: none !important;
+        -o-user-drag: none !important;
+        user-drag: none !important;
+        pointer-events: auto !important; /* Keep pointer events for game interaction */
+      }
+      
+      /* Game-specific styling to prevent zoom artifacts */
+      canvas {
+        image-rendering: -moz-crisp-edges !important;
+        image-rendering: -webkit-crisp-edges !important;
+        image-rendering: pixelated !important;
+        image-rendering: crisp-edges !important;
+        -ms-interpolation-mode: nearest-neighbor !important;
+      }
+      
+      /* Ensure full viewport usage */
+      #root {
+        width: 100vw !important;
+        height: 100vh !important;
+        overflow: hidden !important;
+        position: fixed !important;
+        top: 0 !important;
+        left: 0 !important;
+        touch-action: none !important;
+      }
+      
+      /* Prevent iOS Safari bounce scrolling */
+      body {
+        -webkit-overflow-scrolling: touch;
+        overscroll-behavior: none;
+      }
+      
+      /* Prevent pull-to-refresh */
+      body {
+        overscroll-behavior-y: contain;
+      }
+    </style>
+    <script>
+      // Additional JavaScript zoom prevention
+      (function() {
+        // Prevent zoom shortcuts
+        document.addEventListener('keydown', function(e) {
+          if ((e.ctrlKey || e.metaKey) && 
+              (e.key === '+' || e.key === '-' || e.key === '0' || 
+               e.key === '=' || e.key === '_' || e.which === 187 || e.which === 189)) {
+            e.preventDefault();
+            e.stopPropagation();
+            return false;
+          }
+        }, { passive: false, capture: true });
+
+        // Prevent double-tap zoom on mobile
+        let lastTouchEnd = 0;
+        document.addEventListener('touchend', function(e) {
+          const now = Date.now();
+          if (now - lastTouchEnd <= 300) {
+            e.preventDefault();
+            e.stopPropagation();
+          }
+          lastTouchEnd = now;
+        }, { passive: false, capture: true });
+
+        // Prevent pinch zoom
+        document.addEventListener('touchmove', function(e) {
+          if (e.touches && e.touches.length > 1) {
+            e.preventDefault();
+            e.stopPropagation();
+          }
+        }, { passive: false, capture: true });
+
+        // Prevent wheel zoom
+        document.addEventListener('wheel', function(e) {
+          if (e.ctrlKey || e.metaKey || e.shiftKey) {
+            e.preventDefault();
+            e.stopPropagation();
+            return false;
+          }
+        }, { passive: false, capture: true });
+
+        // Force zoom to 1 if it changes
+        function enforceZoom() {
+          if (document.body && document.body.style) {
+            document.body.style.zoom = '1.0';
+            document.documentElement.style.zoom = '1.0';
+          }
+        }
+        
+        // Check zoom level periodically
+        setInterval(enforceZoom, 100);
+        enforceZoom();
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

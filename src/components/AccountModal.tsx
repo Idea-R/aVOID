@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { X, User, Trophy, Star, LogOut } from 'lucide-react';
+import { X, User, Trophy, Star, LogOut, Key } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import { LeaderboardAPI } from '../api/leaderboard';
+import PasswordResetModal from './PasswordResetModal';
 
 interface AccountModalProps {
   isOpen: boolean;
@@ -12,6 +13,7 @@ export default function AccountModal({ isOpen, onClose }: AccountModalProps) {
   const { user, signOut } = useAuthStore();
   const [bestScore, setBestScore] = useState<number>(0);
   const [loading, setLoading] = useState(true);
+  const [showPasswordChange, setShowPasswordChange] = useState(false);
 
   useEffect(() => {
     if (!isOpen || !user) return;
@@ -29,6 +31,11 @@ export default function AccountModal({ isOpen, onClose }: AccountModalProps) {
   const handleSignOut = async () => {
     await signOut();
     onClose();
+  };
+
+  const handlePasswordChangeSuccess = () => {
+    setShowPasswordChange(false);
+    onClose(); // Close account modal after successful password change
   };
 
   if (!isOpen || !user) return null;
@@ -98,15 +105,32 @@ export default function AccountModal({ isOpen, onClose }: AccountModalProps) {
             </div>
           )}
 
-          <button
-            onClick={handleSignOut}
-            className="w-full mt-6 bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded transition-colors duration-200 flex items-center justify-center gap-2"
-          >
-            <LogOut className="w-4 h-4" />
-            Sign Out
-          </button>
+          <div className="space-y-3 mt-6">
+            <button
+              onClick={() => setShowPasswordChange(true)}
+              className="w-full bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-2 px-4 rounded transition-colors duration-200 flex items-center justify-center gap-2"
+            >
+              <Key className="w-4 h-4" />
+              Change Password
+            </button>
+            
+            <button
+              onClick={handleSignOut}
+              className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded transition-colors duration-200 flex items-center justify-center gap-2"
+            >
+              <LogOut className="w-4 h-4" />
+              Sign Out
+            </button>
+          </div>
         </div>
       </div>
+
+      {/* Password Change Modal */}
+      <PasswordResetModal
+        isOpen={showPasswordChange}
+        onClose={() => setShowPasswordChange(false)}
+        onSuccess={handlePasswordChangeSuccess}
+      />
     </div>
   );
 }

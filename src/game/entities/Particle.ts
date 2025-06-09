@@ -10,6 +10,15 @@ export interface Particle {
   life: number;
   maxLife: number;
   active: boolean;
+  // Optional custom behavior properties
+  customBehavior?: string;
+  behaviorTimer?: number;
+  initialVx?: number;
+  initialVy?: number;
+  // Canvas ring properties
+  maxRadius?: number;
+  ringIndex?: number;
+  initialSize?: number;
 }
 
 export function createParticle(): Particle {
@@ -40,6 +49,15 @@ export function resetParticle(particle: Particle): void {
   particle.life = 0;
   particle.maxLife = 0;
   particle.active = false;
+  // Reset custom behavior properties
+  particle.customBehavior = undefined;
+  particle.behaviorTimer = undefined;
+  particle.initialVx = undefined;
+  particle.initialVy = undefined;
+  // Reset canvas ring properties
+  particle.maxRadius = undefined;
+  particle.ringIndex = undefined;
+  particle.initialSize = undefined;
 }
 
 export function initializeParticle(

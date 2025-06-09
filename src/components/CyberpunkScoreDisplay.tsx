@@ -9,7 +9,6 @@ export default function CyberpunkScoreDisplay({ score }: CyberpunkScoreDisplayPr
   const [previousScore, setPreviousScore] = useState(0);
   const [animationClass, setAnimationClass] = useState('');
   const [glitchActive, setGlitchActive] = useState(false);
-  const [milestoneEffect, setMilestoneEffect] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
   // Smooth score animation
@@ -48,13 +47,6 @@ export default function CyberpunkScoreDisplay({ score }: CyberpunkScoreDisplayPr
       } else {
         // Small increase - gentle pulse
         setAnimationClass('cyberpunk-score-small-increase');
-      }
-
-      // Check for milestones
-      const milestones = [100, 500, 1000, 2500, 5000, 10000];
-      if (milestones.some(milestone => previousScore < milestone && score >= milestone)) {
-        setMilestoneEffect(true);
-        setTimeout(() => setMilestoneEffect(false), 2000);
       }
 
       // Reset animation class
@@ -184,53 +176,7 @@ export default function CyberpunkScoreDisplay({ score }: CyberpunkScoreDisplayPr
         )}
       </div>
       
-      {/* Milestone celebration effect */}
-      {milestoneEffect && (
-        <div 
-          style={{
-            position: 'fixed',
-            top: '100px',
-            left: '50%',
-            transform: 'translateX(-50%)',
-            zIndex: 1001,
-            textAlign: 'center',
-            animation: 'milestoneAppear 2s ease-out'
-          }}
-        >
-          <div 
-            style={{
-              fontFamily: '"Orbitron", monospace',
-              fontSize: '24px',
-              fontWeight: 'bold',
-              color: '#ffd700',
-              textShadow: '0 0 10px #ffd700, 0 0 20px #ffd700',
-              marginBottom: '10px'
-            }}
-          >
-            MILESTONE ACHIEVED!
-          </div>
-          <div style={{ position: 'relative', width: '200px', height: '50px' }}>
-            {[...Array(12)].map((_, i) => (
-              <div 
-                key={i} 
-                style={{
-                  position: 'absolute',
-                  width: '4px',
-                  height: '20px',
-                  background: 'linear-gradient(to bottom, #ffd700, transparent)',
-                  left: '50%',
-                  top: '50%',
-                  transformOrigin: '2px 25px',
-                  transform: `rotate(${i * 30}deg)`,
-                  animation: `sparkRadiate 1s ease-out ${i * 100}ms both`
-                }}
-              />
-            ))}
-          </div>
-        </div>
-      )}
-      
-      {/* Add keyframe animations */}
+      {/* CSS animations */}
       <style>{`
         @keyframes circuitFlow {
           0% { transform: translateX(-100%); }
@@ -251,19 +197,6 @@ export default function CyberpunkScoreDisplay({ score }: CyberpunkScoreDisplayPr
         @keyframes glowRing {
           0% { transform: scale(1); opacity: 1; }
           100% { transform: scale(1.2); opacity: 0; }
-        }
-        
-        @keyframes milestoneAppear {
-          0% { opacity: 0; transform: translateY(-20px) scale(0.8); }
-          20% { opacity: 1; transform: translateY(0) scale(1.1); }
-          80% { opacity: 1; transform: translateY(0) scale(1); }
-          100% { opacity: 0; transform: translateY(-10px) scale(0.9); }
-        }
-        
-        @keyframes sparkRadiate {
-          0% { opacity: 0; transform: rotate(var(--rotation)) scale(0); }
-          50% { opacity: 1; transform: rotate(var(--rotation)) scale(1); }
-          100% { opacity: 0; transform: rotate(var(--rotation)) scale(1.5); }
         }
       `}</style>
     </>

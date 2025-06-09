@@ -55,12 +55,16 @@ export class ParticleSystem {
     this.standardEffects.createExplosion(x, y, color, isSuper);
   }
 
-  createShockwave(x: number, y: number): void {
-    this.standardEffects.createShockwave(x, y);
+  createShockwave(x: number, y: number, cursorColor?: string): void {
+    this.standardEffects.createShockwave(x, y, cursorColor);
   }
 
   createDefenseEffect(x: number, y: number, type: 'destroy' | 'deflect'): void {
     this.standardEffects.createDefenseEffect(x, y, type);
+  }
+
+  createEnergyAbsorption(x: number, y: number): void {
+    this.standardEffects.createEnergyAbsorption(x, y);
   }
 
   // Chain detonation effects - delegate to chainDetonationEffects

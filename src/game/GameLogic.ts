@@ -128,7 +128,7 @@ export class GameLogic {
     const collectedPowerUp = this.systems.powerUpManager.checkCollision(mousePos.x, mousePos.y);
     if (collectedPowerUp && collectedPowerUp.type === 'knockback') {
       this.stateManager.resetPlayerRingPhase();
-      this.systems.particleSystem.createExplosion(collectedPowerUp.x, collectedPowerUp.y, '#ffd700', false);
+      this.systems.particleSystem.createEnergyAbsorption(collectedPowerUp.x, collectedPowerUp.y);
       console.log('🔋 Power-up collected! Current charges:', this.systems.powerUpManager.getCharges(), '/', this.systems.powerUpManager.getMaxCharges());
     }
     
@@ -260,5 +260,9 @@ export class GameLogic {
 
   isGameOverState(): boolean {
     return this.stateManager.isGameOverState();
+  }
+
+  getSettings(): GameSettings {
+    return { ...this.settings };
   }
 }
