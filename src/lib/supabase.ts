@@ -10,7 +10,23 @@ if (!supabaseUrl || !supabaseAnonKey) {
   console.warn('⚠️  Supabase environment variables not configured. Running in offline mode.');
   console.log('To enable authentication and leaderboard features, add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to your .env file');
   
-  // Create a mock supabase client for development
+  // Create a comprehensive mock supabase client for development
+  const mockQuery = {
+    select: () => mockQuery,
+    insert: () => mockQuery,
+    update: () => mockQuery,
+    delete: () => mockQuery,
+    eq: () => mockQuery,
+    gt: () => mockQuery,
+    lt: () => mockQuery,
+    gte: () => mockQuery,
+    lte: () => mockQuery,
+    order: () => mockQuery,
+    limit: () => mockQuery,
+    single: () => Promise.resolve({ data: null, error: { message: 'Offline mode - database disabled' } }),
+    then: (resolve: any) => resolve({ data: [], error: null })
+  };
+
   supabase = {
     auth: {
       getUser: () => Promise.resolve({ data: { user: null }, error: null }),
@@ -22,10 +38,11 @@ if (!supabaseUrl || !supabaseAnonKey) {
       signOut: () => Promise.resolve(),
       onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => {} } } })
     },
-    from: () => ({
-      select: () => Promise.resolve({ data: [], error: null }),
-      insert: () => Promise.resolve({ data: null, error: { message: 'Offline mode - database disabled' } }),
-      update: () => Promise.resolve({ data: null, error: { message: 'Offline mode - database disabled' } })
+    from: () => mockQuery,
+    rpc: () => Promise.resolve({ data: [], error: { message: 'Offline mode - RPC disabled' } }),
+    channel: () => ({
+      on: () => ({ subscribe: () => ({ unsubscribe: () => {} }) }),
+      subscribe: () => ({ unsubscribe: () => {} })
     })
   };
 } else {

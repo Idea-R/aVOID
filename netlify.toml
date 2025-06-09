@@ -7,6 +7,9 @@
   NODE_VERSION = "18"
   NODE_ENV = "production"
   NPM_CONFIG_PRODUCTION = "false"
+  # Supabase environment variables should be set in Netlify dashboard:
+  # VITE_SUPABASE_URL = "your-supabase-url"
+  # VITE_SUPABASE_ANON_KEY = "your-supabase-anon-key"
   
 [functions]
   node_bundler = "esbuild"
