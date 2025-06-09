@@ -241,9 +241,8 @@ export class EngineCore {
     // Re-initialize defense zones
     this.defenseSystem = new DefenseSystem(this.canvas);
     
-    // Reset and recreate input handler
-    this.inputHandler.cleanup();
-    this.inputHandler = new InputHandler(this.canvas, () => this.handleKnockbackActivation());
+    // Reset input handler (fix cursor position bug)
+    this.inputHandler.reset();
     
     // Update GameLogic with the new systems
     const systems: GameSystems = {

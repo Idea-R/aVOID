@@ -136,6 +136,16 @@ export class InputHandler {
     return this.isTouchDevice;
   }
 
+  // Reset method to fix cursor position bug after game reset
+  reset(): void {
+    this.mouseX = 0;
+    this.mouseY = 0;
+    this.activeTouchId = null;
+    this.clickCount = 0;
+    this.lastClickTime = 0;
+    console.log('🎮 InputHandler reset - cursor position cleared');
+  }
+
   // Cleanup method to remove event listeners
   cleanup(): void {
     window.removeEventListener('mousemove', this.handleMouseMove);
