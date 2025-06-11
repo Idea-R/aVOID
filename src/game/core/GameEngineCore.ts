@@ -17,6 +17,11 @@ export class GameEngineCore {
   private inputSystem!: InputSystem;
   private gameState!: GameState;
   
+  // State update throttling to prevent excessive React re-renders
+  private lastStateUpdateTime: number = 0;
+  private stateUpdateInterval: number = 1000; // Update UI max 1 time/sec instead of 2.5
+  private priorityUpdatePending: boolean = false; // Flag for high-priority updates like performance mode
+  
   onStateUpdate: (state: GameStateData) => void = () => {};
 
   constructor(canvas: HTMLCanvasElement) {
@@ -114,7 +119,21 @@ export class GameEngineCore {
     
     this.systemManager.update(deltaTime);
     this.inputSystem.update(deltaTime);
+    
+    // FIXED: Stricter throttling - only allow priority updates for truly critical changes
+    const now = performance.now();
+    const timeSinceLastUpdate = now - this.lastStateUpdateTime;
+    
+    // Only bypass throttling for critical priority updates AND if enough time has passed (min 100ms)
+    const shouldUpdate = this.priorityUpdatePending 
+      ? timeSinceLastUpdate >= 100  // Priority updates still need minimum 100ms gap
+      : timeSinceLastUpdate >= this.stateUpdateInterval;
+    
+    if (shouldUpdate) {
     this.triggerStateUpdate();
+      this.lastStateUpdateTime = now;
+      this.priorityUpdatePending = false; // Reset priority flag
+    }
   }
   
   private render(): void {
@@ -229,8 +248,12 @@ export class GameEngineCore {
   }
   
   private handlePerformanceModeChange(enabled: boolean): void {
-    const performanceSettings = this.systemManager.getEngineCore().getPerformanceSettings();
-    this.performanceManager.applyPerformanceMode(enabled, performanceSettings);
+    const engineCore = this.systemManager.getEngineCore();
+    engineCore.applyPerformanceMode(enabled);
+    
+    // Flag priority update to ensure performance mode changes are reflected immediately
+    this.priorityUpdatePending = true;
+    console.log(`🔧 [GameEngineCore] Performance mode change flagged for priority update: ${enabled}`);
   }
   
   private handleGameOver = () => {
@@ -279,6 +302,13 @@ export class GameEngineCore {
     };
     
     this.onStateUpdate(stateData);
+  }
+  
+  /**
+   * Trigger priority update that bypasses throttling
+   */
+  triggerPriorityUpdate(): void {
+    this.priorityUpdatePending = true;
   }
   
   // Core lifecycle methods

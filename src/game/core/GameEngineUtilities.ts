@@ -122,7 +122,7 @@ export class GameEngineUtilities {
         downlink: nav.connection.downlink,
         rtt: nav.connection.rtt
       } : null,
-      pixelRatio: window.devicePixelRatio || 1,
+      pixelRatio: Math.min(window.devicePixelRatio || 1, 2),
       screenSize: {
         width: screen.width,
         height: screen.height,
@@ -134,7 +134,8 @@ export class GameEngineUtilities {
 
   static handleResize(canvas: HTMLCanvasElement, core: GameEngineCore): void {
     const rect = canvas.getBoundingClientRect();
-    const pixelRatio = window.devicePixelRatio || 1;
+    // Cap device pixel ratio to prevent insane UI scaling
+    const pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
     
     canvas.width = rect.width * pixelRatio;
     canvas.height = rect.height * pixelRatio;
@@ -144,7 +145,7 @@ export class GameEngineUtilities {
       ctx.scale(pixelRatio, pixelRatio);
     }
     
-    console.log(`[ENGINE UTILS] Canvas resized to ${canvas.width}x${canvas.height} (${rect.width}x${rect.height} CSS)`);
+    console.log(`[ENGINE UTILS] Canvas resized to ${canvas.width}x${canvas.height} (${rect.width}x${rect.height} CSS) - pixelRatio: ${pixelRatio} (capped from ${window.devicePixelRatio})`);
   }
 
   static optimizeForDevice(): any {

@@ -1,10 +1,15 @@
-import React from 'react';
+import React, { useCallback } from 'react';
 
 interface BoltBadgeProps {
   onMeteorDefense?: (meteorId: string, x: number, y: number) => void;
 }
 
-export default function BoltBadge({ onMeteorDefense }: BoltBadgeProps) {
+function BoltBadge({ onMeteorDefense }: BoltBadgeProps) {
+  // Memoize animation end handler to prevent re-creation
+  const handleAnimationEnd = useCallback((e: React.AnimationEvent<HTMLImageElement>) => {
+    e.currentTarget.classList.add('animated');
+  }, []);
+
   return (
     <>
       {/* Custom Bolt.new Badge Configuration */}
@@ -62,10 +67,13 @@ export default function BoltBadge({ onMeteorDefense }: BoltBadgeProps) {
             src="https://storage.bolt.army/logotext_poweredby_360w.png" 
             alt="Powered by Bolt.new badge" 
             className="h-8 md:h-10 w-auto shadow-lg opacity-90 hover:opacity-100 bolt-badge bolt-badge-intro"
-            onAnimationEnd={(e) => e.currentTarget.classList.add('animated')}
+            onAnimationEnd={handleAnimationEnd}
           />
         </a>
       </div>
     </>
   );
 }
+
+// Export memoized component to prevent unnecessary re-renders
+export default React.memo(BoltBadge);

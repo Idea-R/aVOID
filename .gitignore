@@ -16,6 +16,7 @@ dist-ssr
 .vscode/*
 !.vscode/extensions.json
 .idea
+.cursor/
 .DS_Store
 *.suo
 *.ntvs*
@@ -26,6 +27,13 @@ dist-ssr
 
 # Documentation and optimization files
 docs/
+
+# Debug and temporary files
+debug-*.html
+debug-*.js
+REPORT
+*.report
+supabase/.temp/
 
 # Backup files (per RULE #3 - local safety backups only)
 archive/

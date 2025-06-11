@@ -6,7 +6,7 @@ interface PlayerRankingProps {
   isUser: boolean;
 }
 
-export default function PlayerRanking({ playerRank, verifiedRank, isUser }: PlayerRankingProps) {
+function PlayerRanking({ playerRank, verifiedRank, isUser }: PlayerRankingProps) {
   if (!playerRank) {
     return null;
   }
@@ -26,3 +26,6 @@ export default function PlayerRanking({ playerRank, verifiedRank, isUser }: Play
     </div>
   );
 }
+
+// Export memoized component to prevent unnecessary re-renders
+export default React.memo(PlayerRanking);

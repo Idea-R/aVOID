@@ -76,6 +76,8 @@ export default class GameEngine {
   
   setPerformanceMode(enabled: boolean): void {
     this.utilities.setPerformanceMode(enabled);
+    // Trigger priority update for immediate UI feedback
+    this.core.triggerPriorityUpdate();
   }
   
   getPerformanceMode(): boolean {

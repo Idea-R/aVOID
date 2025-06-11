@@ -12,7 +12,11 @@ interface ScoreSavingProps {
   onShowSignup: () => void;
 }
 
-export default function ScoreSaving({ score, user, verifiedRank, onShowSignup }: ScoreSavingProps) {
+// Memoized icon components to prevent re-creation
+const MemoizedStar = React.memo(Star);
+const MemoizedUserPlus = React.memo(UserPlus);
+
+function ScoreSaving({ score, user, verifiedRank, onShowSignup }: ScoreSavingProps) {
   const [playerName, setPlayerName] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [scoreSaved, setScoreSaved] = useState(false);
@@ -66,7 +70,7 @@ export default function ScoreSaving({ score, user, verifiedRank, onShowSignup }:
         // Verified user flow
         <div className="bg-cyan-900/30 border border-cyan-500/50 rounded-lg p-4">
           <div className="flex items-center gap-2 mb-3">
-            <Star className="w-5 h-5 text-cyan-400" />
+            <MemoizedStar className="w-5 h-5 text-cyan-400" />
             <span className="text-cyan-300 font-semibold">Verified Player</span>
           </div>
           <p className="text-sm text-cyan-200 mb-3">
@@ -114,7 +118,7 @@ export default function ScoreSaving({ score, user, verifiedRank, onShowSignup }:
             className="w-full bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 text-white font-bold py-3 px-4 rounded transition-all duration-200 transform hover:scale-105 shadow-lg"
           >
             <div className="flex items-center justify-center gap-2">
-              <UserPlus className="w-5 h-5" />
+              <MemoizedUserPlus className="w-5 h-5" />
               <span>Sign up to compete on leaderboard!</span>
             </div>
           </button>
@@ -123,3 +127,6 @@ export default function ScoreSaving({ score, user, verifiedRank, onShowSignup }:
     </div>
   );
 }
+
+// Export memoized component to prevent unnecessary re-renders
+export default React.memo(ScoreSaving);

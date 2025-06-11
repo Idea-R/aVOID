@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Trophy, Eye, RotateCcw, Settings, UserCircle, UserPlus, HelpCircle, Music } from 'lucide-react';
 import { LeaderboardAPI } from '../api/leaderboard';
 import { useAuthStore } from '../store/authStore';
@@ -23,7 +23,17 @@ interface GameOverScreenProps {
   audioManager?: any;
 }
 
-export default function GameOverScreen({ score, scoreBreakdown, comboInfo, onPlayAgain, audioManager }: GameOverScreenProps) {
+// Memoized icon components to prevent re-creation
+const MemoizedTrophy = React.memo(Trophy);
+const MemoizedEye = React.memo(Eye);
+const MemoizedRotateCcw = React.memo(RotateCcw);
+const MemoizedSettings = React.memo(Settings);
+const MemoizedUserCircle = React.memo(UserCircle);
+const MemoizedUserPlus = React.memo(UserPlus);
+const MemoizedHelpCircle = React.memo(HelpCircle);
+const MemoizedMusic = React.memo(Music);
+
+function GameOverScreen({ score, scoreBreakdown, comboInfo, onPlayAgain, audioManager }: GameOverScreenProps) {
   const [showSignup, setShowSignup] = useState(false);
   const [showLeaderboard, setShowLeaderboard] = useState(false);
   const [showAccount, setShowAccount] = useState(false);
@@ -37,6 +47,43 @@ export default function GameOverScreen({ score, scoreBreakdown, comboInfo, onPla
   const [showMusicControls, setShowMusicControls] = useState(false);
   
   const { user } = useAuthStore();
+
+  // Memoize button click handlers to prevent re-creation
+  const handleShowMusicControls = useCallback(() => setShowMusicControls(true), []);
+  const handleShowHelp = useCallback(() => setShowHelp(true), []);
+  const handleShowSettings = useCallback(() => setShowSettings(true), []);
+  const handleShowProfile = useCallback(() => setShowProfile(true), []);
+  const handleShowSignup = useCallback(() => setShowSignup(true), []);
+  const handleShowLeaderboard = useCallback(() => setShowLeaderboard(true), []);
+  const handleShowAccount = useCallback(() => setShowAccount(true), []);
+
+  // Memoize modal close handlers
+  const handleCloseSignup = useCallback(() => setShowSignup(false), []);
+  const handleCloseLeaderboard = useCallback(() => setShowLeaderboard(false), []);
+  const handleCloseAccount = useCallback(() => setShowAccount(false), []);
+  const handleCloseSettings = useCallback(() => setShowSettings(false), []);
+  const handleCloseProfile = useCallback(() => setShowProfile(false), []);
+  const handleCloseHelp = useCallback(() => setShowHelp(false), []);
+  const handleCloseMusicControls = useCallback(() => setShowMusicControls(false), []);
+
+  const toggleLogoSize = useCallback(() => {
+    setLogoEnlarged(prev => !prev);
+  }, []);
+
+  const handlePlayAgain = useCallback(() => {
+    console.log('Play again button clicked');
+    if (onPlayAgain) {
+      onPlayAgain();
+    } else {
+      window.location.reload();
+    }
+  }, [onPlayAgain]);
+
+  // Memoize user display name to prevent re-computation
+  const userDisplayName = useMemo(() => {
+    if (!user) return '';
+    return user.user_metadata?.display_name || user.email?.split('@')[0] || 'Profile';
+  }, [user?.user_metadata?.display_name, user?.email]);
 
   useEffect(() => {
     console.log('GameOverScreen mounted with score:', score);
@@ -63,19 +110,6 @@ export default function GameOverScreen({ score, scoreBreakdown, comboInfo, onPla
       clearTimeout(logoTimer);
     };
   }, [score]);
-
-  const handlePlayAgain = () => {
-    console.log('Play again button clicked');
-    if (onPlayAgain) {
-      onPlayAgain();
-    } else {
-      window.location.reload();
-    }
-  };
-
-  const toggleLogoSize = () => {
-    setLogoEnlarged(!logoEnlarged);
-  };
 
   console.log('Rendering GameOverScreen');
 
@@ -155,7 +189,7 @@ export default function GameOverScreen({ score, scoreBreakdown, comboInfo, onPla
           {/* Header with Action Buttons */}
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-3">
-              <Trophy className="w-12 h-12 text-yellow-500" />
+              <MemoizedTrophy className="w-12 h-12 text-yellow-500" />
               <h2 className="text-2xl font-bold text-cyan-500">Game Over!</h2>
             </div>
             
@@ -164,45 +198,45 @@ export default function GameOverScreen({ score, scoreBreakdown, comboInfo, onPla
               {/* Music Controls Button */}
               {audioManager && (
                 <button
-                  onClick={() => setShowMusicControls(true)}
+                  onClick={handleShowMusicControls}
                   className="bg-purple-600 hover:bg-purple-700 text-white p-2 rounded-lg transition-colors duration-200"
                   title="Music Controls"
                 >
-                  <Music className="w-4 h-4" />
+                  <MemoizedMusic className="w-4 h-4" />
                 </button>
               )}
 
               <button
-                onClick={() => setShowHelp(true)}
+                onClick={handleShowHelp}
                 className="bg-blue-600 hover:bg-blue-700 text-white p-2 rounded-lg transition-colors duration-200"
                 title="Help & Instructions"
               >
-                <HelpCircle className="w-4 h-4" />
+                <MemoizedHelpCircle className="w-4 h-4" />
               </button>
 
               <button
-                onClick={() => setShowSettings(true)}
+                onClick={handleShowSettings}
                 className="bg-gray-600 hover:bg-gray-700 text-white p-2 rounded-lg transition-colors duration-200"
                 title="Settings"
               >
-                <Settings className="w-4 h-4" />
+                <MemoizedSettings className="w-4 h-4" />
               </button>
 
               {user ? (
                 <button
-                  onClick={() => setShowProfile(true)}
+                  onClick={handleShowProfile}
                   className="bg-cyan-600 hover:bg-cyan-700 text-white p-2 rounded-lg transition-colors duration-200"
                   title="Profile"
                 >
-                  <UserCircle className="w-4 h-4" />
+                  <MemoizedUserCircle className="w-4 h-4" />
                 </button>
               ) : (
                 <button
-                  onClick={() => setShowSignup(true)}
+                  onClick={handleShowSignup}
                   className="bg-green-600 hover:bg-green-700 text-white p-2 rounded-lg transition-colors duration-200"
                   title="Sign Up"
                 >
-                  <UserPlus className="w-4 h-4" />
+                  <MemoizedUserPlus className="w-4 h-4" />
                 </button>
               )}
             </div>
@@ -232,10 +266,10 @@ export default function GameOverScreen({ score, scoreBreakdown, comboInfo, onPla
 
           <div className="space-y-3 mt-6">
             <button
-              onClick={() => setShowLeaderboard(true)}
+              onClick={handleShowLeaderboard}
               className="w-full bg-transparent border border-yellow-500 text-yellow-500 hover:bg-yellow-500 hover:text-black font-bold py-2 px-4 rounded transition-colors duration-200 flex items-center justify-center gap-2"
             >
-              <Eye className="w-4 h-4" />
+              <MemoizedEye className="w-4 h-4" />
               View Verified Leaderboard
             </button>
             
@@ -243,7 +277,7 @@ export default function GameOverScreen({ score, scoreBreakdown, comboInfo, onPla
               onClick={handlePlayAgain}
               className="w-full bg-transparent border border-cyan-500 text-cyan-500 hover:bg-cyan-500 hover:text-black font-bold py-2 px-4 rounded transition-colors duration-200 flex items-center justify-center gap-2"
             >
-              <RotateCcw className="w-4 h-4" />
+              <MemoizedRotateCcw className="w-4 h-4" />
               Play Again
             </button>
           </div>
@@ -253,35 +287,36 @@ export default function GameOverScreen({ score, scoreBreakdown, comboInfo, onPla
       {/* Modals */}
       <SignupModal
         isOpen={showSignup}
-        onClose={() => setShowSignup(false)}
+        onClose={handleCloseSignup}
         playerScore={score}
         playerName=""
       />
 
       <LeaderboardModal
         isOpen={showLeaderboard}
-        onClose={() => setShowLeaderboard(false)}
+        onClose={handleCloseLeaderboard}
         playerScore={score}
       />
 
       <AccountModal
         isOpen={showAccount}
-        onClose={() => setShowAccount(false)}
+        onClose={handleCloseAccount}
       />
 
       <SettingsModal
         isOpen={showSettings}
-        onClose={() => setShowSettings(false)}
+        onClose={handleCloseSettings}
       />
 
       <ProfileModal
         isOpen={showProfile}
-        onClose={() => setShowProfile(false)}
+        onClose={handleCloseProfile}
+        userId={user?.id}
       />
 
       <HelpModal
         isOpen={showHelp}
-        onClose={() => setShowHelp(false)}
+        onClose={handleCloseHelp}
       />
 
       {/* Music Controls Modal */}
@@ -289,9 +324,12 @@ export default function GameOverScreen({ score, scoreBreakdown, comboInfo, onPla
         <MusicControls 
           audioManager={audioManager} 
           isVisible={showMusicControls}
-          onClose={() => setShowMusicControls(false)}
+          onClose={handleCloseMusicControls}
         />
       )}
     </>
   );
 }
+
+// Export memoized component to prevent unnecessary re-renders
+export default React.memo(GameOverScreen);

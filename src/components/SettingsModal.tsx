@@ -51,17 +51,20 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
       }
     }
     
-    // Auto-detect mobile devices and enable performance mode
-    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
-                     window.innerWidth <= 768;
+    // Listen for engine performance mode changes to keep UI in sync
+    const handleEnginePerformanceModeChange = (event: CustomEvent) => {
+      const { performanceMode, source } = event.detail;
+      if (source === 'engine') {
+        console.log(`🔧 [SettingsModal] Engine performance mode changed: ${performanceMode}`);
+        setSettings(prev => ({ ...prev, performanceMode }));
+      }
+    };
     
-    if (isMobile && !localStorage.getItem('avoidGameSettings')) {
-      // First time on mobile - enable performance mode by default
-      setSettings(prev => ({ ...prev, performanceMode: true }));
-      setAutoPerformanceModeEnabled(true);
-      localStorage.setItem('avoidGameAutoPerformanceMode', 'true');
-      console.log('🔧 Auto-enabled Performance Mode for mobile device');
-    }
+    window.addEventListener('enginePerformanceModeChanged', handleEnginePerformanceModeChange as EventListener);
+    
+    return () => {
+      window.removeEventListener('enginePerformanceModeChanged', handleEnginePerformanceModeChange as EventListener);
+    };
   }, []);
 
   const resetSettings = () => {

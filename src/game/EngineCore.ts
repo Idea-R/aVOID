@@ -79,6 +79,16 @@ export class EngineCore {
     this.canvas = canvas;
     this.initializeSystems();
     this.setupEventListeners();
+    
+    // Development debugging - validate state consistency every 5 seconds
+    if (process.env.NODE_ENV === 'development') {
+      setInterval(() => {
+        const debugInfo = this.getPerformanceModeDebugInfo();
+        if (!debugInfo.isConsistent) {
+          console.error('🚨 [DEBUG] Performance mode state inconsistency detected:', debugInfo);
+        }
+      }, 5000);
+    }
   }
 
   private initializeSystems(): void {
@@ -131,6 +141,36 @@ export class EngineCore {
     window.addEventListener('chainDetonationComplete', this.handleChainDetonationComplete);
   }
 
+  private handleMobileDeviceDetection(): void {
+    // Mobile device detection and auto-enable logic
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
+                     window.innerWidth <= 768;
+    
+    // Only auto-enable on first visit (no saved settings)
+    const hasExistingSettings = localStorage.getItem('avoidGameSettings');
+    
+    if (isMobile && !hasExistingSettings) {
+      console.log('🔧 [EngineCore] Mobile device detected - Auto-enabling performance mode');
+      
+      // Update both UI and engine states
+      this.gameSettings.performanceMode = true;
+      this.performanceSettings.autoPerformanceModeEnabled = true;
+      
+      // Apply performance mode to engine systems
+      this.applyPerformanceMode(true);
+      
+      // Save the settings
+      const settingsToSave = {
+        ...this.gameSettings,
+        autoPerformanceModeEnabled: true
+      };
+      localStorage.setItem('avoidGameSettings', JSON.stringify(settingsToSave));
+      localStorage.setItem('avoidGameAutoPerformanceMode', 'true');
+      
+      console.log('🔧 [EngineCore] Mobile performance mode enabled and saved');
+    }
+  }
+
   private loadSettings(): void {
     try {
       const savedSettings = localStorage.getItem('avoidGameSettings');
@@ -142,7 +182,26 @@ export class EngineCore {
           cursorColor: parsed.cursorColor || '#06b6d4'
         };
         this.performanceSettings.autoPerformanceModeEnabled = parsed.autoPerformanceModeEnabled || false;
+        
+        // CRITICAL FIX: Apply performance mode to engine if it was enabled in settings
+        if (this.gameSettings.performanceMode) {
+          console.log('🔧 [EngineCore] Applying saved performance mode state to engine');
+          this.applyPerformanceMode(true);
+        }
+        
+        // State validation - ensure UI and engine states match
+        const engineState = this.performanceSettings.performanceModeActive;
+        const uiState = this.gameSettings.performanceMode;
+        if (engineState !== uiState) {
+          console.warn(`🚨 [EngineCore] Performance mode state mismatch detected! Engine: ${engineState}, UI: ${uiState}`);
+          // Fix by making engine state match UI state
+          this.performanceSettings.performanceModeActive = uiState;
+        }
       }
+      
+      // Mobile device detection and auto-enable logic moved here for proper engine integration
+      this.handleMobileDeviceDetection();
+      
     } catch (error) {
       console.error('Error loading game settings:', error);
     }
@@ -177,31 +236,56 @@ export class EngineCore {
   }
 
   applyPerformanceMode(enabled: boolean): void {
+    const wasActive = this.performanceSettings.performanceModeActive;
+    
+    // Update performance settings first
     this.performanceSettings.performanceModeActive = enabled;
     
-    if (enabled) {
+    if (enabled && !wasActive) {
       // Enable performance optimizations
       this.performanceSettings.shadowsEnabled = false;
       this.performanceSettings.dynamicMaxParticles = 150;
       this.performanceSettings.adaptiveTrailsActive = false;
       
-      // Update systems
+      // Disable auto-scaling to prevent conflicts
+      this.performanceSettings.autoScaleEnabled = false;
+      
+      // Update systems with new settings
       this.particleSystem.setMaxParticles(this.performanceSettings.dynamicMaxParticles);
       this.renderSystem.setShadowsEnabled(this.performanceSettings.shadowsEnabled);
       
-      console.log('🔧 Performance Mode activated - Shadows disabled, particles reduced to 150, trails disabled');
-    } else {
+      console.log('🔧 [EngineCore] Performance Mode activated - Systems updated');
+    } else if (!enabled && wasActive) {
       // Restore full quality
       this.performanceSettings.shadowsEnabled = true;
       this.performanceSettings.dynamicMaxParticles = 300;
       this.performanceSettings.adaptiveTrailsActive = true;
       
-      // Update systems
+      // Re-enable auto-scaling
+      this.performanceSettings.autoScaleEnabled = true;
+      
+      // Update systems with restored settings
       this.particleSystem.setMaxParticles(this.performanceSettings.dynamicMaxParticles);
       this.renderSystem.setShadowsEnabled(this.performanceSettings.shadowsEnabled);
       
-      console.log('🔧 Performance Mode deactivated - Full visual quality restored');
+      console.log('🔧 [EngineCore] Performance Mode deactivated - Full quality restored');
     }
+    
+    // Update game settings to keep UI in sync
+    this.gameSettings.performanceMode = enabled;
+    
+    // Notify UI of engine state change for real-time synchronization
+    window.dispatchEvent(new CustomEvent('enginePerformanceModeChanged', {
+      detail: {
+        performanceMode: enabled,
+        engineState: this.performanceSettings.performanceModeActive,
+        uiState: this.gameSettings.performanceMode,
+        source: 'engine'
+      }
+    }));
+    
+    // Note: localStorage writes removed from here to prevent I/O during engine operations
+    // Settings will be saved via throttled state updates or settings UI changes
   }
 
   updateSettings(newSettings: Partial<GameSettings>): void {
@@ -300,4 +384,49 @@ export class EngineCore {
   getAutoScalingEnabled(): boolean { return this.performanceSettings.autoScaleEnabled; }
   getPerformanceMode(): boolean { return this.performanceSettings.performanceModeActive; }
   getAutoPerformanceModeEnabled(): boolean { return this.performanceSettings.autoPerformanceModeEnabled; }
+
+  setPerformanceMode(enabled: boolean): void {
+    console.log(`🔧 [ENGINE] Setting performance mode: ${enabled}`);
+    
+    if (this.gameSettings.performanceMode === enabled) {
+      console.log('🔧 [ENGINE] Performance mode already at requested state, skipping');
+      return; // Avoid unnecessary work
+    }
+    
+    this.gameSettings.performanceMode = enabled;
+    
+    // Apply performance mode changes
+    this.applyPerformanceMode(enabled);
+    
+    // Store the setting
+    this.updateSettings({ performanceMode: enabled });
+    
+    console.log(`🔧 [ENGINE] Performance mode ${enabled ? 'enabled' : 'disabled'}`);
+  }
+
+  /**
+   * Get comprehensive performance mode state for debugging
+   */
+  getPerformanceModeDebugInfo(): {
+    engineState: boolean;
+    uiState: boolean;
+    autoModeEnabled: boolean;
+    isConsistent: boolean;
+  } {
+    const engineState = this.performanceSettings.performanceModeActive;
+    const uiState = this.gameSettings.performanceMode;
+    const autoModeEnabled = this.performanceSettings.autoPerformanceModeEnabled;
+    const isConsistent = engineState === uiState;
+    
+    if (!isConsistent) {
+      console.warn(`🚨 [DEBUG] Performance mode state inconsistency: Engine=${engineState}, UI=${uiState}`);
+    }
+    
+    return {
+      engineState,
+      uiState,
+      autoModeEnabled,
+      isConsistent
+    };
+  }
 }

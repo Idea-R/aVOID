@@ -151,31 +151,9 @@ export class PerformanceManager {
   }
   
   /**
-   * Apply performance mode optimizations
+   * Performance mode is handled by EngineCore - PerformanceManager only monitors
+   * Auto-performance mode detection is handled in handleAutoPerformanceMode()
    */
-  applyPerformanceMode(enabled: boolean, performanceSettings: PerformanceSettings): void {
-    performanceSettings.performanceModeActive = enabled;
-    
-    if (enabled) {
-      // Enable performance optimizations
-      performanceSettings.shadowsEnabled = false;
-      performanceSettings.dynamicMaxParticles = 150;
-      performanceSettings.adaptiveTrailsActive = false;
-      
-      this.lastScalingEvent = 'performance-mode-enabled';
-      this.scalingEventTime = Date.now();
-      console.log('🔧 Performance Mode activated - Shadows disabled, particles reduced to 150, trails disabled');
-    } else {
-      // Restore full quality
-      performanceSettings.shadowsEnabled = true;
-      performanceSettings.dynamicMaxParticles = 300;
-      performanceSettings.adaptiveTrailsActive = true;
-      
-      this.lastScalingEvent = 'performance-mode-disabled';
-      this.scalingEventTime = Date.now();
-      console.log('🔧 Performance Mode deactivated - Full visual quality restored');
-    }
-  }
   
   /**
    * Adjust timing for pause/resume

@@ -1,58 +1,106 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import Game from './components/Game';
 import PasswordResetModal from './components/PasswordResetModal';
 // import AuthTestPanel from './components/AuthTestPanel'; // Archived for now
 import { useAuthStore } from './store/authStore';
 // import { logSupabaseHealth } from './utils/supabaseCheck'; // Not currently used
 // import { quickAuthDiagnostic } from './utils/authDebugger'; // Archived for now
+import { setupPerformanceMonitoring } from './react-performance-monitor';
+
+// Initialize performance monitoring with VERY LOW thresholds to catch everything
+setupPerformanceMonitoring({
+  enabled: true,
+  enableConsoleLogging: true,
+  maxRendersPerSecond: 5,    // Very low - catch any excessive rendering
+  maxRenderTime: 10,         // 10ms threshold instead of 16ms
+  warningThreshold: 3        // Warn after just 3 renders in a second
+});
 
 function App() {
   const [gameStarted, setGameStarted] = useState(false);
   const [showPasswordReset, setShowPasswordReset] = useState(false);
   const [passwordResetSuccess, setPasswordResetSuccess] = useState(false);
   const { initialize, handlePasswordResetRedirect } = useAuthStore();
+  
+  // Refs to track timeouts for cleanup
+  const autoStartTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const successTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const gameRef = useRef<HTMLDivElement>(null);
+  const cleanupTimeoutsRef = useRef<number[]>([]);
+
+  // Cleanup function to clear all active timeouts
+  const cleanupTimeouts = useCallback(() => {
+    if (autoStartTimerRef.current) {
+      clearTimeout(autoStartTimerRef.current);
+      autoStartTimerRef.current = null;
+    }
+    if (successTimerRef.current) {
+      clearTimeout(successTimerRef.current);
+      successTimerRef.current = null;
+    }
+    cleanupTimeoutsRef.current.forEach(id => clearTimeout(id));
+    cleanupTimeoutsRef.current = [];
+  }, []);
 
   useEffect(() => {
     const initializeApp = async () => {
-      // Run comprehensive auth diagnostic - Archived for now
-      // await quickAuthDiagnostic();
-      
-      // Initialize auth
-      await initialize();
-      
-      // Check if this is a password reset redirect
-      const result = await handlePasswordResetRedirect();
-      
-      if (result.needsPasswordReset) {
-        setShowPasswordReset(true);
-        return; // Don't auto-start game if showing password reset
-      }
-      
-      if (result.error) {
-        console.error('Password reset redirect error:', result.error);
-        // You could show an error toast here if needed
-      }
-      
-      // Auto-start the game after a brief moment
-      const autoStartTimer = setTimeout(() => {
-        setGameStarted(true);
+      try {
+        // Run comprehensive auth diagnostic - Archived for now
+        // await quickAuthDiagnostic();
         
-        // Track auto-start engagement
-        if (typeof window !== 'undefined' && (window as any).gtag) {
-          (window as any).gtag('event', 'auto_start_triggered', {
-            event_category: 'engagement',
-            event_label: 'game_auto_started'
-          });
+        // Initialize auth
+        await initialize();
+        
+        // Check if this is a password reset redirect
+        const result = await handlePasswordResetRedirect();
+        
+        if (result.needsPasswordReset) {
+          setShowPasswordReset(true);
+          return; // Don't auto-start game if showing password reset
         }
-      }, 500); // Small delay to ensure smooth loading
-      
-      return () => clearTimeout(autoStartTimer);
+        
+        if (result.error) {
+          console.error('Password reset redirect error:', result.error);
+          // You could show an error toast here if needed
+        }
+        
+        // Auto-start the game after a brief moment
+        autoStartTimerRef.current = setTimeout(() => {
+          setGameStarted(true);
+          
+          // Track auto-start engagement
+          if (typeof window !== 'undefined' && (window as any).gtag) {
+            (window as any).gtag('event', 'auto_start_triggered', {
+              event_category: 'engagement',
+              event_label: 'game_auto_started'
+            });
+          }
+        }, 500); // Small delay to ensure smooth loading
+        
+      } catch (error) {
+        console.error('Failed to initialize app:', error);
+        // Fallback: start game anyway after error
+        autoStartTimerRef.current = setTimeout(() => {
+          setGameStarted(true);
+        }, 1000);
+      }
     };
     
     initializeApp();
-  }, [initialize, handlePasswordResetRedirect]);
 
-  const handleManualStart = () => {
+    // Cleanup function for useEffect
+    return () => {
+      cleanupTimeouts();
+    };
+  }, [initialize, handlePasswordResetRedirect, cleanupTimeouts]);
+
+  // Clean up timeouts when component unmounts
+  useEffect(() => {
+    return cleanupTimeouts;
+  }, [cleanupTimeouts]);
+
+  const handleManualStart = useCallback(() => {
+    cleanupTimeouts(); // Cancel any pending auto-start
     setGameStarted(true);
     
     // Track manual start
@@ -62,26 +110,47 @@ function App() {
         event_label: 'start_button_clicked'
       });
     }
-  };
+  }, [cleanupTimeouts]);
 
-  const handlePasswordResetSuccess = () => {
+  const handlePasswordResetSuccess = useCallback(() => {
     setPasswordResetSuccess(true);
     setShowPasswordReset(false);
     
     // Show success message for 3 seconds, then start game
-    setTimeout(() => {
+    successTimerRef.current = setTimeout(() => {
       setPasswordResetSuccess(false);
       setGameStarted(true);
     }, 3000);
-  };
+  }, []);
 
-  const handlePasswordResetClose = () => {
+  const handlePasswordResetClose = useCallback(() => {
     setShowPasswordReset(false);
     setGameStarted(true); // Start game even if they cancel
-  };
+  }, []);
+
+  useEffect(() => {
+    // Handle visibility changes more efficiently
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        console.log('🔧 App hidden - pausing performance monitoring');
+        // Could pause monitoring here if needed
+      } else {
+        console.log('🔧 App visible - resuming performance monitoring');
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      // Clean up any remaining timeouts
+      cleanupTimeoutsRef.current.forEach(id => clearTimeout(id));
+      cleanupTimeoutsRef.current = [];
+    };
+  }, []);
 
   return (
-    <div className="min-h-screen bg-black text-cyan-500 flex items-center justify-center relative overflow-hidden">
+    <div className="App h-screen w-screen overflow-hidden bg-black relative" ref={gameRef}>
       <Game autoStart={gameStarted} />
       
       {/* Temporary Auth Debugger - Archived for now */}
@@ -117,6 +186,8 @@ function App() {
           Start Game
         </button>
       )}
+
+
     </div>
   );
 }
