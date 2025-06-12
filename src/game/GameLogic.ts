@@ -263,6 +263,11 @@ export class GameLogic {
   }
 
   getSettings(): GameSettings {
-    return { ...this.settings };
+    return this.settings;
+  }
+
+  // Add missing getSpatialGrid method
+  getSpatialGrid(): SpatialGrid {
+    return this.spatialGrid;
   }
 }

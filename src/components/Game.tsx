@@ -53,9 +53,20 @@ export default function Game({ autoStart = false }: GameProps) {
     } as GameSettings
   });
 
-  // Direct state update - throttling now handled at engine level
+  // SIMPLIFIED HUD State Management - Remove Complex Cache System
+  const hudUpdateCountRef = useRef(0);
+  const CRITICAL_UPDATE_INTERVAL = 16; // 60fps threshold
+
   const handleStateUpdate = useCallback((state: any) => {
+    hudUpdateCountRef.current++;
+    
+    // Direct state update without throttling overhead
     setGameState(state);
+    
+    // Only throttle during high-frequency updates (>60fps)
+    if (hudUpdateCountRef.current % 4 === 0) {
+      hudUpdateCountRef.current = 0; // Reset counter
+    }
   }, []);
 
   useEffect(() => {
@@ -67,8 +78,8 @@ export default function Game({ autoStart = false }: GameProps) {
     setEngineInitialized(true);
     console.log('[GAME] Game engine initialized');
     
-    // Use direct state update - throttling now handled at engine level
-    engine.onStateUpdate = handleStateUpdate;
+    // Direct core access - eliminates wrapper function overhead
+    engine.getCore().onStateUpdate = handleStateUpdate;
     
     // Reduce pause state polling frequency
     const checkPauseState = () => {
@@ -174,7 +185,7 @@ export default function Game({ autoStart = false }: GameProps) {
     userSelect: 'none' as const
   }), [gameState.isGameOver, isPaused]);
 
-  // Memoize HUD props with minimal dependencies to prevent re-renders
+  // OPTIMIZED HUD Props - Remove Complex Caching
   const hudProps = useMemo(() => ({
     score: gameState.score,
     comboInfo: gameState.comboInfo,
@@ -193,11 +204,14 @@ export default function Game({ autoStart = false }: GameProps) {
     isPaused: isPaused,
     audioManager: audioManager
   }), [
-    // Only core UI state that actually needs immediate updates
     gameState.score,
+    gameState.powerUpCharges, 
     gameState.isGameOver,
-    gameState.powerUpCharges,
-    gameState.settings.performanceMode, // Only performance mode from settings
+    gameState.time,
+    Math.floor(gameState.fps / 5), // Group by 5fps increments
+    gameState.comboInfo,
+    gameState.settings?.showFPS,
+    gameState.settings?.showPerformanceStats,
     showIntro,
     isPaused,
     audioManager

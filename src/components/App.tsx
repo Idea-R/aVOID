@@ -1,26 +1,29 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import Game from './components/Game';
 import PasswordResetModal from './components/PasswordResetModal';
+import SignupModal from './components/SignupModal';
 // import AuthTestPanel from './components/AuthTestPanel'; // Archived for now
 import { useAuthStore } from './store/authStore';
 // import { logSupabaseHealth } from './utils/supabaseCheck'; // Not currently used
 // import { quickAuthDiagnostic } from './utils/authDebugger'; // Archived for now
 import { setupPerformanceMonitoring } from './react-performance-monitor';
+import { UserCircle, UserPlus } from 'lucide-react';
 
-// Initialize performance monitoring with OPTIMIZED thresholds for production use
+// Initialize performance monitoring with VERY LOW thresholds to catch everything
 setupPerformanceMonitoring({
   enabled: true,
   enableConsoleLogging: true,
-  maxRendersPerSecond: 8,    // Increased from 5 to account for optimizations
-  maxRenderTime: 25,         // Increased from 10ms to 25ms - more realistic threshold
-  warningThreshold: 6        // Increased from 3 to reduce noise
+  maxRendersPerSecond: 5,    // Very low - catch any excessive rendering
+  maxRenderTime: 10,         // 10ms threshold instead of 16ms
+  warningThreshold: 3        // Warn after just 3 renders in a second
 });
 
 function App() {
   const [gameStarted, setGameStarted] = useState(false);
   const [showPasswordReset, setShowPasswordReset] = useState(false);
+  const [showSignup, setShowSignup] = useState(false);
   const [passwordResetSuccess, setPasswordResetSuccess] = useState(false);
-  const { initialize, handlePasswordResetRedirect } = useAuthStore();
+  const { user, initialize, handlePasswordResetRedirect } = useAuthStore();
   
   // Refs to track timeouts for cleanup
   const autoStartTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -99,18 +102,14 @@ function App() {
     return cleanupTimeouts;
   }, [cleanupTimeouts]);
 
-  const handleManualStart = useCallback(() => {
-    cleanupTimeouts(); // Cancel any pending auto-start
-    setGameStarted(true);
+  const handlePasswordResetClose = useCallback(() => {
+    setShowPasswordReset(false);
     
-    // Track manual start
-    if (typeof window !== 'undefined' && (window as any).gtag) {
-      (window as any).gtag('event', 'manual_start_clicked', {
-        event_category: 'engagement',
-        event_label: 'start_button_clicked'
-      });
-    }
-  }, [cleanupTimeouts]);
+    // Start the game after closing password reset modal
+    autoStartTimerRef.current = setTimeout(() => {
+      setGameStarted(true);
+    }, 500);
+  }, []);
 
   const handlePasswordResetSuccess = useCallback(() => {
     setPasswordResetSuccess(true);
@@ -123,30 +122,24 @@ function App() {
     }, 3000);
   }, []);
 
-  const handlePasswordResetClose = useCallback(() => {
-    setShowPasswordReset(false);
-    setGameStarted(true); // Start game even if they cancel
+  const handleManualStart = useCallback(() => {
+    setGameStarted(true);
+    
+    // Track manual start engagement
+    if (typeof window !== 'undefined' && (window as any).gtag) {
+      (window as any).gtag('event', 'manual_start_clicked', {
+        event_category: 'engagement',
+        event_label: 'manual_game_start'
+      });
+    }
   }, []);
 
-  useEffect(() => {
-    // Handle visibility changes more efficiently
-    const handleVisibilityChange = () => {
-      if (document.hidden) {
-        console.log('🔧 App hidden - pausing performance monitoring');
-        // Could pause monitoring here if needed
-      } else {
-        console.log('🔧 App visible - resuming performance monitoring');
-      }
-    };
+  const handleSignupOpen = useCallback(() => {
+    setShowSignup(true);
+  }, []);
 
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-      // Clean up any remaining timeouts
-      cleanupTimeoutsRef.current.forEach(id => clearTimeout(id));
-      cleanupTimeoutsRef.current = [];
-    };
+  const handleSignupClose = useCallback(() => {
+    setShowSignup(false);
   }, []);
 
   return (
@@ -176,20 +169,70 @@ function App() {
         onClose={handlePasswordResetClose}
         onSuccess={handlePasswordResetSuccess}
       />
+
+      {/* Main Page Signup Modal */}
+      <SignupModal
+        isOpen={showSignup}
+        onClose={handleSignupClose}
+        playerScore={0}
+        playerName=""
+      />
       
-      {/* Fallback manual start button */}
+      {/* Pre-Game Authentication UI */}
       {!gameStarted && !showPasswordReset && !passwordResetSuccess && (
-        <button
-          onClick={handleManualStart}
-          className="absolute top-4 left-4 bg-cyan-600 hover:bg-cyan-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors duration-200 z-50 opacity-80 hover:opacity-100"
-        >
-          Start Game
-        </button>
+        <div className="absolute inset-0 flex flex-col items-center justify-center z-40 bg-black/50">
+          {/* Welcome Message */}
+          <div className="text-center mb-8 px-4">
+            <h1 className="text-4xl sm:text-6xl font-bold text-cyan-500 mb-4">aVOID</h1>
+            <p className="text-lg sm:text-xl text-cyan-300 mb-2">Browser Dodge Game</p>
+            <p className="text-sm text-gray-400">Dodge meteors, collect power-ups, survive!</p>
+          </div>
+
+          {/* Authentication Section */}
+          <div className="bg-gray-900/90 backdrop-blur-sm border border-cyan-500/50 rounded-lg p-6 mb-8 max-w-sm w-full mx-4">
+            {user ? (
+              <div className="text-center">
+                <div className="flex items-center justify-center gap-2 mb-3">
+                  <UserCircle className="w-6 h-6 text-cyan-400" />
+                  <span className="text-cyan-300 font-semibold">
+                    Welcome back, {user.user_metadata?.display_name || user.email?.split('@')[0]}!
+                  </span>
+                </div>
+                <p className="text-sm text-gray-400 mb-4">Your scores will be saved automatically</p>
+              </div>
+            ) : (
+              <div className="text-center">
+                <div className="flex items-center justify-center gap-2 mb-3">
+                  <UserPlus className="w-6 h-6 text-cyan-400" />
+                  <span className="text-cyan-300 font-semibold">Join the Competition</span>
+                </div>
+                <p className="text-sm text-gray-400 mb-4">
+                  Sign up to save your scores and compete on the verified leaderboard
+                </p>
+                <button
+                  onClick={handleSignupOpen}
+                  className="w-full bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 text-white font-bold py-3 px-4 rounded transition-all duration-200 transform hover:scale-105 shadow-lg mb-3"
+                >
+                  Sign Up / Sign In
+                </button>
+                <p className="text-xs text-gray-500">
+                  Or play as guest (scores won't be saved)
+                </p>
+              </div>
+            )}
+          </div>
+
+          {/* Start Game Button */}
+          <button
+            onClick={handleManualStart}
+            className="bg-cyan-600 hover:bg-cyan-700 text-white px-8 py-4 rounded-lg text-lg font-semibold transition-colors duration-200 shadow-lg transform hover:scale-105"
+          >
+            Start Game
+          </button>
+        </div>
       )}
-
-
     </div>
   );
 }
 
-export default App;
+export default App; 

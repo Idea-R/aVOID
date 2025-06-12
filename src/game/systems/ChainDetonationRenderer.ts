@@ -1,14 +1,34 @@
 import { ChainDetonation, ChainFragment } from '../entities/ChainDetonation';
 
 export class ChainDetonationRenderer {
-  private ctx: CanvasRenderingContext2D;
   private canvas: HTMLCanvasElement;
+  private ctx: CanvasRenderingContext2D;
+  
+  // Performance optimization properties
+  private isMobile: boolean;
+  private performanceMode: boolean;
+  private fragmentCache: Map<string, ImageData> = new Map();
+  private lastCacheTime: number = 0;
+  private readonly CACHE_DURATION = 100; // Cache for 100ms
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
-    const context = canvas.getContext('2d');
-    if (!context) throw new Error('Could not get canvas context');
-    this.ctx = context;
+    this.ctx = canvas.getContext('2d')!;
+    
+    // Detect mobile device for performance optimizations
+    this.isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
+                    window.innerWidth < 768;
+    this.performanceMode = this.isMobile; // Default to performance mode on mobile
+    
+    console.log('🔗🎨 ChainDetonationRenderer initialized:', {
+      isMobile: this.isMobile,
+      performanceMode: this.performanceMode
+    });
+  }
+
+  // Update performance mode based on current settings
+  updatePerformanceMode(enabled: boolean): void {
+    this.performanceMode = enabled || this.isMobile; // Always use performance mode on mobile
   }
 
   renderChainDetonation(chain: ChainDetonation): void {
@@ -34,6 +54,17 @@ export class ChainDetonationRenderer {
   }
 
   private renderScreenEffects(chain: ChainDetonation): void {
+    // Skip intensive screen effects in performance mode
+    if (this.performanceMode) {
+      // Simple flash effect for mobile
+      if (chain.screenEffect.pulseIntensity > 0) {
+        this.ctx.fillStyle = `rgba(138, 43, 226, ${chain.screenEffect.pulseIntensity * 0.05})`;
+        this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+      }
+      return;
+    }
+    
+    // Full effects for desktop
     // Purple edge glow
     if (chain.screenEffect.edgeGlow > 0) {
       const gradient = this.ctx.createRadialGradient(
@@ -130,11 +161,39 @@ export class ChainDetonationRenderer {
   private renderActiveFragment(fragment: ChainFragment, timeRatio: number): void {
     this.ctx.save();
     
+    this.ctx.translate(fragment.x, fragment.y);
+    
+    // Performance mode: simplified rendering
+    if (this.performanceMode) {
+      // Simple circular fragment for mobile
+      const pulseScale = 1 + Math.sin(fragment.pulsePhase) * 0.1; // Reduced animation
+      this.ctx.scale(pulseScale, pulseScale);
+      
+      // Simple color based on time
+      let fragmentColor = '#9d4edd';
+      if (timeRatio < 0.3) fragmentColor = '#ff6b6b';
+      else if (timeRatio < 0.6) fragmentColor = '#ffa726';
+      
+      // Simple circle with minimal effects
+      this.ctx.beginPath();
+      this.ctx.arc(0, 0, 12, 0, Math.PI * 2);
+      this.ctx.fillStyle = fragmentColor;
+      this.ctx.fill();
+      
+      // Simple border
+      this.ctx.strokeStyle = '#ffffff';
+      this.ctx.lineWidth = 2;
+      this.ctx.stroke();
+      
+      this.ctx.restore();
+      return;
+    }
+    
+    // Full desktop rendering with all effects
     console.log(`🔗🎨 Rendering active fragment at x=${fragment.x}, y=${fragment.y}`);
     
     // Pulsing scale
     const pulseScale = 1 + Math.sin(fragment.pulsePhase) * 0.2;
-    this.ctx.translate(fragment.x, fragment.y);
     this.ctx.scale(pulseScale, pulseScale);
     
     // Fragment color based on time remaining

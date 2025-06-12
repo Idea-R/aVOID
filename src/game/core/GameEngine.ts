@@ -3,7 +3,6 @@
 
 import { GameEngineCore } from './GameEngineCore';
 import { GameEngineUtilities } from './GameEngineUtilities';
-import { GameStateData } from '../state/GameState';
 import { GameSettings } from '../GameLogic';
 
 /**
@@ -14,21 +13,18 @@ export default class GameEngine {
   private core: GameEngineCore;
   private utilities: GameEngineUtilities;
 
-  // State callbacks - forwarded to core
-  onStateUpdate: (state: GameStateData) => void = () => {};
-
   constructor(canvas: HTMLCanvasElement) {
     console.log('[ENGINE] GameEngine constructor called');
-    
+
     this.core = new GameEngineCore(canvas);
     this.utilities = new GameEngineUtilities(this.core);
     
-    // Forward state updates from core to public API
-    this.core.onStateUpdate = (state: GameStateData) => {
-      this.onStateUpdate(state);
-    };
-    
     console.log('[ENGINE] GameEngine initialized successfully');
+  }
+
+  // Expose core for direct access (eliminates wrapper functions)
+  getCore(): GameEngineCore {
+    return this.core;
   }
 
   // Core lifecycle methods - delegate to core
@@ -76,7 +72,7 @@ export default class GameEngine {
   
   setPerformanceMode(enabled: boolean): void {
     this.utilities.setPerformanceMode(enabled);
-    // Trigger priority update for immediate UI feedback
+    // Trigger priority update for immediate UI feedback via direct core access
     this.core.triggerPriorityUpdate();
   }
   

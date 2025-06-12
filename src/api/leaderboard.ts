@@ -173,19 +173,30 @@ export class LeaderboardAPI {
   }
 
   static subscribeToLeaderboard(callback: (scores: LeaderboardScore[]) => void) {
+    let debounceTimer: NodeJS.Timeout | null = null;
+    
+    const debouncedCallback = async () => {
+      if (debounceTimer) {
+        clearTimeout(debounceTimer);
+      }
+      
+      debounceTimer = setTimeout(async () => {
+        const scores = await this.getTopScores();
+        callback(scores);
+      }, 500); // 500ms debounce to prevent rapid updates
+    };
+
     const subscription = supabase
       .channel('leaderboard_changes')
       .on(
         'postgres_changes',
         {
-          event: '*',
+          event: 'INSERT', // Only listen for new scores, not all changes
           schema: 'public',
-          table: 'leaderboard_scores'
+          table: 'leaderboard_scores',
+          filter: 'is_verified=eq.true' // Only verified scores affect leaderboard
         },
-        async () => {
-          const scores = await this.getTopScores();
-          callback(scores);
-        }
+        debouncedCallback
       )
       .subscribe();
 

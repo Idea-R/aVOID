@@ -47,6 +47,29 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   signIn: async (email: string, password: string) => {
     try {
+      // Development mode test account bypass - accept both username and email format
+      if (import.meta.env.DEV && 
+          (email === 'test' || email === 'test@localhost.dev') && 
+          password === 'TestTest123!') {
+        console.log('🧪 Development mode: Using test account bypass');
+        
+        // Create a mock user for testing
+        const mockUser = {
+          id: 'test-user-id',
+          email: 'test@localhost.dev',
+          user_metadata: {
+            display_name: 'Test User'
+          },
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          aud: 'authenticated',
+          role: 'authenticated'
+        } as any; // Using 'any' to bypass strict typing for test user
+        
+        set({ user: mockUser });
+        return { success: true, user: mockUser };
+      }
+      
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password

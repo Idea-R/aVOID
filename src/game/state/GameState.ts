@@ -2,7 +2,8 @@
 // Original Engine.ts: 887 lines -> Refactored into modular architecture
 
 import { ScoreBreakdown, ComboInfo } from '../systems/ScoreSystem';
-import { GameSettings, GameStats } from '../GameLogic';
+import { GameSettings } from '../GameLogic';
+import { GameStats } from '../managers/GameStatsManager';
 
 /**
  * GameState manages game state updates and user statistics.

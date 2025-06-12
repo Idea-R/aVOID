@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { X, Settings, Heart } from 'lucide-react';
-import AudioSettingsSection from './settings/AudioSettingsSection';
-import VisualSettingsSection from './settings/VisualSettingsSection';
+import { X, Settings, Users } from 'lucide-react';
+import PerformanceSettingsSection from './settings/PerformanceSettingsSection';
 import SocialSupportSection from './settings/SocialSupportSection';
 
 interface SettingsModalProps {
@@ -150,7 +149,7 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                   : 'bg-cyan-700 text-white hover:bg-cyan-600'
               }`}
             >
-              <Heart className="w-4 h-4 inline mr-2" />
+              <Users className="w-4 h-4 inline mr-2" />
               Support & Social
             </button>
           </div>
@@ -159,20 +158,15 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
         {/* Content */}
         <div className="p-6 max-h-96 overflow-y-auto">
           {activeTab === 'settings' ? (
-            <div className="space-y-6">
-              <AudioSettingsSection 
-                settings={settings} 
-                updateSetting={updateSetting} 
-              />
-              
-              <VisualSettingsSection 
-                settings={settings} 
-                autoPerformanceModeEnabled={autoPerformanceModeEnabled}
-                updateSetting={updateSetting} 
-                toggleAutoPerformanceMode={toggleAutoPerformanceMode}
-              />
+                          <div className="space-y-6">
+                <PerformanceSettingsSection 
+                  settings={settings} 
+                  autoPerformanceModeEnabled={autoPerformanceModeEnabled}
+                  updateSetting={updateSetting} 
+                  toggleAutoPerformanceMode={toggleAutoPerformanceMode}
+                />
 
-              {/* Reset Settings */}
+                {/* Reset Settings */}
               <div className="flex justify-center">
                 <button
                   onClick={resetSettings}

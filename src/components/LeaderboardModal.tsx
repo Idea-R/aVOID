@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Trophy, Star, Users, X, UserCircle } from 'lucide-react';
 import { LeaderboardAPI, LeaderboardScore } from '../api/leaderboard';
 import { useAuthStore } from '../store/authStore';
@@ -16,37 +16,79 @@ export default function LeaderboardModal({ isOpen, onClose, playerScore }: Leade
   const [loading, setLoading] = useState(true);
   const [showProfile, setShowProfile] = useState(false);
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
+  const [subscriptionActive, setSubscriptionActive] = useState(false);
   
   const { user } = useAuthStore();
 
+  // Stable subscription ref to prevent re-creation
+  const subscriptionRef = useRef<any>(null);
+
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen) {
+      // Cleanup subscription when modal closes
+      if (subscriptionRef.current) {
+        subscriptionRef.current.unsubscribe();
+        subscriptionRef.current = null;
+        setSubscriptionActive(false);
+      }
+      return;
+    }
 
     const loadLeaderboard = async () => {
       setLoading(true);
-      const topScores = await LeaderboardAPI.getTopScores(10);
-      setScores(topScores);
+      try {
+        const topScores = await LeaderboardAPI.getTopScores(10);
+        setScores(topScores);
 
-      if (playerScore !== undefined) {
-        // Use verified rank for leaderboard positioning
-        const rank = await LeaderboardAPI.getVerifiedPlayerRank(playerScore);
-        setPlayerRank(rank);
+        if (playerScore !== undefined) {
+          // Use verified rank for leaderboard positioning
+          const rank = await LeaderboardAPI.getVerifiedPlayerRank(playerScore);
+          setPlayerRank(rank);
+        }
+      } catch (error) {
+        console.error('Error loading leaderboard:', error);
+      } finally {
+        setLoading(false);
       }
-
-      setLoading(false);
     };
 
     loadLeaderboard();
 
-    // Subscribe to real-time updates
-    const subscription = LeaderboardAPI.subscribeToLeaderboard((newScores) => {
-      setScores(newScores);
-    });
+    // Only create subscription if not already active
+    if (!subscriptionActive && !subscriptionRef.current) {
+      try {
+        const subscription = LeaderboardAPI.subscribeToLeaderboard((newScores) => {
+          // Prevent unnecessary updates if modal is closed
+          if (isOpen) {
+            setScores(newScores);
+          }
+        });
+        
+        subscriptionRef.current = subscription;
+        setSubscriptionActive(true);
+        console.log('📈 Leaderboard subscription created');
+      } catch (error) {
+        console.error('Error creating leaderboard subscription:', error);
+      }
+    }
 
+    // Cleanup on unmount
     return () => {
-      subscription.unsubscribe();
+      if (subscriptionRef.current) {
+        subscriptionRef.current.unsubscribe();
+        subscriptionRef.current = null;
+        setSubscriptionActive(false);
+        console.log('📈 Leaderboard subscription cleaned up');
+      }
     };
-  }, [isOpen, playerScore]);
+  }, [isOpen]); // Only depend on isOpen to prevent constant re-creation
+
+  // Separate effect for playerScore changes
+  useEffect(() => {
+    if (isOpen && playerScore !== undefined) {
+      LeaderboardAPI.getVerifiedPlayerRank(playerScore).then(setPlayerRank);
+    }
+  }, [playerScore, isOpen]);
 
   const handleProfileClick = (userId: string | null) => {
     if (!userId) return;

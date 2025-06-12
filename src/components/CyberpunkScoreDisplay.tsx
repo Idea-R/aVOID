@@ -15,14 +15,15 @@ export default function CyberpunkScoreDisplay({ score }: CyberpunkScoreDisplayPr
   useEffect(() => {
     if (score !== displayScore) {
       const difference = score - displayScore;
-      const increment = Math.ceil(Math.abs(difference) / 10);
+      // Make animation much more fluid - smaller increments, faster updates
+      const increment = Math.max(1, Math.ceil(Math.abs(difference) / 30)); // Reduced from /10 to /30
       const timer = setTimeout(() => {
         if (score > displayScore) {
           setDisplayScore(prev => Math.min(prev + increment, score));
         } else {
           setDisplayScore(prev => Math.max(prev - increment, score));
         }
-      }, 16); // ~60fps
+      }, 8); // Reduced from 16ms to 8ms for smoother animation (~120fps)
 
       return () => clearTimeout(timer);
     }

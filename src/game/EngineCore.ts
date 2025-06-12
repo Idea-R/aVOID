@@ -142,32 +142,34 @@ export class EngineCore {
   }
 
   private handleMobileDeviceDetection(): void {
-    // Mobile device detection and auto-enable logic
-    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
-                     window.innerWidth <= 768;
-    
-    // Only auto-enable on first visit (no saved settings)
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
     const hasExistingSettings = localStorage.getItem('avoidGameSettings');
     
     if (isMobile && !hasExistingSettings) {
-      console.log('🔧 [EngineCore] Mobile device detected - Auto-enabling performance mode');
+      console.log('🔧 [EngineCore] Mobile device detected - Suggesting performance mode (user choice preserved)');
       
-      // Update both UI and engine states
-      this.gameSettings.performanceMode = true;
+      // Enable auto-performance mode detection but don't force it on
       this.performanceSettings.autoPerformanceModeEnabled = true;
       
-      // Apply performance mode to engine systems
-      this.applyPerformanceMode(true);
-      
-      // Save the settings
+      // Save suggestion settings but don't force performance mode
       const settingsToSave = {
         ...this.gameSettings,
-        autoPerformanceModeEnabled: true
+        autoPerformanceModeEnabled: true,
+        // Don't force performanceMode: true - let user decide
       };
       localStorage.setItem('avoidGameSettings', JSON.stringify(settingsToSave));
-      localStorage.setItem('avoidGameAutoPerformanceMode', 'true');
+      localStorage.setItem('avoidGameAutoPerformanceMode', 'suggested'); // Changed from 'true'
       
-      console.log('🔧 [EngineCore] Mobile performance mode enabled and saved');
+      // Dispatch suggestion event instead of forcing activation
+      window.dispatchEvent(new CustomEvent('mobilePerformanceSuggestion', {
+        detail: {
+          suggested: true,
+          reason: 'Mobile device detected',
+          autoEnabled: true
+        }
+      }));
+      
+      console.log('🔧 [EngineCore] Mobile performance mode suggested (not forced) and auto-detection enabled');
     }
   }
 
@@ -388,9 +390,22 @@ export class EngineCore {
   setPerformanceMode(enabled: boolean): void {
     console.log(`🔧 [ENGINE] Setting performance mode: ${enabled}`);
     
-    if (this.gameSettings.performanceMode === enabled) {
+    // Get current states for validation
+    const currentEngineState = this.performanceSettings.performanceModeActive;
+    const currentUIState = this.gameSettings.performanceMode;
+    
+    // Log current state for debugging
+    console.log(`🔧 [ENGINE] Current states - Engine: ${currentEngineState}, UI: ${currentUIState}, Requested: ${enabled}`);
+    
+    if (this.gameSettings.performanceMode === enabled && this.performanceSettings.performanceModeActive === enabled) {
       console.log('🔧 [ENGINE] Performance mode already at requested state, skipping');
-      return; // Avoid unnecessary work
+      return; // Both states match requested state
+    }
+    
+    // Fix any state inconsistencies before applying change
+    if (currentEngineState !== currentUIState) {
+      console.warn(`🚨 [ENGINE] State inconsistency detected! Engine: ${currentEngineState}, UI: ${currentUIState} - Synchronizing...`);
+      this.performanceSettings.performanceModeActive = currentUIState;
     }
     
     this.gameSettings.performanceMode = enabled;
@@ -401,7 +416,15 @@ export class EngineCore {
     // Store the setting
     this.updateSettings({ performanceMode: enabled });
     
-    console.log(`🔧 [ENGINE] Performance mode ${enabled ? 'enabled' : 'disabled'}`);
+    // Validate final state
+    const finalEngineState = this.performanceSettings.performanceModeActive;
+    const finalUIState = this.gameSettings.performanceMode;
+    
+    if (finalEngineState === finalUIState && finalEngineState === enabled) {
+      console.log(`🔧 [ENGINE] Performance mode ${enabled ? 'enabled' : 'disabled'} successfully - States synchronized`);
+    } else {
+      console.error(`🚨 [ENGINE] Performance mode state synchronization failed! Engine: ${finalEngineState}, UI: ${finalUIState}, Expected: ${enabled}`);
+    }
   }
 
   /**

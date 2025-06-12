@@ -10,6 +10,62 @@ export class ParticleUtils {
   }
 
   /**
+   * Advanced device capability detection for better performance scaling
+   */
+  static getDeviceCapabilities(): {
+    isMobile: boolean;
+    isLowEnd: boolean;
+    memoryLevel: 'low' | 'medium' | 'high';
+    gpuLevel: 'low' | 'medium' | 'high';
+    batteryLevel: 'unknown' | 'low' | 'medium' | 'high';
+  } {
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
+                     window.innerWidth < 768;
+    
+    // Memory detection
+    const nav = navigator as any;
+    const deviceMemory = nav.deviceMemory || 2; // Default to 2GB if unknown
+    const memoryLevel = deviceMemory < 2 ? 'low' : deviceMemory < 4 ? 'medium' : 'high';
+    
+    // Hardware concurrency (CPU cores)
+    const cores = nav.hardwareConcurrency || 2;
+    const isLowEnd = cores < 4 || deviceMemory < 2;
+    
+    // GPU detection (basic heuristic)
+    const canvas = document.createElement('canvas');
+    const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+    let gpuLevel: 'low' | 'medium' | 'high' = 'medium';
+    
+    if (gl) {
+      const debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
+      const renderer = debugInfo ? gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL) : '';
+      
+      if (renderer.toLowerCase().includes('intel') || renderer.toLowerCase().includes('software')) {
+        gpuLevel = 'low';
+      } else if (renderer.toLowerCase().includes('nvidia') || renderer.toLowerCase().includes('amd')) {
+        gpuLevel = 'high';
+      }
+    }
+    
+    // Battery detection (if available)
+    let batteryLevel: 'unknown' | 'low' | 'medium' | 'high' = 'unknown';
+    if ('getBattery' in navigator) {
+      // Note: Battery API is deprecated but still available in some browsers
+      try {
+        (navigator as any).getBattery().then((battery: any) => {
+          if (battery.level < 0.2) batteryLevel = 'low';
+          else if (battery.level < 0.5) batteryLevel = 'medium';
+          else batteryLevel = 'high';
+        });
+      } catch (e) {
+        // Silently fail if battery API not available
+      }
+    }
+    
+    return { isMobile, isLowEnd, memoryLevel, gpuLevel, batteryLevel };
+  }
+
+  /**
    * Get color variation for particle diversity
    */
   static getParticleColorVariation(baseColor: string, variation: number): string {
@@ -52,12 +108,60 @@ export class ParticleUtils {
   }
 
   /**
-   * Get performance-optimized particle settings
+   * Get performance-optimized particle settings with enhanced device detection
    */
   static getOptimizedParticleSettings(isMobile: boolean, currentFPS: number) {
-    const base = { maxParticles: isMobile ? 150 : 300, particleLifeMultiplier: 1.0, particleSizeMultiplier: 1.0, enableComplexEffects: true };
-    if (currentFPS < 30) return { ...base, maxParticles: Math.floor(base.maxParticles * 0.5), particleLifeMultiplier: 0.7, particleSizeMultiplier: 0.8, enableComplexEffects: false };
-    if (currentFPS < 45) return { ...base, maxParticles: Math.floor(base.maxParticles * 0.75), particleLifeMultiplier: 0.85, particleSizeMultiplier: 0.9, enableComplexEffects: !isMobile };
+    const capabilities = this.getDeviceCapabilities();
+    const base = { 
+      maxParticles: isMobile ? 150 : 300, 
+      particleLifeMultiplier: 1.0, 
+      particleSizeMultiplier: 1.0, 
+      enableComplexEffects: true,
+      renderQuality: 1.0
+    };
+    
+    // Adjust based on memory level
+    if (capabilities.memoryLevel === 'low') {
+      base.maxParticles = Math.floor(base.maxParticles * 0.5);
+      base.particleLifeMultiplier = 0.6;
+      base.enableComplexEffects = false;
+      base.renderQuality = 0.7;
+    } else if (capabilities.memoryLevel === 'medium') {
+      base.maxParticles = Math.floor(base.maxParticles * 0.75);
+      base.particleLifeMultiplier = 0.8;
+      base.renderQuality = 0.85;
+    }
+    
+    // Adjust based on GPU level
+    if (capabilities.gpuLevel === 'low') {
+      base.maxParticles = Math.floor(base.maxParticles * 0.6);
+      base.enableComplexEffects = false;
+      base.renderQuality = 0.6;
+    }
+    
+    // FPS-based dynamic adjustments
+    if (currentFPS < 30) {
+      return { 
+        ...base, 
+        maxParticles: Math.floor(base.maxParticles * 0.4), 
+        particleLifeMultiplier: 0.5, 
+        particleSizeMultiplier: 0.7, 
+        enableComplexEffects: false,
+        renderQuality: 0.5
+      };
+    }
+    
+    if (currentFPS < 45) {
+      return { 
+        ...base, 
+        maxParticles: Math.floor(base.maxParticles * 0.7), 
+        particleLifeMultiplier: 0.75, 
+        particleSizeMultiplier: 0.85, 
+        enableComplexEffects: !isMobile,
+        renderQuality: 0.75
+      };
+    }
+    
     return base;
   }
 

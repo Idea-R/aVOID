@@ -1,18 +1,10 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Trophy, Eye, RotateCcw, Settings, UserCircle, UserPlus, HelpCircle, Music } from 'lucide-react';
-import { LeaderboardAPI } from '../api/leaderboard';
 import { useAuthStore } from '../store/authStore';
 import { ScoreBreakdown, ComboInfo } from '../game/systems/ScoreSystem';
-import SignupModal from './SignupModal';
-import LeaderboardModal from './LeaderboardModal';
-import AccountModal from './AccountModal';
-import SettingsModal from './SettingsModal';
-import ProfileModal from './ProfileModal';
-import HelpModal from './HelpModal';
-import MusicControls from './MusicControls';
 import ScoreDisplay from './game/ScoreDisplay';
-import PlayerRanking from './game/PlayerRanking';
-import ScoreSaving from './game/ScoreSaving';
+import GameOverActions from './game/GameOverActions';
+import GameOverModals from './game/GameOverModals';
 import logoImage from '../assets/Futuristic aVOID with Fiery Meteors.png';
 
 interface GameOverScreenProps {
@@ -25,49 +17,20 @@ interface GameOverScreenProps {
 
 // Memoized icon components to prevent re-creation
 const MemoizedTrophy = React.memo(Trophy);
-const MemoizedEye = React.memo(Eye);
-const MemoizedRotateCcw = React.memo(RotateCcw);
-const MemoizedSettings = React.memo(Settings);
-const MemoizedUserCircle = React.memo(UserCircle);
-const MemoizedUserPlus = React.memo(UserPlus);
-const MemoizedHelpCircle = React.memo(HelpCircle);
-const MemoizedMusic = React.memo(Music);
 
 function GameOverScreen({ score, scoreBreakdown, comboInfo, onPlayAgain, audioManager }: GameOverScreenProps) {
-  const [showSignup, setShowSignup] = useState(false);
-  const [showLeaderboard, setShowLeaderboard] = useState(false);
-  const [showAccount, setShowAccount] = useState(false);
-  const [showSettings, setShowSettings] = useState(false);
-  const [showProfile, setShowProfile] = useState(false);
-  const [playerRank, setPlayerRank] = useState<number | null>(null);
-  const [verifiedRank, setVerifiedRank] = useState<number | null>(null);
-  const [logoVisible, setLogoVisible] = useState(false);
-  const [logoEnlarged, setLogoEnlarged] = useState(false);
-  const [showHelp, setShowHelp] = useState(false);
-  const [showMusicControls, setShowMusicControls] = useState(false);
+  // CONSOLIDATED state to reduce render cycles
+  const [uiState, setUIState] = useState({
+    logoVisible: false,
+    logoEnlarged: false,
+    activeModal: null as string | null
+  });
   
   const { user } = useAuthStore();
 
-  // Memoize button click handlers to prevent re-creation
-  const handleShowMusicControls = useCallback(() => setShowMusicControls(true), []);
-  const handleShowHelp = useCallback(() => setShowHelp(true), []);
-  const handleShowSettings = useCallback(() => setShowSettings(true), []);
-  const handleShowProfile = useCallback(() => setShowProfile(true), []);
-  const handleShowSignup = useCallback(() => setShowSignup(true), []);
-  const handleShowLeaderboard = useCallback(() => setShowLeaderboard(true), []);
-  const handleShowAccount = useCallback(() => setShowAccount(true), []);
-
-  // Memoize modal close handlers
-  const handleCloseSignup = useCallback(() => setShowSignup(false), []);
-  const handleCloseLeaderboard = useCallback(() => setShowLeaderboard(false), []);
-  const handleCloseAccount = useCallback(() => setShowAccount(false), []);
-  const handleCloseSettings = useCallback(() => setShowSettings(false), []);
-  const handleCloseProfile = useCallback(() => setShowProfile(false), []);
-  const handleCloseHelp = useCallback(() => setShowHelp(false), []);
-  const handleCloseMusicControls = useCallback(() => setShowMusicControls(false), []);
-
+  // BATCH state updates to prevent cascading renders
   const toggleLogoSize = useCallback(() => {
-    setLogoEnlarged(prev => !prev);
+    setUIState(prev => ({ ...prev, logoEnlarged: !prev.logoEnlarged }));
   }, []);
 
   const handlePlayAgain = useCallback(() => {
@@ -79,32 +42,28 @@ function GameOverScreen({ score, scoreBreakdown, comboInfo, onPlayAgain, audioMa
     }
   }, [onPlayAgain]);
 
+  const handleModalOpen = useCallback((modalType: string) => {
+    setUIState(prev => ({ ...prev, activeModal: modalType }));
+  }, []);
+
+  const handleModalClose = useCallback(() => {
+    setUIState(prev => ({ ...prev, activeModal: null }));
+  }, []);
+
   // Memoize user display name to prevent re-computation
   const userDisplayName = useMemo(() => {
     if (!user) return '';
     return user.user_metadata?.display_name || user.email?.split('@')[0] || 'Profile';
   }, [user?.user_metadata?.display_name, user?.email]);
 
+  // SINGLE effect with score-only dependency
   useEffect(() => {
     console.log('GameOverScreen mounted with score:', score);
     
-    // Trigger logo animation after a short delay
+    // Single state update for logo animation
     const logoTimer = setTimeout(() => {
-      setLogoVisible(true);
+      setUIState(prev => ({ ...prev, logoVisible: true }));
     }, 300);
-    
-    const getPlayerRanks = async () => {
-      // Get overall rank (including guests)
-      const overallRank = await LeaderboardAPI.getPlayerRank(score);
-      setPlayerRank(overallRank);
-      
-      // Get verified-only rank for leaderboard positioning
-      const verifiedOnlyRank = await LeaderboardAPI.getVerifiedPlayerRank(score);
-      setVerifiedRank(verifiedOnlyRank);
-      
-      console.log('Player ranks calculated - Overall:', overallRank, 'Verified:', verifiedOnlyRank);
-    };
-    getPlayerRanks();
     
     return () => {
       clearTimeout(logoTimer);
@@ -120,39 +79,39 @@ function GameOverScreen({ score, scoreBreakdown, comboInfo, onPlayAgain, audioMa
         <div 
           onClick={toggleLogoSize}
           className={`absolute cursor-pointer transition-all duration-700 ease-out ${
-            logoEnlarged 
+            uiState.logoEnlarged 
               ? 'inset-4 z-[60] flex items-center justify-center' 
-              : 'top-8 left-1/2 transform -translate-x-1/2 z-50'
+              : 'top-4 left-1/2 transform -translate-x-1/2 z-50 sm:top-8'
           } ${
-            logoVisible 
+            uiState.logoVisible 
               ? 'opacity-100 translate-y-0 scale-100' 
               : 'opacity-0 -translate-y-8 scale-95'
           }`}
         >
-          <div className={`${logoEnlarged ? 'bg-black/95 rounded-2xl p-8' : ''} transition-all duration-700`}>
+          <div className={`${uiState.logoEnlarged ? 'bg-black/95 rounded-2xl p-4 sm:p-8' : ''} transition-all duration-700`}>
             <img 
               src={logoImage} 
               alt="aVOID Logo" 
               className={`object-contain border border-cyan-500 rounded-lg p-2 bg-black/20 transition-all duration-700 ${
-                logoEnlarged 
-                  ? 'h-[60vh] sm:h-[70vh] md:h-[80vh] w-auto max-w-[90vw] shadow-2xl shadow-cyan-500/50' 
-                  : 'h-16 sm:h-24 md:h-32 lg:h-48 w-auto'
+                uiState.logoEnlarged 
+                  ? 'h-[50vh] sm:h-[60vh] md:h-[70vh] w-auto max-w-[90vw] shadow-2xl shadow-cyan-500/50' 
+                  : 'h-12 sm:h-16 md:h-24 lg:h-32 w-auto'
               }`}
             />
-            {logoEnlarged && (
-              <div className="text-center mt-6">
-                <p className="text-cyan-300 text-sm sm:text-base md:text-lg font-semibold mb-2">Click to close</p>
+            {uiState.logoEnlarged && (
+              <div className="text-center mt-4 sm:mt-6">
+                <p className="text-cyan-300 text-sm sm:text-base font-semibold mb-2">Tap to close</p>
                 <p className="text-cyan-500 text-xs sm:text-sm opacity-80 mb-4">aVOID - Browser Dodge Game</p>
                 
                 {/* Developer Social Media */}
                 <div className="border-t border-cyan-500/30 pt-4 mt-4">
                   <p className="text-cyan-400 text-sm font-medium mb-3">Follow the Developer</p>
-                  <div className="flex justify-center gap-4 flex-wrap">
+                  <div className="flex justify-center gap-2 sm:gap-4 flex-wrap">
                     <a
                       href="https://twitter.com/Xentrilo"
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="flex items-center gap-2 bg-blue-600/20 hover:bg-blue-600/40 text-blue-400 hover:text-blue-300 px-3 py-2 rounded-lg transition-all duration-200 text-sm"
+                      className="flex items-center gap-1 sm:gap-2 bg-blue-600/20 hover:bg-blue-600/40 text-blue-400 hover:text-blue-300 px-2 sm:px-3 py-2 rounded-lg transition-all duration-200 text-xs sm:text-sm"
                     >
                       <span>🐦</span>
                       <span>@Xentrilo</span>
@@ -161,7 +120,7 @@ function GameOverScreen({ score, scoreBreakdown, comboInfo, onPlayAgain, audioMa
                       href="https://twitch.tv/MadXent"
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="flex items-center gap-2 bg-purple-600/20 hover:bg-purple-600/40 text-purple-400 hover:text-purple-300 px-3 py-2 rounded-lg transition-all duration-200 text-sm"
+                      className="flex items-center gap-1 sm:gap-2 bg-purple-600/20 hover:bg-purple-600/40 text-purple-400 hover:text-purple-300 px-2 sm:px-3 py-2 rounded-lg transition-all duration-200 text-xs sm:text-sm"
                     >
                       <span>📺</span>
                       <span>MadXent</span>
@@ -170,7 +129,7 @@ function GameOverScreen({ score, scoreBreakdown, comboInfo, onPlayAgain, audioMa
                       href="https://github.com/Idea-R"
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="flex items-center gap-2 bg-gray-600/20 hover:bg-gray-600/40 text-gray-400 hover:text-gray-300 px-3 py-2 rounded-lg transition-all duration-200 text-sm"
+                      className="flex items-center gap-1 sm:gap-2 bg-gray-600/20 hover:bg-gray-600/40 text-gray-400 hover:text-gray-300 px-2 sm:px-3 py-2 rounded-lg transition-all duration-200 text-xs sm:text-sm"
                     >
                       <span>💻</span>
                       <span>Idea-R</span>
@@ -183,62 +142,15 @@ function GameOverScreen({ score, scoreBreakdown, comboInfo, onPlayAgain, audioMa
           </div>
         </div>
         
-        <div className={`bg-gray-900 p-8 rounded-lg shadow-xl border border-cyan-500 max-w-md w-full mx-4 transition-all duration-700 ${
-          logoEnlarged ? 'opacity-20 pointer-events-none' : 'opacity-100'
+        {/* Compact Game Over Panel */}
+        <div className={`bg-gray-900 p-3 sm:p-4 rounded-lg shadow-xl border border-cyan-500 max-w-xs sm:max-w-sm w-full mx-4 transition-all duration-700 ${
+          uiState.logoEnlarged ? 'opacity-20 pointer-events-none' : 'opacity-100'
         }`}>
-          {/* Header with Action Buttons */}
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center gap-3">
-              <MemoizedTrophy className="w-12 h-12 text-yellow-500" />
-              <h2 className="text-2xl font-bold text-cyan-500">Game Over!</h2>
-            </div>
-            
-            {/* Quick Action Buttons */}
-            <div className="flex gap-2">
-              {/* Music Controls Button */}
-              {audioManager && (
-                <button
-                  onClick={handleShowMusicControls}
-                  className="bg-purple-600 hover:bg-purple-700 text-white p-2 rounded-lg transition-colors duration-200"
-                  title="Music Controls"
-                >
-                  <MemoizedMusic className="w-4 h-4" />
-                </button>
-              )}
-
-              <button
-                onClick={handleShowHelp}
-                className="bg-blue-600 hover:bg-blue-700 text-white p-2 rounded-lg transition-colors duration-200"
-                title="Help & Instructions"
-              >
-                <MemoizedHelpCircle className="w-4 h-4" />
-              </button>
-
-              <button
-                onClick={handleShowSettings}
-                className="bg-gray-600 hover:bg-gray-700 text-white p-2 rounded-lg transition-colors duration-200"
-                title="Settings"
-              >
-                <MemoizedSettings className="w-4 h-4" />
-              </button>
-
-              {user ? (
-                <button
-                  onClick={handleShowProfile}
-                  className="bg-cyan-600 hover:bg-cyan-700 text-white p-2 rounded-lg transition-colors duration-200"
-                  title="Profile"
-                >
-                  <MemoizedUserCircle className="w-4 h-4" />
-                </button>
-              ) : (
-                <button
-                  onClick={handleShowSignup}
-                  className="bg-green-600 hover:bg-green-700 text-white p-2 rounded-lg transition-colors duration-200"
-                  title="Sign Up"
-                >
-                  <MemoizedUserPlus className="w-4 h-4" />
-                </button>
-              )}
+          {/* Compact Header */}
+          <div className="flex items-center justify-center mb-3">
+            <div className="flex items-center gap-2">
+              <MemoizedTrophy className="w-6 h-6 sm:w-8 sm:h-8 text-yellow-500" />
+              <h2 className="text-lg sm:text-xl font-bold text-cyan-500">Game Over!</h2>
             </div>
           </div>
           
@@ -248,88 +160,37 @@ function GameOverScreen({ score, scoreBreakdown, comboInfo, onPlayAgain, audioMa
             scoreBreakdown={scoreBreakdown} 
             comboInfo={comboInfo} 
           />
-          
-          {/* Player Ranking Component */}
-          <PlayerRanking 
-            playerRank={playerRank} 
-            verifiedRank={verifiedRank} 
-            isUser={!!user} 
-          />
 
-          {/* Score Saving Component */}
-          <ScoreSaving 
-            score={score} 
-            user={user} 
-            verifiedRank={verifiedRank} 
-            onShowSignup={() => setShowSignup(true)} 
+          {/* Action Buttons Component */}
+          <GameOverActions
+            user={user}
+            score={score}
+            onPlayAgain={handlePlayAgain}
+            onModalOpen={handleModalOpen}
+            audioManager={audioManager}
           />
-
-          <div className="space-y-3 mt-6">
-            <button
-              onClick={handleShowLeaderboard}
-              className="w-full bg-transparent border border-yellow-500 text-yellow-500 hover:bg-yellow-500 hover:text-black font-bold py-2 px-4 rounded transition-colors duration-200 flex items-center justify-center gap-2"
-            >
-              <MemoizedEye className="w-4 h-4" />
-              View Verified Leaderboard
-            </button>
-            
-            <button
-              onClick={handlePlayAgain}
-              className="w-full bg-transparent border border-cyan-500 text-cyan-500 hover:bg-cyan-500 hover:text-black font-bold py-2 px-4 rounded transition-colors duration-200 flex items-center justify-center gap-2"
-            >
-              <MemoizedRotateCcw className="w-4 h-4" />
-              Play Again
-            </button>
-          </div>
         </div>
       </div>
 
-      {/* Modals */}
-      <SignupModal
-        isOpen={showSignup}
-        onClose={handleCloseSignup}
-        playerScore={score}
-        playerName=""
+      {/* Modals Component */}
+      <GameOverModals
+        activeModal={uiState.activeModal}
+        onClose={handleModalClose}
+        score={score}
+        user={user}
+        audioManager={audioManager}
       />
-
-      <LeaderboardModal
-        isOpen={showLeaderboard}
-        onClose={handleCloseLeaderboard}
-        playerScore={score}
-      />
-
-      <AccountModal
-        isOpen={showAccount}
-        onClose={handleCloseAccount}
-      />
-
-      <SettingsModal
-        isOpen={showSettings}
-        onClose={handleCloseSettings}
-      />
-
-      <ProfileModal
-        isOpen={showProfile}
-        onClose={handleCloseProfile}
-        userId={user?.id}
-      />
-
-      <HelpModal
-        isOpen={showHelp}
-        onClose={handleCloseHelp}
-      />
-
-      {/* Music Controls Modal */}
-      {audioManager && (
-        <MusicControls 
-          audioManager={audioManager} 
-          isVisible={showMusicControls}
-          onClose={handleCloseMusicControls}
-        />
-      )}
     </>
   );
 }
 
-// Export memoized component to prevent unnecessary re-renders
-export default React.memo(GameOverScreen);
+// OPTIMIZED memo with reduced comparison surface
+export default React.memo(GameOverScreen, (prevProps, nextProps) => {
+  return (
+    prevProps.score === nextProps.score &&
+    prevProps.scoreBreakdown === nextProps.scoreBreakdown &&
+    prevProps.comboInfo === nextProps.comboInfo &&
+    prevProps.onPlayAgain === nextProps.onPlayAgain &&
+    prevProps.audioManager === nextProps.audioManager
+  );
+});

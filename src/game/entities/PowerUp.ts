@@ -46,6 +46,27 @@ export class PowerUpManager {
   private readonly MAX_POWERUPS_ON_SCREEN = 2;
   private canvasWidth: number = window.innerWidth;
   private canvasHeight: number = window.innerHeight;
+  
+  // Performance optimization properties
+  private performanceMode: boolean = false;
+  private isMobile: boolean = false;
+
+  constructor() {
+    // Detect mobile device for performance optimizations
+    this.isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
+                    window.innerWidth < 768;
+    this.performanceMode = this.isMobile; // Default to performance mode on mobile
+    
+    console.log('🔋 PowerUpManager initialized:', {
+      isMobile: this.isMobile,
+      performanceMode: this.performanceMode
+    });
+  }
+
+  // Update performance mode based on current settings
+  updatePerformanceMode(enabled: boolean): void {
+    this.performanceMode = enabled || this.isMobile; // Always use performance mode on mobile
+  }
 
   update(gameTime: number, deltaTime: number) {
     // Update canvas dimensions for boundary detection
@@ -169,6 +190,14 @@ export class PowerUpManager {
   }
 
   private updateEnergyWaves(powerUp: PowerUp, deltaTime: number): void {
+    // Skip expensive energy waves in performance mode
+    if (this.performanceMode) {
+      // Simple breathing effect only
+      powerUp.energyWaves = []; // Clear existing waves
+      return;
+    }
+    
+    // Full desktop effect
     // Update existing waves
     powerUp.energyWaves.forEach((wave, index) => {
       wave.radius += wave.growthRate * deltaTime * 0.1;
@@ -180,8 +209,8 @@ export class PowerUpManager {
       }
     });
 
-    // Spawn new energy waves periodically
-    if (Math.random() < 0.002 * deltaTime) { // Roughly every 2-3 seconds
+    // Spawn new energy waves periodically (reduced frequency for performance)
+    if (Math.random() < 0.001 * deltaTime) { // Reduced from 0.002 to 0.001
       powerUp.energyWaves.push({
         radius: powerUp.radius * 1.2,
         alpha: 0.6,

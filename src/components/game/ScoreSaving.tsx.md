@@ -85,44 +85,25 @@ function ScoreSaving({ score, user, verifiedRank, onShowSignup }: ScoreSavingPro
           </button>
         </div>
       ) : (
-        // Guest user flow
-        <>
-          <input
-            type="text"
-            placeholder="Enter your name"
-            value={playerName}
-            onChange={(e) => setPlayerName(e.target.value)}
-            className="w-full px-4 py-2 bg-gray-800 border border-cyan-500 rounded text-cyan-100 placeholder-cyan-700 focus:outline-none focus:ring-2 focus:ring-cyan-500"
-            maxLength={20}
-          />
-          
-          <button
-            onClick={handleSaveGuestScore}
-            disabled={!playerName.trim() || isSaving}
-            className="w-full bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
-          >
-            {isSaving ? 'Saving...' : 'Save as Guest'}
-          </button>
-
-          <div className="relative">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-gray-600"></div>
-            </div>
-            <div className="relative flex justify-center text-sm">
-              <span className="px-2 bg-gray-900 text-gray-400">or</span>
-            </div>
+        // Guest user flow - Removed guest saving, only signup option
+        <div className="bg-orange-900/30 border border-orange-500/50 rounded-lg p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <MemoizedUserPlus className="w-5 h-5 text-orange-400" />
+            <span className="text-orange-300 font-semibold">Account Required</span>
           </div>
-
+          <p className="text-orange-200 text-sm mb-3">
+            To save your score and compete on the leaderboard, you need to create an account.
+          </p>
           <button
             onClick={onShowSignup}
             className="w-full bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 text-white font-bold py-3 px-4 rounded transition-all duration-200 transform hover:scale-105 shadow-lg"
           >
             <div className="flex items-center justify-center gap-2">
               <MemoizedUserPlus className="w-5 h-5" />
-              <span>Sign up to compete on leaderboard!</span>
+              <span>Sign Up & Save Score</span>
             </div>
           </button>
-        </>
+        </div>
       )}
     </div>
   );

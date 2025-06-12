@@ -63,8 +63,10 @@ export class GameEngineUtilities {
   }
 
   private handlePerformanceModeChange(enabled: boolean): void {
-    const performanceSettings = this.core.getSystemManager().getEngineCore().getPerformanceSettings();
-    this.core.getPerformanceManager().applyPerformanceMode(enabled, performanceSettings);
+    const engineCore = this.core.getSystemManager().getEngineCore();
+    engineCore.applyPerformanceMode(enabled);
+    
+    console.log(`🔧 [GameEngineUtilities] Performance mode change applied via EngineCore: ${enabled}`);
   }
 
   // Audio control methods

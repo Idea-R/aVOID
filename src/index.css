@@ -2,6 +2,89 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Game-specific styles */
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background: #000;
+  overflow: hidden;
+}
+
+code {
+  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
+    monospace;
+}
+
+/* Custom animations for mobile UI */
+@keyframes slide-down {
+  from {
+    opacity: 0;
+    transform: translateY(-10px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes pulse-glow {
+  0%, 100% {
+    box-shadow: 0 0 5px rgba(34, 211, 238, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(34, 211, 238, 0.6), 0 0 30px rgba(34, 211, 238, 0.3);
+  }
+}
+
+@keyframes subtle-scan {
+  0% {
+    background-position: -100% 0;
+  }
+  100% {
+    background-position: 100% 0;
+  }
+}
+
+.animate-slide-down {
+  animation: slide-down 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Cyberpunk-style hover effects */
+.cyberpunk-glow:hover {
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+/* Subtle scan line effect for futuristic feel */
+.scan-lines::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(34, 211, 238, 0.1),
+    transparent
+  );
+  background-size: 200% 100%;
+  animation: subtle-scan 3s linear infinite;
+  pointer-events: none;
+}
+
+/* Performance optimizations for mobile */
+@media (max-width: 768px) {
+  * {
+    -webkit-transform: translateZ(0);
+    transform: translateZ(0);
+  }
+}
+
 /* Custom slider styles */
 .slider::-webkit-slider-thumb {
   appearance: none;
@@ -60,4 +143,188 @@
 
 .animate-fade-in {
   animation: fade-in 0.8s ease-out forwards;
+}
+
+/* Mobile-first responsive breakpoints */
+:root {
+  /* Base mobile variables */
+  --mobile-padding: 8px;
+  --mobile-font-size: 14px;
+  --mobile-button-size: 44px; /* Apple's minimum touch target */
+  --mobile-safe-area-top: env(safe-area-inset-top, 0px);
+  --mobile-safe-area-bottom: env(safe-area-inset-bottom, 0px);
+  --mobile-safe-area-left: env(safe-area-inset-left, 0px);
+  --mobile-safe-area-right: env(safe-area-inset-right, 0px);
+}
+
+/* Enhanced mobile viewport handling */
+@media screen and (max-width: 480px) {
+  :root {
+    --mobile-padding: 6px;
+    --mobile-font-size: 12px;
+    --mobile-button-size: 48px;
+  }
+  
+  /* Ultra-compact mobile styles */
+  .text-xs { font-size: 10px; }
+  .text-sm { font-size: 11px; }
+  .text-base { font-size: 12px; }
+  .text-lg { font-size: 14px; }
+  .text-xl { font-size: 16px; }
+  .text-2xl { font-size: 18px; }
+  
+  /* Reduce spacing on very small screens */
+  .p-1 { padding: 2px; }
+  .p-2 { padding: 4px; }
+  .p-3 { padding: 6px; }
+  .p-4 { padding: 8px; }
+  .gap-1 { gap: 2px; }
+  .gap-2 { gap: 4px; }
+  .gap-3 { gap: 6px; }
+}
+
+@media screen and (max-width: 768px) {
+  :root {
+    --mobile-padding: 8px;
+    --mobile-font-size: 13px;
+    --mobile-button-size: 46px;
+  }
+  
+  /* Standard mobile styles */
+  .mobile-optimized {
+    padding: var(--mobile-padding);
+    font-size: var(--mobile-font-size);
+  }
+  
+  /* Touch-friendly button sizing */
+  button, .button-like {
+    min-height: var(--mobile-button-size);
+    min-width: var(--mobile-button-size);
+    padding: 12px 16px;
+  }
+  
+  /* Enhanced touch targets for interactive elements */
+  .touch-target {
+    min-height: 44px;
+    min-width: 44px;
+    padding: 8px;
+  }
+  
+  /* Mobile-specific margins and padding */
+  .mobile-container {
+    padding-top: calc(var(--mobile-safe-area-top) + 8px);
+    padding-bottom: calc(var(--mobile-safe-area-bottom) + 8px);
+    padding-left: calc(var(--mobile-safe-area-left) + 8px);
+    padding-right: calc(var(--mobile-safe-area-right) + 8px);
+  }
+}
+
+@media screen and (min-width: 769px) and (max-width: 1024px) {
+  /* Tablet landscape styles */
+  :root {
+    --mobile-padding: 12px;
+    --mobile-font-size: 15px;
+    --mobile-button-size: 42px;
+  }
+  
+  /* Optimized for tablet gaming */
+  .game-container {
+    padding: 12px;
+  }
+  
+  .hud-element {
+    font-size: 16px;
+  }
+}
+
+@media screen and (min-width: 1025px) {
+  /* Desktop styles */
+  :root {
+    --mobile-padding: 16px;
+    --mobile-font-size: 16px;
+    --mobile-button-size: 40px;
+  }
+  
+  /* Full desktop experience */
+  .desktop-enhanced {
+    padding: 16px;
+    font-size: 16px;
+  }
+}
+
+/* Orientation-specific optimizations */
+@media screen and (orientation: portrait) and (max-width: 768px) {
+  /* Portrait mobile optimizations */
+  .score-display {
+    font-size: clamp(16px, 4vw, 24px);
+    top: calc(var(--mobile-safe-area-top) + 12px);
+  }
+  
+  .power-up-display {
+    font-size: clamp(12px, 3vw, 16px);
+    top: calc(var(--mobile-safe-area-top) + 60px);
+  }
+  
+  .expandable-menu-button {
+    top: calc(var(--mobile-safe-area-top) + 12px);
+    right: calc(var(--mobile-safe-area-right) + 12px);
+  }
+}
+
+@media screen and (orientation: landscape) and (max-height: 500px) {
+  /* Landscape mobile optimizations */
+  .score-display {
+    font-size: clamp(14px, 3vh, 20px);
+    top: calc(var(--mobile-safe-area-top) + 8px);
+  }
+  
+  .power-up-display {
+    font-size: clamp(10px, 2.5vh, 14px);
+    top: calc(var(--mobile-safe-area-top) + 40px);
+  }
+  
+  .expandable-menu-button {
+    top: calc(var(--mobile-safe-area-top) + 8px);
+    right: calc(var(--mobile-safe-area-right) + 8px);
+  }
+  
+  /* Compact menu for landscape */
+  .expandable-menu {
+    width: clamp(140px, 25vw, 180px);
+    max-height: 60vh;
+    font-size: 12px;
+  }
+}
+
+/* High DPI / Retina display optimizations */
+@media screen and (-webkit-min-device-pixel-ratio: 2), (min-resolution: 2dppx) {
+  .crisp-rendering {
+    image-rendering: -webkit-optimize-contrast;
+    image-rendering: crisp-edges;
+  }
+  
+  /* Sharper text rendering on high DPI */
+  .text-sharp {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+}
+
+/* Performance-focused styles for low-end devices */
+@media screen and (max-width: 480px) and (max-device-width: 800px) {
+  /* Simplified animations for low-end mobile */
+  .simplified-animations * {
+    transition-duration: 0.15s !important;
+    animation-duration: 0.15s !important;
+  }
+  
+  /* Reduced transparency for better performance */
+  .performance-mode .bg-opacity-90 { background-color: rgba(0, 0, 0, 0.95); }
+  .performance-mode .bg-opacity-80 { background-color: rgba(0, 0, 0, 0.9); }
+  .performance-mode .bg-opacity-70 { background-color: rgba(0, 0, 0, 0.85); }
+  
+  /* Simplified shadows */
+  .performance-mode .shadow-lg { box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3); }
+  .performance-mode .shadow-xl { box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4); }
 }

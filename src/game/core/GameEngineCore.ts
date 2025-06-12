@@ -19,8 +19,18 @@ export class GameEngineCore {
   
   // State update throttling to prevent excessive React re-renders
   private lastStateUpdateTime: number = 0;
-  private stateUpdateInterval: number = 1000; // Update UI max 1 time/sec instead of 2.5
+  private stateUpdateInterval: number = 100; // 10fps for UI updates (was 1000ms)
   private priorityUpdatePending: boolean = false; // Flag for high-priority updates like performance mode
+  
+  // Track previous state to detect actual changes
+  private previousState = {
+    score: 0,
+    powerUpCharges: 0,
+    isGameOver: false,
+    performanceMode: false,
+    meteors: 0,
+    particles: 0
+  };
   
   onStateUpdate: (state: GameStateData) => void = () => {};
 
@@ -272,17 +282,44 @@ export class GameEngineCore {
     const engineCore = this.systemManager.getEngineCore();
     const performanceStats = this.performanceManager.getPerformanceStats(engineCore.getPerformanceSettings());
     
-    const stateData: GameStateData = {
+    // Collect current state values
+    const currentState = {
       score: engineCore.getScoreSystem().getTotalScore(),
+      powerUpCharges: engineCore.getPowerUpManager().getCharges(),
+      isGameOver: isGameOver || engineCore.getGameLogic().isGameOverState(),
+      performanceMode: engineCore.getPerformanceSettings().performanceModeActive,
+      meteors: engineCore.getGameLogic().getMeteorCount(),
+      particles: engineCore.getParticleSystem().getParticleCount()
+    };
+    
+    // Check if any HUD-relevant values have actually changed
+    const hasChanges = 
+      this.previousState.score !== currentState.score ||
+      this.previousState.powerUpCharges !== currentState.powerUpCharges ||
+      this.previousState.isGameOver !== currentState.isGameOver ||
+      this.previousState.performanceMode !== currentState.performanceMode ||
+      (Math.abs(this.previousState.meteors - currentState.meteors) > 2) || // Only trigger if meteor count changes significantly
+      (Math.abs(this.previousState.particles - currentState.particles) > 10); // Only trigger if particle count changes significantly
+    
+    // Only propagate update if there are actual changes OR this is a priority update
+    if (!hasChanges && !this.priorityUpdatePending && !isGameOver) {
+      return; // Skip unnecessary update
+    }
+    
+    // Update previous state tracking
+    this.previousState = { ...currentState };
+    
+    const stateData: GameStateData = {
+      score: currentState.score,
       scoreBreakdown: engineCore.getScoreSystem().getScoreBreakdown(),
       comboInfo: engineCore.getScoreSystem().getComboInfo(),
-      powerUpCharges: engineCore.getPowerUpManager().getCharges(),
+      powerUpCharges: currentState.powerUpCharges,
       maxPowerUpCharges: engineCore.getPowerUpManager().getMaxCharges(),
       time: engineCore.getGameLogic().getGameTime(),
-      isGameOver: isGameOver || engineCore.getGameLogic().isGameOverState(),
+      isGameOver: currentState.isGameOver,
       fps: performanceStats.fps,
-      meteors: engineCore.getGameLogic().getMeteorCount(),
-      particles: engineCore.getParticleSystem().getParticleCount(),
+      meteors: currentState.meteors,
+      particles: currentState.particles,
       poolSizes: {
         meteors: engineCore.getMeteorPool().getPoolSize(),
         particles: engineCore.getParticleSystem().getPoolSize()
@@ -302,6 +339,7 @@ export class GameEngineCore {
     };
     
     this.onStateUpdate(stateData);
+    console.log(`🔄 [STATE UPDATE] Changes detected: score=${this.previousState.score !== currentState.score}, powerUp=${this.previousState.powerUpCharges !== currentState.powerUpCharges}, gameOver=${this.previousState.isGameOver !== currentState.isGameOver}, priority=${this.priorityUpdatePending}`);
   }
   
   /**
@@ -332,11 +370,33 @@ export class GameEngineCore {
   }
   
   resetGame(): void {
+    // Preserve performance settings before reset
+    const engineCore = this.systemManager.getEngineCore();
+    const preservedSettings = {
+      performanceMode: engineCore.getSettings().performanceMode,
+      autoPerformanceModeEnabled: engineCore.getAutoPerformanceModeEnabled(),
+      performanceModeActive: engineCore.getPerformanceSettings().performanceModeActive
+    };
+    
+    console.log(`🔧 [ENGINE CORE] Preserving performance settings during reset: mode=${preservedSettings.performanceMode}, auto=${preservedSettings.autoPerformanceModeEnabled}`);
+    
     this.gameLoop.reset();
     this.performanceManager.reset();
     this.systemManager.reset();
     this.gameState.reset();
-    console.log('[ENGINE CORE] Game reset completed');
+    
+    // Restore performance settings after reset
+    if (preservedSettings.performanceMode !== engineCore.getSettings().performanceMode) {
+      console.log(`🔧 [ENGINE CORE] Restoring performance mode: ${preservedSettings.performanceMode}`);
+      engineCore.setPerformanceMode(preservedSettings.performanceMode);
+    }
+    
+    if (preservedSettings.autoPerformanceModeEnabled !== engineCore.getAutoPerformanceModeEnabled()) {
+      console.log(`🔧 [ENGINE CORE] Restoring auto performance mode: ${preservedSettings.autoPerformanceModeEnabled}`);
+      engineCore.updateSettings({ autoPerformanceModeEnabled: preservedSettings.autoPerformanceModeEnabled });
+    }
+    
+    console.log('[ENGINE CORE] Game reset completed with preserved performance settings');
   }
   
   pause(): void {
